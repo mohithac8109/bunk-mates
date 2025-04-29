@@ -6,17 +6,115 @@ import {
   query,
   orderBy,
   onSnapshot,
-  serverTimestamp
+  serverTimestamp,
+  doc,
+  getDoc,
 } from 'firebase/firestore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  Box,
+  TextField,
+  Button,
+  Typography,
+  Avatar,
+  Paper,
+  IconButton,
+} from '@mui/material';
+import { styled } from '@mui/system';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+
+// Generate a consistent color per user based on their name
+const generateUserColor = (userName) => {
+  let hash = 0;
+  for (let i = 0; i < userName.length; i++) {
+    hash = userName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const color = '#' + ((hash >> 24) & 0xffffff).toString(16).padStart(6, '0');
+  return color;
+};
+
+const MessageContainer = styled(Box)({
+  flex: 1,
+  overflowY: 'auto',
+  padding: '20px',
+  backgroundColor: '#ffffff',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'flex-end',
+});
+
+const MessageBubble = styled(Paper)(({ isCurrentUser }) => ({
+  backgroundColor: isCurrentUser ? '#dcf8c6' : '#e4e6eb',
+  color: '#000',
+  padding: '12px',
+  borderRadius: '10px',
+  fontSize: '14px',
+  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+  position: 'relative',
+  maxWidth: '70%',
+  alignSelf: isCurrentUser ? 'flex-end' : 'flex-start',
+  marginBottom: '12px',
+}));
+
+const MessageTime = styled(Typography)({
+  fontSize: '10px',
+  position: 'absolute',
+  bottom: '-18px',
+  right: '5px',
+  color: '#888',
+});
+
+const GroupHeader = styled(Box)({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  padding: '15px',
+  backgroundColor: '#ffffff',
+  borderBottom: '1px solid #ccc',
+  color: '#000000',
+});
+
+const GroupAvatar = styled(Avatar)({
+  marginBottom: '10px',
+});
+
+const InputContainer = styled(Box)({
+  display: 'flex',
+  padding: '10px',
+  backgroundColor: '#ffffff',
+  borderTop: '1px solid #ccc',
+});
+
+const TextInput = styled(TextField)({
+  flex: 1,
+  borderRadius: '30px',
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '30px',
+  },
+});
+
+const SendButton = styled(Button)({
+  backgroundColor: '#25d366',
+  color: '#fff',
+  borderRadius: '50%',
+  padding: '12px',
+  marginLeft: '10px',
+  '&:hover': {
+    backgroundColor: '#128c7e',
+  },
+});
 
 function GroupChat() {
+  const { name, groupName } = useParams();
   const [messages, setMessages] = useState([]);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
+  const [messageStatus, setMessageStatus] = useState({});
+  const [groupInfo, setGroupInfo] = useState({});
+  const [userColors, setUserColors] = useState({});
+  const bottomRef = useRef(null);
   const navigate = useNavigate();
   const currentUser = auth.currentUser;
-  const bottomRef = useRef(null);
 
   useEffect(() => {
     if (!currentUser) {
@@ -24,8 +122,9 @@ function GroupChat() {
       return;
     }
 
+    // Realtime listener for messages
     const q = query(
-      collection(db, 'groupChat', 'general', 'messages'),
+      collection(db, 'groupChat', groupName, 'messages'),
       orderBy('timestamp', 'asc')
     );
 
@@ -38,85 +137,212 @@ function GroupChat() {
       setLoading(false);
     });
 
+    // Get group info
+    const fetchGroupInfo = async () => {
+      try {
+        const groupDocRef = doc(db, 'groupChats', groupName);
+        const docSnap = await getDoc(groupDocRef);
+        if (docSnap.exists()) {
+          setGroupInfo(docSnap.data());
+        }
+      } catch (error) {
+        console.error('Failed to fetch group info:', error);
+      }
+    };
+
+    fetchGroupInfo();
+
     return () => unsubscribe();
-  }, [currentUser, navigate]);
+  }, [currentUser, navigate, groupName]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMsg.trim()) return;
 
-    await addDoc(collection(db, 'groupChat', 'general', 'messages'), {
+    const message = {
       text: newMsg.trim(),
       senderId: currentUser.uid,
       senderName: currentUser.displayName || 'Anonymous',
-      timestamp: serverTimestamp()
-    });
+      timestamp: serverTimestamp(),
+      status: 'sent',
+      read: false,
+    };
+
+    const docRef = await addDoc(
+      collection(db, 'groupChat', groupName, 'messages'),
+      message
+    );
+
+    setMessageStatus((prev) => ({
+      ...prev,
+      [docRef.id]: 'sent',
+    }));
 
     setNewMsg('');
   };
+
+  const handleBackButton = () => navigate(-1);
+
+  const groupEmoji = groupInfo.emoji || '';
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    const colors = {};
+    messages.forEach((msg) => {
+      if (!colors[msg.senderId]) {
+        colors[msg.senderId] = generateUserColor(msg.senderName);
+      }
+    });
+    setUserColors(colors);
+  }, [messages]);
+
   if (!currentUser) return <div>Loading...</div>;
 
-  return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-      <h2 style={{ marginBottom: '20px' }}>Group Chat - General</h2>
+  const groupMessagesByDate = (messages) => {
+    return messages.reduce((groups, message) => {
+      const timestamp = message.timestamp?.seconds
+        ? new Date(message.timestamp.seconds * 1000)
+        : new Date();
+      const dateString = timestamp.toLocaleDateString();
 
-      <div style={{
-        height: '60vh',
-        overflowY: 'auto',
-        background: '#f0f0f0',
-        padding: '15px',
-        borderRadius: '10px',
-        marginBottom: '10px'
-      }}>
+      if (!groups[dateString]) {
+        groups[dateString] = [];
+      }
+      groups[dateString].push(message);
+
+      return groups;
+    }, {});
+  };
+
+  const groupedMessages = groupMessagesByDate(messages);
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#ffffff' }}>
+      <GroupHeader>
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+    <Avatar
+      sx={{
+        bgcolor: '#f0f0f0',
+        color: '#000',
+        fontSize: 30,
+        width: 60,
+        height: 60,
+        border: '2px solid #ccc',
+      }}
+    >
+      {groupEmoji}
+    </Avatar>
+    <Box>
+      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+        {groupName}
+      </Typography>
+      {groupInfo.createdBy?.name && (
+        <Typography variant="caption" sx={{ color: '#888' }}>
+          Created by {groupInfo.createdBy.name}
+        </Typography>
+      )}
+    </Box>
+  </Box>
+  {groupInfo.members?.length > 0 && (
+    <Typography
+      variant="body2"
+      sx={{ color: '#777', marginTop: '10px', textAlign: 'center' }}
+    >
+      {groupInfo.members.join(', ')}
+    </Typography>
+  )}
+</GroupHeader>
+
+
+      <MessageContainer>
         {loading ? (
-          <p>Loading messages...</p>
+          <Typography variant="body1" sx={{ textAlign: 'center', color: '#888' }}>
+            Loading messages...
+          </Typography>
         ) : (
-          messages.map(msg => (
-            <div key={msg.id} style={{
-              marginBottom: '12px',
-              backgroundColor: msg.senderId === currentUser.uid ? '#d1f5d3' : '#ffffff',
-              padding: '10px',
-              borderRadius: '8px'
-            }}>
-              <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{msg.senderName}</div>
-              <div style={{ fontSize: '15px' }}>{msg.text}</div>
-            </div>
+          Object.keys(groupedMessages).map((date) => (
+            <Box key={date} sx={{ marginBottom: '20px' }}>
+              <Typography variant="body2" sx={{ color: '#aaa', textAlign: 'center', marginBottom: '10px' }}>
+                {date}
+              </Typography>
+              {groupedMessages[date].map((msg) => (
+                <Box
+                  key={msg.id}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: msg.senderId === currentUser.uid ? 'row-reverse' : 'row',
+                    marginBottom: '15px',
+                  }}
+                >
+                  <Box sx={{ marginRight: '10px', marginLeft: '10px' }}>
+                    <Avatar
+                      src={`https://ui-avatars.com/api/?name=${msg.senderName}`}
+                      alt="avatar"
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        objectFit: 'cover',
+                        marginTop: '3px',
+                      }}
+                    />
+                  </Box>
+
+                  <MessageBubble isCurrentUser={msg.senderId === currentUser.uid} status={msg.status}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 'bold',
+                        fontSize: '13px',
+                        marginBottom: '5px',
+                        color: userColors[msg.senderId],
+                      }}
+                    >
+                      {msg.senderName}
+                    </Typography>
+                    <Typography variant="body2">{msg.text}</Typography>
+                    <MessageTime>
+                      {msg.timestamp?.seconds
+                        ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString()
+                        : 'Just now'}
+                    </MessageTime>
+
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        bottom: '-18px',
+                        left: '5px',
+                        color: '#888',
+                        fontSize: '10px',
+                      }}
+                    >
+                      {msg.status === 'sent'
+                        ? 'Sent'
+                        : msg.status === 'delivered'
+                        ? 'Delivered'
+                        : 'Read'}
+                    </Box>
+                  </MessageBubble>
+                </Box>
+              ))}
+            </Box>
           ))
         )}
         <div ref={bottomRef} />
-      </div>
+      </MessageContainer>
 
-      <form onSubmit={sendMessage} style={{ display: 'flex', gap: '10px' }}>
-        <input
+      <InputContainer>
+        <TextInput
           value={newMsg}
           onChange={(e) => setNewMsg(e.target.value)}
-          type="text"
           placeholder="Type a message..."
-          style={{
-            flex: 1,
-            padding: '10px',
-            borderRadius: '8px',
-            border: '1px solid #ccc',
-            fontSize: '15px'
-          }}
+          variant="outlined"
         />
-        <button type="submit" style={{
-          padding: '10px 20px',
-          backgroundColor: '#007bff',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'pointer'
-        }}>
-          Send
-        </button>
-      </form>
-    </div>
+        <SendButton onClick={sendMessage}>➤</SendButton>
+      </InputContainer>
+    </Box>
   );
 }
 

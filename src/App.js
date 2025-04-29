@@ -18,7 +18,7 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/chats" element={<Chats />} />
         <Route path="/chat/:friendId" element={<Chatroom />} />
-        <Route path="/group/:groupId" element={<GroupChat />}/>
+        <Route path="/group/:groupName" element={<GroupChat />}/>
         <Route path="/" element={
           <ProtectedRoute>
             <Home />
