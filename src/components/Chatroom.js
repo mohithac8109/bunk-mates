@@ -146,7 +146,7 @@ function ChatRoom() {
       <AppBar position="static" color="transparent" elevation={1}>
         <Toolbar>
           <IconButton onClick={goBack} sx={{ mr: 2 }}>
-            <Typography variant="h6">Back</Typography>
+            <Typography variant="h6"> &lt; </Typography>
           </IconButton>
           <Avatar src={friendDetails.photoURL} alt={friendDetails.name} sx={{ mr: 2 }} />
           <Box>
