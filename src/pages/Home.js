@@ -99,18 +99,31 @@ const Home = () => {
 
   useEffect(() => {
     const fetchUserData = async () => {
-      const user = auth.currentUser;
-      if (user) {
-        const { displayName, email, photoURL, phoneNumber } = user;
-        setUserData({
-          name: displayName,
-          email: email,
-          mobile: phoneNumber || "Not provided", // If no phone number is provided
-          photoURL: photoURL || "",
-        });
-      } else {
-        navigate("/login"); // If no user is authenticated, navigate to the login page
+      let user = auth.currentUser;
+
+      // Check localStorage for user data if not available in Firebase
+      if (!user) {
+        const storedUser = localStorage.getItem("bunkmateuser");
+        if (storedUser) {
+          setUserData(JSON.parse(storedUser));
+          setLoading(false);
+          return;
+        } else {
+          navigate("/login");
+          return;
+        }
       }
+
+      const { displayName, email, photoURL, phoneNumber } = user;
+      const newUserData = {
+        name: displayName || "User",
+        email: email || "",
+        mobile: phoneNumber || "Not provided", // If no phone number is provided
+        photoURL: photoURL || "",
+      };
+
+      setUserData(newUserData);
+      localStorage.setItem("bunkmateuser", JSON.stringify(newUserData)); // Store user data in localStorage
       setLoading(false);
     };
 
@@ -128,6 +141,7 @@ const Home = () => {
   const handleLogout = async () => {
     try {
       await signOut(auth); // Firebase sign out
+      localStorage.removeItem("bunkmateuser"); // Clear user data from localStorage
       navigate("/login"); // Navigate to login page after logout
     } catch (error) {
       console.error("Error logging out:", error);
