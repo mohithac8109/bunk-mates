@@ -23,7 +23,7 @@ const Sidebar = () => {
       }}
     >
       <Typography variant="h6" gutterBottom>
-        Sidebar
+        
       </Typography>
       <Button variant="contained" color="primary" onClick={goToChats}>
         Chats
