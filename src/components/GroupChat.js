@@ -37,7 +37,7 @@ const generateUserColor = (userName) => {
 const MessageContainer = styled(Box)({
   flex: 1,
   overflowY: 'auto',
-  padding: '20px',
+  padding: '0',
   backgroundColor: '#ffffff',
   display: 'flex',
   flexDirection: 'column',
@@ -283,7 +283,7 @@ function GroupChat() {
 
       <Box   sx={{
     flexGrow: 1,
-    padding: '16px',
+    padding: '0',
     paddingTop: '50px',
     overflowY: 'auto',
     marginBottom: '5px', // optional if you have a fixed input/footer
