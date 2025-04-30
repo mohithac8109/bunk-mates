@@ -1,29 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { auth, db } from '../firebase';
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  limit,
-  onSnapshot,
-  doc,
-  updateDoc,
-  addDoc,
-  where,
-} from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, onSnapshot, doc, updateDoc, addDoc, where } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
+import { Person } from '@mui/icons-material'; // Import the Material Icon
 
 function Chats() {
   const [users, setUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [unreadCounts, setUnreadCounts] = useState({});
   const [latestMessages, setLatestMessages] = useState({});
+  const [latestTimestamps, setLatestTimestamps] = useState({});
   const [notification, setNotification] = useState(null);
   const [showGroupForm, setShowGroupForm] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [groupEmoji, setGroupEmoji] = useState('😊');
   const [userGroups, setUserGroups] = useState([]);
+  const [groupUnreadCounts, setGroupUnreadCounts] = useState({});
+  const [latestGroupMessages, setLatestGroupMessages] = useState({});
+  const [latestGroupTimestamps, setLatestGroupTimestamps] = useState({});
+  const [themes, setThemes] = useState('light');
+  const [favoriteChats, setFavoriteChats] = useState([]);
+  const [archivedChats, setArchivedChats] = useState([]);
+  const [swipeAction, setSwipeAction] = useState(null);
 
   const navigate = useNavigate();
   const currentUser = auth.currentUser;
@@ -31,16 +30,15 @@ function Chats() {
   useEffect(() => {
     const fetchUsers = async () => {
       if (!currentUser) return;
-      const querySnapshot = await getDocs(collection(db, 'users'));
+      const snapshot = await getDocs(collection(db, 'users'));
       const usersList = [];
-      querySnapshot.forEach((doc) => {
+      snapshot.forEach((doc) => {
         if (doc.id !== currentUser.uid) {
           usersList.push({ id: doc.id, ...doc.data() });
         }
       });
       setUsers(usersList);
     };
-
     fetchUsers();
   }, [currentUser]);
 
@@ -55,91 +53,95 @@ function Chats() {
       });
       setUserGroups(groups);
     };
-
     fetchUserGroups();
   }, [currentUser]);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || users.length === 0) return;
 
     const unsubscribes = users.map((user) => {
       const chatId = [currentUser.uid, user.id].sort().join('_');
-      const q = query(
-        collection(db, 'chats', chatId, 'messages'),
-        orderBy('timestamp', 'desc'),
-        limit(10)
-      );
+      const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('timestamp', 'desc'), limit(1));
 
-      return onSnapshot(q, (querySnapshot) => {
-        let unreadCount = 0;
-        let latestMessage = null;
-
-        querySnapshot.forEach((doc) => {
+      return onSnapshot(q, (snapshot) => {
+        snapshot.forEach((doc) => {
           const data = doc.data();
-          if (!latestMessage) latestMessage = data;
-          if (data.senderId !== currentUser.uid && !data.isRead) {
-            unreadCount++;
+          const msg = data.text || 'No messages yet';
+          const ts = data.timestamp?.toDate?.() || new Date(0);
+          const unread = data.senderId !== currentUser.uid && !data.isRead ? 1 : 0;
+
+          setLatestMessages((prev) => ({ ...prev, [user.id]: msg }));
+          setUnreadCounts((prev) => ({ ...prev, [user.id]: unread }));
+          setLatestTimestamps((prev) => ({ ...prev, [user.id]: ts }));
+
+          if (unread) {
+            setNotification({ user: user.name || user.username, message: msg });
+            setTimeout(() => setNotification(null), 3000);
           }
         });
-
-        setLatestMessages((prev) => ({
-          ...prev,
-          [user.id]: latestMessage?.text || 'No messages yet',
-        }));
-
-        setUnreadCounts((prev) => ({
-          ...prev,
-          [user.id]: unreadCount,
-        }));
-
-        if (latestMessage?.senderId !== currentUser.uid && unreadCount === 1) {
-          setNotification({
-            user: user.name || user.username,
-            message: latestMessage.text,
-          });
-
-          setTimeout(() => setNotification(null), 3000);
-        }
       });
     });
 
-    return () => {
-      unsubscribes.forEach((unsub) => unsub());
-    };
+    return () => unsubscribes.forEach((unsub) => unsub && unsub());
   }, [users, currentUser]);
+
+  useEffect(() => {
+    if (!currentUser || userGroups.length === 0) return;
+
+    const unsubscribes = userGroups.map((group) => {
+      const q = query(collection(db, 'groupChats', group.id, 'messages'), orderBy('timestamp', 'desc'), limit(1));
+
+      return onSnapshot(q, (snapshot) => {
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const msg = data.text || 'No messages yet';
+          const ts = data.timestamp?.toDate?.() || new Date(0);
+          const unread = data.senderId !== currentUser.uid && !data.isRead ? 1 : 0;
+
+          setLatestGroupMessages((prev) => ({ ...prev, [group.id]: msg }));
+          setGroupUnreadCounts((prev) => ({ ...prev, [group.id]: unread }));
+          setLatestGroupTimestamps((prev) => ({ ...prev, [group.id]: ts }));
+
+          if (unread) {
+            setNotification({ user: group.name, message: msg });
+            setTimeout(() => setNotification(null), 3000);
+          }
+        });
+      });
+    });
+
+    return () => unsubscribes.forEach((unsub) => unsub && unsub());
+  }, [userGroups, currentUser]);
 
   const handleSelect = async (userId) => {
     const chatId = [currentUser.uid, userId].sort().join('_');
-    const chatRef = collection(db, 'chats', chatId, 'messages');
-
-    const q = query(chatRef, orderBy('timestamp', 'desc'), limit(20));
+    const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('timestamp', 'desc'), limit(20));
     const snapshot = await getDocs(q);
 
     snapshot.forEach(async (docSnap) => {
       const data = docSnap.data();
       if (data.senderId !== currentUser.uid && !data.isRead) {
-        const msgRef = doc(db, 'chats', chatId, 'messages', docSnap.id);
-        await updateDoc(msgRef, { isRead: true });
+        await updateDoc(doc(db, 'chats', chatId, 'messages', docSnap.id), { isRead: true });
       }
     });
 
-    setUnreadCounts((prev) => ({
-      ...prev,
-      [userId]: 0,
-    }));
-
+    setUnreadCounts((prev) => ({ ...prev, [userId]: 0 }));
     navigate(`/chat/${userId}`);
+  };
+
+  const handleGroupClick = (groupId) => {
+    setGroupUnreadCounts((prev) => ({ ...prev, [groupId]: 0 }));
+    navigate(`/group/${groupId}`);
   };
 
   const handleGroupSubmit = async (e) => {
     e.preventDefault();
     if (!groupName || selectedUsers.length === 0) return;
 
-    const groupMembers = [...selectedUsers, currentUser.uid];
     const groupData = {
       name: groupName,
       emoji: groupEmoji,
-      members: groupMembers,
+      members: [...selectedUsers, currentUser.uid],
       createdAt: new Date(),
       createdBy: currentUser.uid,
     };
@@ -154,17 +156,56 @@ function Chats() {
     );
   };
 
-  const handleGroupClick = (groupId) => {
-    navigate(`/group/${groupId}`);
+  const toggleTheme = () => {
+    setThemes((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  if (!currentUser) return <div>Loading...</div>;
+  const sortedUsers = [...users]
+    .filter((user) => {
+      const name = user.name || user.username || '';
+      return name.toLowerCase().includes(searchTerm.toLowerCase());
+    })
+    .sort((a, b) => {
+      const timeA = latestTimestamps[a.id] || new Date(0);
+      const timeB = latestTimestamps[b.id] || new Date(0);
+      return timeB - timeA;
+    });
+
+  const sortedGroups = [...userGroups].sort((a, b) => {
+    const timeA = latestGroupTimestamps[a.id] || new Date(0);
+    const timeB = latestGroupTimestamps[b.id] || new Date(0);
+    return timeB - timeA;
+  });
+
+  const handleSwipeReply = (message) => {
+    setSwipeAction(message);
+  };
+
+  // Function to get profile picture (either Google login or Firestore)
+  const getUserProfilePic = (user) => {
+    return user.photoURL || auth.currentUser?.photoURL || 'https://via.placeholder.com/50';
+  };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2 style={{ marginBottom: '20px' }}>Chats</h2>
+    <div style={{ padding: '20px', backgroundColor: themes === 'light' ? '#fff' : '#333', transition: 'background-color 0.3s' }}>
+      <h2 style={{ color: themes === 'light' ? '#333' : '#fff' }}>Chats</h2>
+
+      <input
+        type="text"
+        placeholder="Search users..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        style={{
+          padding: '8px',
+          width: '100%',
+          marginBottom: '20px',
+          borderRadius: '6px',
+          border: '1px solid #ccc',
+        }}
+      />
 
       <button
+        onClick={() => setShowGroupForm(!showGroupForm)}
         style={{
           marginBottom: '20px',
           padding: '10px 15px',
@@ -174,7 +215,6 @@ function Chats() {
           border: 'none',
           cursor: 'pointer',
         }}
-        onClick={() => setShowGroupForm(!showGroupForm)}
       >
         ➕ Create Group Chat
       </button>
@@ -202,7 +242,7 @@ function Chats() {
           />
 
           <label style={{ fontWeight: 'bold' }}>Select members:</label>
-          <div style={{ maxHeight: '150px', overflowY: 'auto', marginTop: '10px', marginBottom: '10px' }}>
+          <div style={{ maxHeight: '150px', overflowY: 'auto', margin: '10px 0' }}>
             {users.map((user) => (
               <div key={user.id} style={{ marginBottom: '5px' }}>
                 <label>
@@ -251,89 +291,107 @@ function Chats() {
         </div>
       )}
 
-      <h3 style={{ marginTop: '40px' }}>Groups You Are In</h3>
-      {userGroups.length > 0 ? (
-        userGroups.map((group) => (
+      <h3>Personal Chats</h3>
+      {sortedUsers.map((user) => {
+        const unread = unreadCounts[user.id] || 0;
+        const profilePic = getUserProfilePic(user); // Get profile pic from Firestore or Google
+        return (
           <div
-            key={group.id}
-            onClick={() => handleGroupClick(group.id)}
+            key={user.id}
+            onClick={() => handleSelect(user.id)}
             style={{
-              backgroundColor: '#eef',
+              backgroundColor: unread > 0 ? '#fff4e4' : '#eef',
               padding: '10px',
               marginBottom: '10px',
               borderRadius: '8px',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              transition: 'background-color 0.3s',
             }}
           >
-            <strong>{group.emoji} {group.name}</strong>
-          </div>
-        ))
-      ) : (
-        <p>No groups yet.</p>
-      )}
-
-      <h3 style={{ marginTop: '30px' }}>Friends</h3>
-      {users.length > 0 ? (
-        users.map((user) => {
-          const unread = unreadCounts[user.id] || 0;
-          return (
-            <div
-              key={user.id}
-              onClick={() => handleSelect(user.id)}
+            <img
+              src={profilePic}
+              alt={`${user.name || user.username} profile`}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                marginBottom: '15px',
-                padding: '10px',
-                borderRadius: '8px',
-                backgroundColor: unread > 0 ? '#ffe4e4' : '#f5f5f5',
-                cursor: 'pointer',
-                position: 'relative',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                marginRight: '10px',
               }}
-            >
-              <img
-                src={user.photoURL || ''}
-                alt="profile"
-                style={{
-                  width: '50px',
-                  height: '50px',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  marginRight: '15px',
-                }}
-              />
-              <div>
-                <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{user.name || 'No Name'}</div>
-                <div style={{ fontSize: '13px', color: '#888' }}>@{user.username || 'unknown'}</div>
-                <div style={{ fontSize: '13px', color: '#555' }}>
-                  {latestMessages[user.id] || 'No messages yet'}
-                </div>
+            />
+            <div style={{ flex: 1 }}>
+              <strong>{user.name || user.username}</strong>
+              <div style={{ fontSize: '13px', color: '#555', marginTop: '5px' }}>
+                {latestMessages[user.id] || 'No messages yet'}
               </div>
-              {unread > 0 && (
-                <div
-                  style={{
-                    backgroundColor: 'red',
-                    color: 'white',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    position: 'absolute',
-                    right: '10px',
-                  }}
-                >
-                  {unread}
-                </div>
-              )}
             </div>
-          );
-        })
-      ) : (
-        <p>No friends found.</p>
-      )}
+            {unread > 0 && (
+              <span
+                style={{
+                  backgroundColor: '#ff0000',
+                  color: '#fff',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  fontSize: '12px',
+                }}
+              >
+                {unread}
+              </span>
+            )}
+          </div>
+        );
+      })}
+
+      <h3 style={{ marginTop: '40px' }}>Group Chats</h3>
+      {sortedGroups.map((group) => {
+        const unread = groupUnreadCounts[group.id] || 0;
+        const groupEmoji = group.emoji || '😊'; // Default to smiley emoji
+        return (
+          <div
+            key={group.id}
+            onClick={() => handleGroupClick(group.id)}
+            style={{
+              backgroundColor: unread > 0 ? '#f9f2ff' : '#eef',
+              padding: '10px',
+              marginBottom: '10px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ fontSize: '24px', marginRight: '10px' }}>{groupEmoji}</div>
+            <div style={{ flex: 1 }}>
+              <strong>{group.name}</strong>
+              <div style={{ fontSize: '13px', color: '#555', marginTop: '5px' }}>
+                {latestGroupMessages[group.id] || 'No messages yet'}
+              </div>
+            </div>
+            {unread > 0 && (
+              <span
+                style={{
+                  backgroundColor: '#ff0000',
+                  color: '#fff',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  fontSize: '12px',
+                }}
+              >
+                {unread}
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
