@@ -107,7 +107,7 @@ const SendButton = styled(Button)({
   },
 });
 
-function GroupChat() {
+function GroupMsg() {
   const { name, groupName } = useParams();
   const [messages, setMessages] = useState([]);
   const [newMsg, setNewMsg] = useState('');
@@ -386,4 +386,4 @@ function GroupChat() {
   );
 }
 
-export default GroupChat;
+export default GroupMsg;

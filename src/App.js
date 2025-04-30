@@ -7,7 +7,7 @@ import Chats from "./pages/Chats";
 import { UserProvider } from './contexts/UserContext';
 import Chatroom from "./components/Chatroom";
 import GroupChat from "./components/GroupChat";
-import ProtectedRoute from "./components/ProtectedRoute"; // we'll create this
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
