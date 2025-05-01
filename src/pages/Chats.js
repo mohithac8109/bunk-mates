@@ -11,10 +11,18 @@ import {
   updateDoc,
   addDoc,
   where,
+  serverTimestamp,
+  getDoc,
+  setDoc,
 } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { Avatar } from '@mui/material';
+import { Avatar, IconButton, Dialog, Slide, Box, Typography, TextField, Button } from '@mui/material';
 import { format, isToday, isYesterday } from 'date-fns';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import AddIcon from '@mui/icons-material/Add';
+import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
+import CloseIcon from '@mui/icons-material/Close';
+
 
 function Chats() {
   const [users, setUsers] = useState([]);
@@ -28,11 +36,138 @@ function Chats() {
   const [latestGroupMessages, setLatestGroupMessages] = useState({});
   const [latestGroupTimestamps, setLatestGroupTimestamps] = useState({});
   const [themes, setThemes] = useState('light');
+  const history = useNavigate();
+  const [addUserDialog, setAddUserDialog] = useState(false);
+  const [groupDialog, setGroupDialog] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [searchUsername, setSearchUsername] = useState('');
+  const [foundUsers, setFoundUsers] = useState([]);
+  const [groupName, setGroupName] = useState('');
+  const [groupEmoji, setGroupEmoji] = useState('💬');
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chat: null });
 
   const navigate = useNavigate();
   const currentUser = auth.currentUser;
 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (searchTerm.trim() === '') return setSearchResults([]);
+      const usersSnapshot = await getDocs(collection(db, "users"));
+      const matches = [];
+      usersSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (
+          data.username?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          data.uid !== currentUser.uid &&
+          !selectedUsers.some(u => u.uid === data.uid)
+        ) {
+          matches.push({ ...data, uid: doc.id });
+        }
+      });
+      setSearchResults(matches);
+    };
+    fetchUsers();
+  }, [searchTerm, selectedUsers]);
+
+  const handleAddToChatList = async (userToAdd) => {
+    if (!userToAdd || !userToAdd.uid) return;
+  
+    const chatId = [currentUser.uid, userToAdd.uid].sort().join('_');
+  
+    const userChatRef = doc(db, "userChats", currentUser.uid);
+    const userChatSnap = await getDoc(userChatRef);
+  
+    if (!userChatSnap.exists() || !userChatSnap.data()[chatId]) {
+      const currentUserChatData = {
+        [chatId]: {
+          userInfo: {
+            uid: userToAdd.uid,
+            displayName: userToAdd.displayName || "Unnamed User",
+            photoURL: userToAdd.photoURL || "",
+          },
+          date: serverTimestamp(),
+          lastMessage: {
+            text: "Say Hi!",
+          },
+        },
+      };
+  
+      const otherUserChatData = {
+        [chatId]: {
+          userInfo: {
+            uid: currentUser.uid,
+            displayName: currentUser.displayName || "Unnamed User",
+            photoURL: currentUser.photoURL || "",
+          },
+          date: serverTimestamp(),
+          lastMessage: {
+            text: "Say Hi!",
+          },
+        },
+      };
+  
+      await setDoc(doc(db, "userChats", currentUser.uid), currentUserChatData, { merge: true });
+      await setDoc(doc(db, "userChats", userToAdd.uid), otherUserChatData, { merge: true });
+  
+      // Optional: Create starter message
+      await addDoc(collection(db, "chats", chatId, "messages"), {
+        text: "Say Hi!",
+        senderId: currentUser.uid,
+        timestamp: serverTimestamp(),
+      });
+    }
+  
+    setAddUserDialog(false);
+    setSearchTerm('');
+  };
+  
+  
+
+  const handleAddUser = (user) => {
+    setSelectedUsers([...selectedUsers, user]);
+    setSearchTerm('');
+  };
+  
+  const handleRemoveUser = (uid) => {
+    setSelectedUsers(prev => prev.filter(u => u.uid !== uid));
+  };
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim() || selectedUsers.length === 0) return;
+  
+    const groupData = {
+      name: groupName,
+      emoji: groupEmoji,
+      members: [...selectedUsers.map(u => u.uid), currentUser.uid],
+      createdBy: currentUser.uid,
+      createdAt: serverTimestamp()
+    };
+
+    const groupRef = await addDoc(collection(db, 'groupChats'), groupData);
+    setAddUserDialog(false);
+    setGroupDialog(false);
+    setSelectedUsers([]);
+    setGroupName('');
+    setGroupEmoji('💬');
+  };
+
+  useEffect(() => {
+    const unsubs = onSnapshot(doc(db, "userChats", currentUser.uid), (docSnap) => {
+      if (docSnap.exists()) {
+        const chatsData = docSnap.data();
+        const sortedChats = Object.entries(chatsData).sort((a, b) => b[1].date?.seconds - a[1].date?.seconds);
+        setUsers(sortedChats.map(([chatId, data]) => ({
+          ...data.userInfo,
+          chatId,
+          lastMessage: data.lastMessage?.text || '',
+        })));
+      }
+    });
+  
+    return () => unsubs();
+  }, []);
+  
   useEffect(() => {
     const fetchUsers = async () => {
       if (!currentUser) return;
@@ -46,20 +181,6 @@ function Chats() {
       setUsers(usersList);
     };
     fetchUsers();
-  }, [currentUser]);
-
-  useEffect(() => {
-    const fetchUserGroups = async () => {
-      if (!currentUser) return;
-      const q = query(collection(db, 'groupChats'), where('members', 'array-contains', currentUser.uid));
-      const snapshot = await getDocs(q);
-      const groups = [];
-      snapshot.forEach((doc) => {
-        groups.push({ id: doc.id, ...doc.data() });
-      });
-      setUserGroups(groups);
-    };
-    fetchUserGroups();
   }, [currentUser]);
 
   useEffect(() => {
@@ -92,6 +213,20 @@ function Chats() {
   }, [users, currentUser]);
 
   useEffect(() => {
+    const fetchUserGroups = async () => {
+      if (!currentUser) return;
+      const q = query(collection(db, 'groupChats'), where('members', 'array-contains', currentUser.uid));
+      const snapshot = await getDocs(q);
+      const groups = [];
+      snapshot.forEach((doc) => {
+        groups.push({ id: doc.id, ...doc.data() });
+      });
+      setUserGroups(groups);
+    };
+    fetchUserGroups();
+  }, [currentUser]);
+
+  useEffect(() => {
     if (!currentUser || userGroups.length === 0) return;
 
     const unsubscribes = userGroups.map((group) => {
@@ -121,6 +256,11 @@ function Chats() {
 
     return () => unsubscribes.forEach((unsub) => unsub && unsub());
   }, [userGroups, currentUser]);
+
+  const goBack = () => {
+    history(-1);
+  };
+
 
   const handleSelect = async (userId) => {
     const chatId = [currentUser.uid, userId].sort().join('_');
@@ -185,7 +325,12 @@ function Chats() {
 
   return (
     <div style={{ padding: '10px', backgroundColor: '#02020200' }}>
+      <div style={{display: 'flex', flexDirection: 'row'}}>
+      <IconButton onClick={goBack} sx={{ mr: 1, color: '#fff' }}>
+        <ArrowBackIcon />
+      </IconButton>
       <h2 style={{ color: '#FFFFFF', fontSize: '32px' }}>Chats</h2>
+      </div>
 
       <input
         type="text"
@@ -294,8 +439,123 @@ function Chats() {
             )}
           </div>
         ))}
+
+        <Box>
+          {/* Floating Add Button */}
+<IconButton
+  onClick={() => setAddUserDialog(true)}
+  sx={{
+    position: 'fixed',
+    bottom: 20,
+    right: 20,
+    bgcolor: '#1E88E5',
+    color: 'white',
+    '&:hover': { bgcolor: '#1565C0' }
+  }}
+>
+  <AddIcon />
+</IconButton>
+
+        </Box>
       </div>
+
+      <Dialog open={groupDialog} onClose={() => setGroupDialog(false)} fullWidth maxWidth="sm">
+  <Box sx={{ bgcolor: '#212121', p: 3 }}>
+    <Typography variant="h6" color="#fff" sx={{ mb: 2 }}>Group Details</Typography>
+
+    <TextField
+      fullWidth
+      label="Group Name"
+      value={groupName}
+      onChange={(e) => setGroupName(e.target.value)}
+      sx={{ input: { color: '#fff' }, label: { color: '#fff' }, mb: 2 }}
+    />
+
+    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+      <EmojiEmotionsIcon sx={{ color: '#fff', mr: 1 }} />
+      <TextField
+        value={groupEmoji}
+        onChange={(e) => setGroupEmoji(e.target.value)}
+        sx={{ width: 60, input: { color: '#fff' } }}
+      />
+      <Typography color="#fff" sx={{ ml: 2 }}>Group Emoji</Typography>
+    </Box>
+
+    <Typography variant="subtitle2" color="#fff">Members:</Typography>
+    {selectedUsers.map(user => (
+      <Box key={user.uid} sx={{ display: 'flex', alignItems: 'center', my: 1 }}>
+        <Avatar src={user.photoURL} sx={{ mr: 1 }} />
+        <Typography color="#fff">{user.username}</Typography>
+      </Box>
+    ))}
+
+    <Button
+      variant="contained"
+      fullWidth
+      sx={{ mt: 3, bgcolor: '#AEEA00', color: '#000' }}
+      onClick={handleCreateGroup}
+    >
+      Confirm & Create Group
+    </Button>
+  </Box>
+</Dialog>
+
+
+<Dialog
+  fullScreen
+  open={addUserDialog}
+  onClose={() => setAddUserDialog(false)}
+  TransitionComponent={Slide}
+>
+  <Box sx={{ bgcolor: '#212121', height: '100vh', p: 3 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+      <Typography variant="h6" color="white">Start New Group</Typography>
+      <IconButton onClick={() => setAddUserDialog(false)}><CloseIcon sx={{ color: '#fff' }} /></IconButton>
+    </Box>
+
+    <TextField
+      fullWidth
+      placeholder="Search by username"
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      sx={{ mb: 2, input: { color: '#fff' }, bgcolor: '#303030' }}
+    />
+
+    {searchResults.map(user => (
+      <Box key={user.uid} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <Avatar src={user.photoURL} sx={{ mr: 2 }} />
+        <Typography color="#fff" sx={{ flex: 1 }}>{user.username}</Typography>
+        <Button variant="outlined" sx={{ mr: 1, color: '#AEEA00', borderColor: '#AEEA00' }} onClick={() => handleAddUser(user)}>Group</Button>
+<Button variant="outlined" sx={{ color: '#00e676', borderColor: '#00e676' }} onClick={() => handleAddToChatList(user)}>Chat</Button>
+
+      </Box>
+    ))}
+
+    <Box sx={{ mt: 2 }}>
+      <Typography color="#fff" variant="subtitle1">Selected Users:</Typography>
+      {selectedUsers.map(user => (
+        <Box key={user.uid} sx={{ display: 'flex', alignItems: 'center', my: 1 }}>
+          <Avatar src={user.photoURL} sx={{ mr: 1 }} />
+          <Typography color="#fff" sx={{ flex: 1 }}>{user.username}</Typography>
+          <IconButton onClick={() => handleRemoveUser(user.uid)}><CloseIcon sx={{ color: '#fff' }} /></IconButton>
+        </Box>
+      ))}
+    </Box>
+
+    <Button
+      variant="contained"
+      sx={{ mt: 4, bgcolor: '#AEEA00', color: '#000' }}
+      onClick={() => setGroupDialog(true)}
+      disabled={selectedUsers.length === 0}
+    >
+      Create Group Chat
+    </Button>
+  </Box>
+</Dialog>
+
     </div>
+
+    
   );
 }
 

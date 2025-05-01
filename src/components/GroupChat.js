@@ -21,6 +21,7 @@ import {
   IconButton,
 } from '@mui/material';
 import { styled } from '@mui/system';
+import SendIcon from '@mui/icons-material/Send';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
@@ -34,10 +35,10 @@ const generateUserColor = (userName) => {
   return color;
 };
 
+
 const MessageContainer = styled(Box)({
     flex: 1,
     overflowY: 'auto',
-    padding: '0',
     backgroundColor: '#12121200',
     display: 'flex',
     flexDirection: 'column',
@@ -70,8 +71,8 @@ const MessageContainer = styled(Box)({
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    padding: '15px',
-    backgroundColor: '#2C387E', // Dark indigo header
+    padding: '0',
+    backgroundColor: '#2C387E00', // Dark indigo header
     borderBottom: '1px solid rgba(66, 66, 66, 0.16)',
     color: '#FFFFFF',
   });
@@ -86,7 +87,7 @@ const MessageContainer = styled(Box)({
   
   const TextInput = styled(TextField)({
     flex: 1,
-    height: '40px',
+    height: '50px',
     borderRadius: '30px',
     backgroundColor: '#1E1E1E00',
     '& .MuiOutlinedInput-root': {
@@ -104,6 +105,7 @@ const MessageContainer = styled(Box)({
     },
     '& input': {
       color: '#FFFFFF',
+      height: '35px'
     },
   });
   
@@ -113,7 +115,7 @@ const MessageContainer = styled(Box)({
     fontSize: '20px',
     borderRadius: '50px',
     padding: '12px',
-    width: '30px',
+    width: '40px',
     height: '40px',
     marginLeft: '10px',
     '&:hover': {
@@ -279,8 +281,8 @@ function GroupChat() {
             left: 0,
             right: 0,
             zIndex: 1000,
-            backgroundColor: '#121212e3',
-            backdropFilter: 'blur(10px)',
+            backgroundColor: '#121212b0',
+            backdropFilter: 'blur(40px)',
             borderBottom: '1px solid #ccccc00',
             padding: '10px 16px',
             display: 'flex',
@@ -319,7 +321,6 @@ function GroupChat() {
 
       <Box sx={{
         flexGrow: 1,
-        padding: '0',
         paddingTop: '60px',
         overflowY: 'auto',
         marginBottom: '0px', // optional if you have a fixed input/footer
@@ -394,7 +395,7 @@ function GroupChat() {
                       px: 1
                     }}
                   >
-                    <Box sx={{ marginRight: '10px', marginLeft: '10px' }}>
+                    <Box sx={{ marginRight: '4px', marginLeft: '4px' }}>
                       <Avatar
                         src={msg.photoURL || 'https://via.placeholder.com/50'}
                         alt={msg.senderName}
@@ -464,7 +465,9 @@ function GroupChat() {
           variant="outlined"
           size="small"
         />
-        <SendButton onClick={sendMessage}>➤</SendButton>
+        <SendButton sx={{ backgroundColor: '#00f721', height: '50px', width: '50px' }} onClick={sendMessage}>
+        <SendIcon sx={{ color: '#000' }} />
+        </SendButton>
       </InputContainer>
     </Box>
   );
