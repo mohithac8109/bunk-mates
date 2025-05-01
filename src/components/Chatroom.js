@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   Box, Avatar, Typography, TextField, IconButton, CircularProgress,
-  AppBar, Toolbar, Paper, Menu, MenuItem
+  AppBar, Toolbar, Paper, Menu, MenuItem, Slide, Dialog, Divider, SwipeableDrawer
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
+import CloseIcon from '@mui/icons-material/Close';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   collection, addDoc, query, orderBy, onSnapshot,
-  serverTimestamp, doc, updateDoc, getDoc, deleteDoc
+  serverTimestamp, doc, updateDoc, getDoc, getDocs, where, deleteDoc
 } from "firebase/firestore";
 import { db, auth } from '../firebase';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -23,12 +24,52 @@ function ChatRoom() {
   const [editMessageId, setEditMessageId] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedMsg, setSelectedMsg] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [commonGroups, setCommonGroups] = useState([]);
+  const [commonTrips, setCommonTrips] = useState([]);
 
   const chatId = [currentUser.uid, friendId].sort().join('_');
   const history = useNavigate();
   const messagesEndRef = useRef(null);
 
   const [notification, setNotification] = useState(null);
+
+  const Transition = React.forwardRef(function Transition(props, ref) {
+    return <Slide direction="up" ref={ref} {...props} />;
+  });
+
+  const [openProfile, setOpenProfile] = useState(false);
+
+  useEffect(() => {
+    const fetchCommonGroupsAndTrips = async () => {
+      if (!currentUser || !friendDetails.uid) return;
+  
+      // Fetch common groups
+      const groupQuery = query(
+        collection(db, 'groupChats'),
+        where('members', 'array-contains', currentUser.uid)
+      );
+      const groupSnapshot = await getDocs(groupQuery);
+      const matchedGroups = groupSnapshot.docs
+        .filter(doc => doc.data().members.includes(friendDetails.uid))
+        .map(doc => doc.data().name); // or doc.id if you prefer
+      setCommonGroups(matchedGroups);
+  
+      // Fetch common trips
+      const tripQuery = query(
+        collection(db, 'trips'),
+        where('members', 'array-contains', currentUser.uid)
+      );
+      const tripSnapshot = await getDocs(tripQuery);
+      const matchedTrips = tripSnapshot.docs
+        .filter(doc => doc.data().members.includes(friendDetails.uid))
+        .map(doc => doc.data().name);
+      setCommonTrips(matchedTrips);
+    };
+  
+    fetchCommonGroupsAndTrips();
+  }, [currentUser, friendDetails.uid]);
+  
 
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -137,7 +178,7 @@ function ChatRoom() {
             <ArrowBackIcon />
           </IconButton>
           <Avatar src={friendDetails.photoURL} alt={friendDetails.name} sx={{ mr: 2, height: '50px', width: '50px' }} />
-          <Box>
+          <Box onClick={() => setOpenProfile(true)}>
             <Typography variant="h6" color="#fff" fontSize="18px">{friendDetails.name}</Typography>
             <Typography variant="h6" color="#d1d1d1" fontSize="13px">@{friendDetails.username}</Typography>
             <Typography variant="body2" sx={{ color: friendDetails.status === 'online' ? '#AEEA00' : '#BDBDBD' }}>
@@ -171,11 +212,13 @@ function ChatRoom() {
 
           return (
             <Box key={msg.id}>
+              <div style={{width: '90vw', display: 'flex', backgroundColor: '#131313', borderRadius: '20px', marginBottom: '10px', marginTop: '15px'}}>
               {showDate && (
-                <Typography variant="caption" sx={{ textAlign: 'center', color: '#BDBDBD', my: 2 }}>
+                <Typography variant="caption" sx={{ textAlign: 'center', width: '100vw', color: '#BDBDBD', my: 0 }}>
                   {getMessageDate(msg.timestamp)}
                 </Typography>
               )}
+              </div>
               <Box
                 onContextMenu={(e) => handleContextMenu(e, msg)}
                 onDoubleClick={() => isOwn && handleEdit(msg)}
@@ -294,6 +337,79 @@ function ChatRoom() {
           <Typography variant="body2">{notification}</Typography>
         </Box>
       )}
+
+      <Box>
+      <SwipeableDrawer
+  anchor="bottom"
+  open={openProfile}
+  onClose={() => setOpenProfile(false)}
+  onOpen={() => {}}
+  PaperProps={{
+    sx: {
+      height: '85vh',
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      backgroundColor: '#121212',
+      color: '#fff',
+    }
+  }}
+>
+  <Box sx={{ p: 3, position: 'relative', height: '100%', overflowY: 'auto' }}>
+    {/* Drag Indicator */}
+    <Box sx={{ width: 40, height: 5, backgroundColor: '#555', borderRadius: 3, mx: 'auto', mb: 2 }} />
+
+    {/* Close Button */}
+    <IconButton
+      onClick={() => setOpenProfile(false)}
+      sx={{ position: 'absolute', top: 10, right: 10, color: '#ccc' }}
+    >
+      <CloseIcon />
+    </IconButton>
+
+    {/* Profile Content */}
+    <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', mt: 2 }}>
+      <Avatar
+        src={friendDetails.photoURL}
+        sx={{ width: 90, height: 90, mb: 2 }}
+      />
+      <Typography variant="h6">{friendDetails.name}</Typography>
+      <Typography variant="subtitle1" sx={{ color: '#aaa' }}>@{friendDetails.username}</Typography>
+      <Typography variant="body2" sx={{ color: friendDetails.status === 'online' ? '#00e676' : '#888' }}>
+        {friendDetails.status}
+      </Typography>
+    </Box>
+
+    <Divider sx={{ my: 3, backgroundColor: '#333' }} />
+
+    {/* Common Groups */}
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="h6" gutterBottom>Common Groups</Typography>
+      {commonGroups.length > 0 ? (
+        commonGroups.map(group => (
+          <Typography key={group} sx={{ my: 0.5 }}>• {group}</Typography>
+        ))
+      ) : (
+        <Typography sx={{ color: '#888' }}>No common groups</Typography>
+      )}
+    </Box>
+
+    {/* Trips Together */}
+    <Box>
+      <Typography variant="h6" gutterBottom>Trips Together</Typography>
+      {commonTrips.length > 0 ? (
+        commonTrips.map(trip => (
+          <Typography key={trip} sx={{ my: 0.5 }}>• {trip}</Typography>
+        ))
+      ) : (
+        <Typography sx={{ color: '#888' }}>No trips together</Typography>
+      )}
+    </Box>
+  </Box>
+</SwipeableDrawer>
+
+
+
+      </Box>
     </Box>
   );
 }
