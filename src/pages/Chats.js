@@ -448,19 +448,23 @@ function Chats() {
     position: 'fixed',
     bottom: 20,
     right: 20,
-    bgcolor: '#1E88E5',
-    color: 'white',
-    '&:hover': { bgcolor: '#1565C0' }
+    width: '70px',
+    height: '70px',
+    bgcolor: '#00f721ba',
+    borderRadius: '15px',
+    fontSize: '38px',
+    color: '#000',
+    '&:hover': { bgcolor: '#00f721' }
   }}
 >
-  <AddIcon />
+  +
 </IconButton>
 
         </Box>
       </div>
 
-      <Dialog open={groupDialog} onClose={() => setGroupDialog(false)} fullWidth maxWidth="sm">
-  <Box sx={{ bgcolor: '#212121', p: 3 }}>
+      <Dialog open={groupDialog} backgroundColor="#000000" onClose={() => setGroupDialog(false)} fullWidth maxWidth="sm">
+  <Box sx={{ bgcolor: '#0c0c0c', border: '1px solid 101010', p: 3 }}>
     <Typography variant="h6" color="#fff" sx={{ mb: 2 }}>Group Details</Typography>
 
     <TextField
@@ -468,17 +472,18 @@ function Chats() {
       label="Group Name"
       value={groupName}
       onChange={(e) => setGroupName(e.target.value)}
-      sx={{ input: { color: '#fff' }, label: { color: '#fff' }, mb: 2 }}
+      sx={{ input: { color: '#fff', backgroundColor: '#1a1a1a', borderRadius: '10px' }, label: { color: '#fff' }, mb: 2 }}
     />
 
+
+<Typography color="#fff" sx={{ ml: 2 }}>Group Emoji</Typography>
     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
       <EmojiEmotionsIcon sx={{ color: '#fff', mr: 1 }} />
       <TextField
         value={groupEmoji}
         onChange={(e) => setGroupEmoji(e.target.value)}
-        sx={{ width: 60, input: { color: '#fff' } }}
+        sx={{ width: 60, input: { color: '#fff', backgroundColor: '#1a1a1a', borderRadius: '10px', width: '300px' } }}
       />
-      <Typography color="#fff" sx={{ ml: 2 }}>Group Emoji</Typography>
     </Box>
 
     <Typography variant="subtitle2" color="#fff">Members:</Typography>
@@ -507,10 +512,10 @@ function Chats() {
   onClose={() => setAddUserDialog(false)}
   TransitionComponent={Slide}
 >
-  <Box sx={{ bgcolor: '#212121', height: '100vh', p: 3 }}>
+  <Box sx={{ bgcolor: '#0c0c0c', height: '100vh', p: 3 }}>
     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-      <Typography variant="h6" color="white">Start New Group</Typography>
-      <IconButton onClick={() => setAddUserDialog(false)}><CloseIcon sx={{ color: '#fff' }} /></IconButton>
+      <Typography variant="h6" fontSize="28px" color="white"><strong>Start New Group</strong></Typography>
+      <IconButton sx={{bgcolor: '#2c2c2c', width: '45px' }} onClick={() => setAddUserDialog(false)}><CloseIcon sx={{ color: '#fff' }} /></IconButton>
     </Box>
 
     <TextField
@@ -518,33 +523,37 @@ function Chats() {
       placeholder="Search by username"
       value={searchTerm}
       onChange={(e) => setSearchTerm(e.target.value)}
-      sx={{ mb: 2, input: { color: '#fff' }, bgcolor: '#303030' }}
+      sx={{ mb: 2, input: { color: '#fff' },
+      padding: '1px 10px',
+      width: '93%',
+      marginBottom: '20px',
+      borderRadius: '12px',
+      backgroundColor: '#101010',
+      border: '1px solid rgb(24, 24, 24)', }}
     />
 
     {searchResults.map(user => (
-      <Box key={user.uid} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+      <Box key={user.uid} sx={{ display: 'flex', alignItems: 'center', mb: 1, bgcolor: '#131313', padding: '10px', borderRadius: '20px' }}>
         <Avatar src={user.photoURL} sx={{ mr: 2 }} />
         <Typography color="#fff" sx={{ flex: 1 }}>{user.username}</Typography>
-        <Button variant="outlined" sx={{ mr: 1, color: '#AEEA00', borderColor: '#AEEA00' }} onClick={() => handleAddUser(user)}>Group</Button>
-<Button variant="outlined" sx={{ color: '#00e676', borderColor: '#00e676' }} onClick={() => handleAddToChatList(user)}>Chat</Button>
-
+        <Button variant="outlined" sx={{ mr: 1, color: 'rgba(0, 255, 145, 0.86)', backgroundColor: 'rgba(0, 155, 89, 0.16)', borderColor: 'rgba(0, 255, 145, 0.86)', borderRadius: '10px' }} onClick={() => handleAddUser(user)}>Group</Button>
       </Box>
     ))}
 
     <Box sx={{ mt: 2 }}>
       <Typography color="#fff" variant="subtitle1">Selected Users:</Typography>
       {selectedUsers.map(user => (
-        <Box key={user.uid} sx={{ display: 'flex', alignItems: 'center', my: 1 }}>
+        <Box key={user.uid} sx={{ display: 'flex', alignItems: 'center', my: 1, bgcolor: '#131313', padding: '10px', borderRadius: '20px' }}>
           <Avatar src={user.photoURL} sx={{ mr: 1 }} />
           <Typography color="#fff" sx={{ flex: 1 }}>{user.username}</Typography>
-          <IconButton onClick={() => handleRemoveUser(user.uid)}><CloseIcon sx={{ color: '#fff' }} /></IconButton>
+          <IconButton onClick={() => handleRemoveUser(user.uid)}><CloseIcon sx={{ color: 'rgba(0, 255, 145, 0.86)', backgroundColor: 'rgba(0, 155, 89, 0.16)', borderColor: 'rgba(0, 255, 145, 0.86)', borderRadius: '10px' }} /></IconButton>
         </Box>
       ))}
     </Box>
 
     <Button
       variant="contained"
-      sx={{ mt: 4, bgcolor: '#AEEA00', color: '#000' }}
+      sx={{ mt: 4, bgcolor: '#00f721', color: '#000' }}
       onClick={() => setGroupDialog(true)}
       disabled={selectedUsers.length === 0}
     >
