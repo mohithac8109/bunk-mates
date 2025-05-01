@@ -117,7 +117,7 @@ const MessageContainer = styled(Box)({
     height: '40px',
     marginLeft: '10px',
     '&:hover': {
-      backgroundColor: '#303F9F',
+      backgroundColor: '#0c5c18',
     },
   });
   
@@ -132,6 +132,8 @@ function GroupChat() {
   const [userColors, setUserColors] = useState({});
   const bottomRef = useRef(null);
   const navigate = useNavigate();
+  const [createdByUser, setCreatedByUser] = useState(null);
+  const [memberUsers, setMemberUsers] = useState([]);
   const currentUser = auth.currentUser;
 
   useEffect(() => {
@@ -157,21 +159,45 @@ function GroupChat() {
 
     // Get group info
     const fetchGroupInfo = async () => {
-      try {
-        const groupDocRef = doc(db, 'groupChats', groupName);
-        const docSnap = await getDoc(groupDocRef);
-        if (docSnap.exists()) {
-          setGroupInfo(docSnap.data());
+        try {
+          const groupDocRef = doc(db, 'groupChats', groupName);
+          const docSnap = await getDoc(groupDocRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setGroupInfo(data);
+      
+            // Fetch createdBy user info
+            if (data.createdBy) {
+              const createdByRef = doc(db, 'users', data.createdBy);
+              const createdBySnap = await getDoc(createdByRef);
+              if (createdBySnap.exists()) {
+                setCreatedByUser(createdBySnap.data());
+              }
+            }
+      
+            // Fetch member user names
+            if (Array.isArray(data.members)) {
+              const memberFetches = data.members.map((uid) =>
+                getDoc(doc(db, 'users', uid))
+              );
+              const memberDocs = await Promise.all(memberFetches);
+              const memberNames = memberDocs
+                .filter((doc) => doc.exists())
+                .map((doc) => doc.data());
+              setMemberUsers(memberNames);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch group info or user details:', error);
         }
-      } catch (error) {
-        console.error('Failed to fetch group info:', error);
-      }
-    };
 
-    fetchGroupInfo();
-
-    return () => unsubscribe();
-  }, [currentUser, navigate, groupName]);
+      };
+  
+      fetchGroupInfo();
+  
+      return () => unsubscribe();
+    }, [currentUser, navigate, groupName]);
+      
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -255,7 +281,7 @@ function GroupChat() {
             zIndex: 1000,
             backgroundColor: '#121212e3',
             backdropFilter: 'blur(10px)',
-            borderBottom: '1px solid #ccc',
+            borderBottom: '1px solid #ccccc00',
             padding: '10px 16px',
             display: 'flex',
             alignItems: 'center',
@@ -286,23 +312,66 @@ function GroupChat() {
             >
               {groupInfo.name || groupName}
             </Typography>
-            {groupInfo.createdBy?.name && (
-              <Typography variant="caption" sx={{ color: '#888' }}>
-                Created by {groupInfo.createdBy.name}
-              </Typography>
-            )}
           </Box>
         </Box>
       </GroupHeader>
 
+
       <Box sx={{
         flexGrow: 1,
         padding: '0',
-        paddingTop: '50px',
+        paddingTop: '60px',
         overflowY: 'auto',
-        marginBottom: '5px', // optional if you have a fixed input/footer
+        marginBottom: '0px', // optional if you have a fixed input/footer
       }}>
         <MessageContainer>
+
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', margin: '20px', backgroundColor: '#009b5912', borderRadius: '20px', alignItems: 'center', textAlign: 'center', padding: '25px', border: '1.2px solid #009b59ad', maxWidth: '100%' }}>
+        <Avatar
+            sx={{
+              bgcolor: '#000',
+              color: '#000',
+              fontSize: 38,
+              width: 68,
+              height: 68,
+              border: '2px solid rgb(7, 7, 7)',
+              marginBottom: 2,
+            }}
+          >
+            {groupEmoji || groupName?.[0]?.toUpperCase() || ''}
+          </Avatar>
+  <Typography
+    variant="subtitle1"
+    sx={{
+      fontWeight: 'bold',
+      fontSize: '28px',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      color: '#FFFFFF',
+      mb: 0.5,
+    }}
+  >
+    {groupInfo.name || groupName}
+  </Typography>
+
+  {createdByUser && (
+    <Typography variant="caption" sx={{ color: '#B0BEC5', mb: 0.5 }}>
+      <strong sx={{color: '#fff'}}>Created by:</strong> {createdByUser.name}
+    </Typography>
+  )}
+
+  <Typography variant="caption" sx={{ color: '#B0BEC5' }}>
+  <br></br><strong sx={{color: '#fff'}}>{groupInfo.members?.length || 0} Members</strong>
+  </Typography>
+
+  <Typography variant="caption" sx={{ color: '#B0BEC5' }}>
+  <br></br><strong sx={{color: '#fff'}}>Members Joined:</strong><br></br> {memberUsers.map((user) => user.name).join(', ') || 'None'}
+  </Typography>
+</Box>
+
+
           {loading ? (
             <Typography variant="body1" sx={{ textAlign: 'center', color: '#888' }}>
               Loading messages...
@@ -310,7 +379,7 @@ function GroupChat() {
           ) : (
             Object.keys(groupedMessages).map((date) => (
               <Box key={date} sx={{ marginBottom: '20px' }}>
-                <Typography variant="body2" sx={{ color: '#aaa', bgcolor: '#f2f2f2', textAlign: 'center', marginBottom: '10px' }}>
+                <Typography variant="body2" sx={{ color: '#aaa', bgcolor: '#2b2b2b54', borderRadius: '15px', textAlign: 'center', marginBottom: '10px' }}>
                   {date}
                 </Typography>
                 {groupedMessages[date].map((msg) => (
@@ -327,11 +396,11 @@ function GroupChat() {
                   >
                     <Box sx={{ marginRight: '10px', marginLeft: '10px' }}>
                       <Avatar
-                        src={msg.photoURL || ''}
+                        src={msg.photoURL || 'https://via.placeholder.com/50'}
                         alt={msg.senderName}
                         sx={{ width: 40, height: 40 }}
                       >
-                        {!msg.photoURL && <AccountCircleIcon sx={{ fontSize: 52, color: '#e8e8e8' }} />}
+                        {msg.photoURL && <AccountCircleIcon sx={{ fontSize: 52, color: '#e8e8e8' }} />}
                       </Avatar>
                     </Box>
 

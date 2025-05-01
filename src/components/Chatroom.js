@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   Box, Avatar, Typography, TextField, IconButton, CircularProgress,
-  AppBar, Toolbar, Paper, Menu, MenuItem, Button
+  AppBar, Toolbar, Paper, Menu, MenuItem
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
@@ -25,8 +25,8 @@ function ChatRoom() {
   const [selectedMsg, setSelectedMsg] = useState(null);
 
   const chatId = [currentUser.uid, friendId].sort().join('_');
-  const history = useNavigate(); // useNavigate provides navigation functions
-  const messagesEndRef = useRef(null); // Ref for auto-scrolling
+  const history = useNavigate();
+  const messagesEndRef = useRef(null);
 
   const [notification, setNotification] = useState(null);
 
@@ -40,7 +40,6 @@ function ChatRoom() {
 
   useEffect(() => {
     const q = query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "asc"));
-
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const msgs = [];
       querySnapshot.forEach((doc) => {
@@ -50,12 +49,6 @@ function ChatRoom() {
       });
       setMessages(msgs);
 
-      // Trigger notification if chat is out of focus
-      const lastMsg = msgs[msgs.length - 1];
-      if (lastMsg && lastMsg.senderId !== currentUser.uid && !document.hasFocus()) {
-        setNotification('New message received');
-      }
-
       const lastMessage = msgs[msgs.length - 1];
       if (lastMessage && lastMessage.senderId !== currentUser.uid && !lastMessage.isRead) {
         updateDoc(doc(db, "chats", chatId, "messages", lastMessage.id), {
@@ -63,18 +56,13 @@ function ChatRoom() {
         });
       }
     });
-
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [chatId]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
-
     setIsSending(true);
-
     if (editMessageId) {
       await updateDoc(doc(db, "chats", chatId, "messages", editMessageId), {
         text: input.trim() + " (edited)",
@@ -89,7 +77,6 @@ function ChatRoom() {
         isRead: false,
       });
     }
-
     setInput('');
     setIsSending(false);
   };
@@ -131,10 +118,9 @@ function ChatRoom() {
   };
 
   const goBack = () => {
-    history(-1); // Corrected to use the navigate function with -1
+    history(-1);
   };
 
-  // Auto-scroll to the latest message
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -142,17 +128,19 @@ function ChatRoom() {
   }, [messages]);
 
   return (
-    <Box sx={{ backgroundColor: '#ffffff', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ backgroundColor: '#21212100', height: '98vh', display: 'flex', flexDirection: 'column', color: '#fff' }}>
+      
       {/* Header */}
-      <AppBar position="static" color="transparent" elevation={1}>
+      <AppBar position="fixed" sx={{ backgroundColor: '#0000009c', backdropFilter: 'blur(30px)', padding: '10px 0px', zIndex: 1100 }} elevation={1}>
         <Toolbar>
-          <IconButton onClick={goBack} sx={{ mr: 2 }}>
-          <ArrowBackIcon />
+          <IconButton onClick={goBack} sx={{ mr: 1, color: '#fff' }}>
+            <ArrowBackIcon />
           </IconButton>
-          <Avatar src={friendDetails.photoURL} alt={friendDetails.name} sx={{ mr: 2 }} />
+          <Avatar src={friendDetails.photoURL} alt={friendDetails.name} sx={{ mr: 2, height: '50px', width: '50px' }} />
           <Box>
-            <Typography variant="h6" color="text.primary">{friendDetails.name}</Typography>
-            <Typography variant="body2" color={friendDetails.status === 'online' ? 'green' : 'gray'}>
+            <Typography variant="h6" color="#fff" fontSize="18px">{friendDetails.name}</Typography>
+            <Typography variant="h6" color="#d1d1d1" fontSize="13px">@{friendDetails.username}</Typography>
+            <Typography variant="body2" sx={{ color: friendDetails.status === 'online' ? '#AEEA00' : '#BDBDBD' }}>
               {friendDetails.status}
             </Typography>
           </Box>
@@ -160,17 +148,31 @@ function ChatRoom() {
       </AppBar>
 
       {/* Messages */}
-      <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
+      <Box sx={{
+        flex: 1,
+        overflowY: 'auto',
+        p: 2,
+        pt: '72px',
+        scrollbarWidth: 'thin',
+        '&::-webkit-scrollbar': {
+          width: '6px'
+        },
+        '&::-webkit-scrollbar-thumb': {
+          backgroundColor: '#5E5E5E',
+          borderRadius: '4px'
+        },
+        '&::-webkit-scrollbar-track': {
+          backgroundColor: 'transparent'
+        }
+      }}>
         {messages.map((msg, index) => {
           const isOwn = msg.senderId === currentUser.uid;
-
-          // Check for date separation
           const showDate = index === 0 || getMessageDate(msg.timestamp) !== getMessageDate(messages[index - 1].timestamp);
 
           return (
             <Box key={msg.id}>
               {showDate && (
-                <Typography variant="caption" sx={{ textAlign: 'center', color: 'gray', my: 2 }}>
+                <Typography variant="caption" sx={{ textAlign: 'center', color: '#BDBDBD', my: 2 }}>
                   {getMessageDate(msg.timestamp)}
                 </Typography>
               )}
@@ -188,18 +190,18 @@ function ChatRoom() {
                   sx={{
                     px: 2, py: 1,
                     maxWidth: '70%',
-                    bgcolor: isOwn ? '#5c311f' : '#f1f1f1',
-                    color: isOwn ? '#ffffff' : '#000000',
-                    borderRadius: 2,
+                    bgcolor: isOwn ? '#005c4b' : '#353535',
+                    borderRadius: isOwn ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                    color: '#FFFFFF',
                     position: 'relative'
                   }}
                 >
                   <Typography variant="body1">{msg.text}</Typography>
-                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'gray', mt: 0.5 }}>
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#BDBDBD', mt: 0.5 }}>
                     {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Typography>
                   {msg.reaction && (
-                    <Typography variant="body2" sx={{ position: 'absolute', bottom: -10, right: 10 }}>
+                    <Typography variant="body2" sx={{ position: 'absolute', backgroundColor: '#272727', width: '18px', borderRadius: '40px', bottom: -10, right: 10 }}>
                       {msg.reaction}
                     </Typography>
                   )}
@@ -207,7 +209,7 @@ function ChatRoom() {
                     <Box sx={{ textAlign: 'right', mt: 0.5 }}>
                       <DoneAllIcon
                         fontSize="small"
-                        sx={{ color: msg.isRead ? '#2196f3' : '#9e9e9e' }}
+                        sx={{ color: msg.isRead ? '#0099ff' : '#BDBDBD' }}
                       />
                     </Box>
                   )}
@@ -216,18 +218,23 @@ function ChatRoom() {
             </Box>
           );
         })}
-
-        <div ref={messagesEndRef} /> {/* Scroll to this point */}
+        <div ref={messagesEndRef} />
       </Box>
 
       {/* Input Field */}
-      <Box component="form" onSubmit={sendMessage} sx={{
-        p: 1,
-        display: 'flex',
-        alignItems: 'center',
-        borderTop: '1px solid #e0e0e0',
-        bgcolor: '#fafafa'
-      }}>
+      <Box
+        component="form"
+        onSubmit={sendMessage}
+        sx={{
+          p: 1,
+          display: 'flex',
+          alignItems: 'center',
+          borderTop: '0px solid #5E5E5E',
+          bgcolor: '#30303000',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '40px'
+        }}
+      >
         <TextField
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -235,12 +242,48 @@ function ChatRoom() {
           fullWidth
           variant="outlined"
           size="small"
-          sx={{ mr: 1 }}
+          position="fixed"
+          elevation={1}
+          sx={{
+            zIndex: '1100',
+            mr: 1,
+            borderRadius: '40px',
+            input: {
+              color: '#FFFFFF',
+              height: '40px',
+              borderRadius: '40px'
+            },
+            '& .MuiOutlinedInput-root': {
+              '& fieldset': {
+                borderColor: '#5E5E5E',
+              borderRadius: '40px'
+              },
+              '&:hover fieldset': {
+                borderColor: '#757575',
+              borderRadius: '40px'
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#757575',
+              borderRadius: '40px'
+              },
+            },
+            '& .MuiInputBase-input::placeholder': {
+              color: '#757575'
+            }
+          }}
         />
-        <IconButton type="submit" color="primary" disabled={isSending}>
-          {isSending ? <CircularProgress size={24} /> : <SendIcon />}
+        <IconButton type="submit" sx={{ backgroundColor: '#00f721', height: '50px', width: '50px' }} disabled={isSending}>
+          {isSending ? <CircularProgress size={24} sx={{ color: '#000' }} /> : <SendIcon sx={{ color: '#000' }} />}
         </IconButton>
       </Box>
+
+      {/* Context Menu */}
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+        <MenuItem onClick={() => handleEdit(selectedMsg)}>Edit</MenuItem>
+        <MenuItem onClick={() => handleDelete(selectedMsg?.id)}>Delete</MenuItem>
+        <MenuItem onClick={() => handleReaction('❤️')}>❤️ React</MenuItem>
+        <MenuItem onClick={() => handleReaction('😂')}>😂 React</MenuItem>
+      </Menu>
 
       {/* Notification Snackbar */}
       {notification && (
