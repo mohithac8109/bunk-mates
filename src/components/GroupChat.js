@@ -35,77 +35,92 @@ const generateUserColor = (userName) => {
 };
 
 const MessageContainer = styled(Box)({
-  flex: 1,
-  overflowY: 'auto',
-  padding: '0',
-  backgroundColor: '#ffffff',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'flex-end',
-});
-
-const MessageBubble = styled(Paper)(({ isCurrentUser }) => ({
-  backgroundColor: isCurrentUser ? '#dcf8c6' : '#e4e6eb',
-  borderRadius: isCurrentUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-  color: '#000',
-  padding: '14px 16px',
-  borderRadius: '10px',
-  fontSize: '14px',
-  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-  position: 'relative',
-  maxWidth: '70%',
-  alignSelf: isCurrentUser ? 'flex-end' : 'flex-start',
-  marginBottom: '12px',
-}));
-
-const MessageTime = styled(Typography)({
-  fontSize: '10px',
-  position: 'absolute',
-  bottom: '-18px',
-  right: '5px',
-  color: '#888',
-});
-
-const GroupHeader = styled(Box)({
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  padding: '15px',
-  backgroundColor: '#ffffff02',
-  borderBottom: '1px solid #ccc',
-  color: '#000000',
-});
-
-const GroupAvatar = styled(Avatar)({
-  marginBottom: '10px',
-});
-
-const InputContainer = styled(Box)({
-  display: 'flex',
-  padding: '10px',
-  backdropFilter: 'blur(10px)',
-  backgroundColor: '#ffffffae',
-  borderTop: '0px solid #ccc',
-});
-
-const TextInput = styled(TextField)({
-  flex: 1,
-  borderRadius: '30px',
-  '& .MuiOutlinedInput-root': {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '0',
+    backgroundColor: '#12121200',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'flex-end',
+    bottom: '0'
+  });
+  
+  const MessageBubble = styled(Paper)(({ isCurrentUser }) => ({
+    backgroundColor: isCurrentUser ? '#005c4b' : '#353535', // Darker bubbles
+    borderRadius: isCurrentUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+    color: '#FFFFFF', // Light text
+    padding: '14px 16px',
+    fontSize: '14px',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+    position: 'relative',
+    maxWidth: '70%',
+    alignSelf: isCurrentUser ? 'flex-end' : 'flex-start',
+    marginBottom: '12px',
+  }));
+  
+  const MessageTime = styled(Typography)({
+    fontSize: '10px',
+    position: 'absolute',
+    bottom: '-18px',
+    right: '5px',
+    color: '#B0BEC5', // Grey text
+  });
+  
+  const GroupHeader = styled(Box)({
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '15px',
+    backgroundColor: '#2C387E', // Dark indigo header
+    borderBottom: '1px solid rgba(66, 66, 66, 0.16)',
+    color: '#FFFFFF',
+  });
+  
+  const InputContainer = styled(Box)({
+    display: 'flex',
+    padding: '10px',
+    backgroundColor: '#1E1E1E00',
+    backdropFilter: 'blur(30px)',
+    borderTop: '1px solid #42424200',
+  });
+  
+  const TextInput = styled(TextField)({
+    flex: 1,
+    height: '40px',
     borderRadius: '30px',
-  },
-});
-
-const SendButton = styled(Button)({
-  backgroundColor: '#25d366',
-  color: '#fff',
-  borderRadius: '50%',
-  padding: '12px',
-  marginLeft: '10px',
-  '&:hover': {
-    backgroundColor: '#128c7e',
-  },
-});
+    backgroundColor: '#1E1E1E00',
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '30px',
+      color: '#FFFFFF',
+      '& fieldset': {
+        borderColor: '#424242',
+      },
+      '&:hover fieldset': {
+        borderColor: '#757575',
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: '#3F51B5',
+      },
+    },
+    '& input': {
+      color: '#FFFFFF',
+    },
+  });
+  
+  const SendButton = styled(Button)({
+    backgroundColor: '#1ac635',
+    color: '#000',
+    fontSize: '20px',
+    borderRadius: '50px',
+    padding: '12px',
+    width: '30px',
+    height: '40px',
+    marginLeft: '10px',
+    '&:hover': {
+      backgroundColor: '#303F9F',
+    },
+  });
+  
 
 function GroupChat() {
   const { name, groupName } = useParams();
@@ -227,151 +242,151 @@ function GroupChat() {
       display: 'flex',
       flexDirection: 'column',
       height: '98vh',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#F0F2F500',
       overflow: 'hidden'
     }}>
-<GroupHeader>
-<Box
-  sx={{
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-    backgroundColor: '#ffffffae',
-    backdropFilter: 'blur(10px)',
-    borderBottom: '1px solid #ccc',
-    padding: '10px 16px',
-    display: 'flex',
-    alignItems: 'center',
-    height: '64px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  }}
->
-      <IconButton onClick={handleBackButton} sx={{ mr: 1 }}>
-        <ArrowBackIcon />
-      </IconButton>
-    <Avatar
-      sx={{
-        bgcolor: '#f0f0f0',
-        color: '#000',
-        fontSize: 24,
-        width: 48,
-        height: 48,
-        border: '2px solid #ccc',
-        marginRight: 2,
-
-      }}
-    >
-          {groupInfo.emoji || groupInfo.name?.[0]?.toUpperCase() || ''}
-    </Avatar>
-    <Box>
-          <Typography
-            variant="subtitle1"
-            sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+      <GroupHeader>
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            backgroundColor: '#121212e3',
+            backdropFilter: 'blur(10px)',
+            borderBottom: '1px solid #ccc',
+            padding: '10px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            height: '64px',
+            boxShadow: '0 2px 4px rgba(48, 48, 48, 0)',
+          }}
+        >
+          <IconButton onClick={handleBackButton} sx={{ mr: 1 }} style={{color: '#fff'}}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Avatar
+            sx={{
+              bgcolor: '#333333',
+              color: '#000',
+              fontSize: 24,
+              width: 48,
+              height: 48,
+              border: '2px solid rgb(7, 7, 7)',
+              marginRight: 2,
+            }}
           >
-        {groupInfo.name || groupName}
-      </Typography>
-      {groupInfo.createdBy?.name && (
-        <Typography variant="caption" sx={{ color: '#888' }}>
-          Created by {groupInfo.createdBy.name}
-        </Typography>
-      )}
-    </Box>  
-  </Box>
-</GroupHeader>
-
-      <Box   sx={{
-    flexGrow: 1,
-    padding: '0',
-    paddingTop: '50px',
-    overflowY: 'auto',
-    marginBottom: '5px', // optional if you have a fixed input/footer
-  }}>
-      <MessageContainer>
-        {loading ? (
-          <Typography variant="body1" sx={{ textAlign: 'center', color: '#888' }}>
-            Loading messages...
-          </Typography>
-        ) : (
-          Object.keys(groupedMessages).map((date) => (
-            <Box key={date} sx={{ marginBottom: '20px' }}>
-              <Typography variant="body2" sx={{ color: '#aaa', bgcolor: '#f2f2f2', textAlign: 'center', marginBottom: '10px' }}>
-                {date}
+            {groupEmoji || groupName?.[0]?.toUpperCase() || ''}
+          </Avatar>
+          <Box>
+            <Typography
+              variant="subtitle1"
+              sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+            >
+              {groupInfo.name || groupName}
+            </Typography>
+            {groupInfo.createdBy?.name && (
+              <Typography variant="caption" sx={{ color: '#888' }}>
+                Created by {groupInfo.createdBy.name}
               </Typography>
-              {groupedMessages[date].map((msg) => (
-                <Box
-                  key={msg.id}
-                  sx={{
-                    display: 'flex',
-                    flexDirection: msg.senderId === currentUser.uid ? 'row-reverse' : 'row',
-                    marginBottom: '15px',
-                    alignItems: 'flex-end',
-                    gap: 1,
-                    px: 1
-                  }}
-                >
-                  <Box sx={{ marginRight: '10px', marginLeft: '10px' }}>
-                  <Avatar
-    src={msg.photoURL || ''}
-    alt={msg.senderName}
-    sx={{ width: 40, height: 40 }}
-  >
-    {!msg.photoURL && <AccountCircleIcon sx={{ fontSize: 52, color: '#e8e8e8' }} />}
-  </Avatar>
-                  </Box>
+            )}
+          </Box>
+        </Box>
+      </GroupHeader>
 
-                  <MessageBubble isCurrentUser={msg.senderId === currentUser.uid} status={msg.status}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 'bold',
-                        fontSize: '13px',
-                        marginBottom: '5px',
-                        color: userColors[msg.senderId],
-                        maxWidth: 'auto',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                      title={msg.senderName}
-                    >
-                      {msg.senderName}
-                    </Typography>
-                    <Typography variant="body2">{msg.text}</Typography>
-                    <MessageTime>
-                    {msg.timestamp?.seconds
-    ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : 'Just now'}
-                    </MessageTime>
-
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        bottom: '-18px',
-                        left: '5px',
-                        color: '#888',
-                        fontSize: '10px',
-                      }}
-                    >
-                      {msg.status === 'sent'
-                        ? 'Sent'
-                        : msg.status === 'delivered'
-                        ? 'Delivered'
-                        : 'Read'}
+      <Box sx={{
+        flexGrow: 1,
+        padding: '0',
+        paddingTop: '50px',
+        overflowY: 'auto',
+        marginBottom: '5px', // optional if you have a fixed input/footer
+      }}>
+        <MessageContainer>
+          {loading ? (
+            <Typography variant="body1" sx={{ textAlign: 'center', color: '#888' }}>
+              Loading messages...
+            </Typography>
+          ) : (
+            Object.keys(groupedMessages).map((date) => (
+              <Box key={date} sx={{ marginBottom: '20px' }}>
+                <Typography variant="body2" sx={{ color: '#aaa', bgcolor: '#f2f2f2', textAlign: 'center', marginBottom: '10px' }}>
+                  {date}
+                </Typography>
+                {groupedMessages[date].map((msg) => (
+                  <Box
+                    key={msg.id}
+                    sx={{
+                      display: 'flex',
+                      flexDirection: msg.senderId === currentUser.uid ? 'row-reverse' : 'row',
+                      marginBottom: '15px',
+                      alignItems: 'flex-end',
+                      gap: 1,
+                      px: 1
+                    }}
+                  >
+                    <Box sx={{ marginRight: '10px', marginLeft: '10px' }}>
+                      <Avatar
+                        src={msg.photoURL || ''}
+                        alt={msg.senderName}
+                        sx={{ width: 40, height: 40 }}
+                      >
+                        {!msg.photoURL && <AccountCircleIcon sx={{ fontSize: 52, color: '#e8e8e8' }} />}
+                      </Avatar>
                     </Box>
-                  </MessageBubble>
-                </Box>
-              ))}
-            </Box>
-          ))
-        )}
-        <div ref={bottomRef} />
-      </MessageContainer>
+
+                    <MessageBubble isCurrentUser={msg.senderId === currentUser.uid} status={msg.status}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 'bold',
+                          fontSize: '13px',
+                          marginBottom: '5px',
+                          color: '#a7a7a7',
+                          maxWidth: 'auto',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={msg.senderName}
+                      >
+                        {msg.senderName}
+                      </Typography>
+                      <Typography variant="body2">{msg.text}</Typography>
+                      <MessageTime>
+                        {msg.timestamp?.seconds
+                          ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : 'Just now'}
+                      </MessageTime>
+
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          bottom: '-18px',
+                          left: '5px',
+                          color: '#757575',
+                          fontSize: '10px',
+                        }}
+                      >
+                        {msg.status === 'sent'
+                          ? 'Sent'
+                          : msg.status === 'delivered'
+                          ? 'Delivered'
+                          : 'Read'}
+                      </Box>
+                    </MessageBubble>
+                  </Box>
+                ))}
+              </Box>
+            ))
+          )}
+          <div ref={bottomRef} />
+        </MessageContainer>
       </Box>
+
       <InputContainer>
         <TextInput
           value={newMsg}

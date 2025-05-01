@@ -11,6 +11,7 @@ import {
   serverTimestamp, doc, updateDoc, getDoc, deleteDoc
 } from "firebase/firestore";
 import { db, auth } from '../firebase';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 function ChatRoom() {
   const { friendId } = useParams();
@@ -146,7 +147,7 @@ function ChatRoom() {
       <AppBar position="static" color="transparent" elevation={1}>
         <Toolbar>
           <IconButton onClick={goBack} sx={{ mr: 2 }}>
-            <Typography variant="h6"> &lt; </Typography>
+          <ArrowBackIcon />
           </IconButton>
           <Avatar src={friendDetails.photoURL} alt={friendDetails.name} sx={{ mr: 2 }} />
           <Box>

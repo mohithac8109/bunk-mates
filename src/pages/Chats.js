@@ -1,8 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { auth, db } from '../firebase';
-import { collection, getDocs, query, orderBy, limit, onSnapshot, doc, updateDoc, addDoc, where } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  doc,
+  updateDoc,
+  addDoc,
+  where,
+} from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { Person } from '@mui/icons-material'; // Import the Material Icon
+import { Avatar } from '@mui/material';
+import { format, isToday, isYesterday } from 'date-fns';
 
 function Chats() {
   const [users, setUsers] = useState([]);
@@ -11,18 +23,12 @@ function Chats() {
   const [latestMessages, setLatestMessages] = useState({});
   const [latestTimestamps, setLatestTimestamps] = useState({});
   const [notification, setNotification] = useState(null);
-  const [showGroupForm, setShowGroupForm] = useState(false);
-  const [groupName, setGroupName] = useState('');
-  const [selectedUsers, setSelectedUsers] = useState([]);
-  const [groupEmoji, setGroupEmoji] = useState('😊');
   const [userGroups, setUserGroups] = useState([]);
   const [groupUnreadCounts, setGroupUnreadCounts] = useState({});
   const [latestGroupMessages, setLatestGroupMessages] = useState({});
   const [latestGroupTimestamps, setLatestGroupTimestamps] = useState({});
   const [themes, setThemes] = useState('light');
-  const [favoriteChats, setFavoriteChats] = useState([]);
-  const [archivedChats, setArchivedChats] = useState([]);
-  const [swipeAction, setSwipeAction] = useState(null);
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chat: null });
 
   const navigate = useNavigate();
   const currentUser = auth.currentUser;
@@ -89,12 +95,15 @@ function Chats() {
     if (!currentUser || userGroups.length === 0) return;
 
     const unsubscribes = userGroups.map((group) => {
-      const q = query(collection(db, 'groupChats', group.id, 'messages'), orderBy('timestamp', 'desc'), limit(1));
+      const q = query(collection(db, 'groupChat', group.id, 'messages'), orderBy('timestamp', 'desc'), limit(1));
 
       return onSnapshot(q, (snapshot) => {
         snapshot.forEach((doc) => {
           const data = doc.data();
-          const msg = data.text || 'No messages yet';
+          const msg = {
+            text: data.text || 'No messages yet',
+            senderName: data.senderName || 'Unknown',
+          };
           const ts = data.timestamp?.toDate?.() || new Date(0);
           const unread = data.senderId !== currentUser.uid && !data.isRead ? 1 : 0;
 
@@ -103,7 +112,7 @@ function Chats() {
           setLatestGroupTimestamps((prev) => ({ ...prev, [group.id]: ts }));
 
           if (unread) {
-            setNotification({ user: group.name, message: msg });
+            setNotification({ user: group.name, message: msg.text });
             setTimeout(() => setNotification(null), 3000);
           }
         });
@@ -134,264 +143,158 @@ function Chats() {
     navigate(`/group/${groupId}`);
   };
 
-  const handleGroupSubmit = async (e) => {
-    e.preventDefault();
-    if (!groupName || selectedUsers.length === 0) return;
-
-    const groupData = {
-      name: groupName,
-      emoji: groupEmoji,
-      members: [...selectedUsers, currentUser.uid],
-      createdAt: new Date(),
-      createdBy: currentUser.uid,
-    };
-
-    const groupRef = await addDoc(collection(db, 'groupChats'), groupData);
-    navigate(`/group/${groupRef.id}`);
+  const formatTimestamp = (date) => {
+    if (!(date instanceof Date) || isNaN(date)) return '';
+    if (isToday(date)) return format(date, 'h:mm a');
+    if (isYesterday(date)) return 'Yesterday';
+    return format(date, 'MMM dd, yyyy');
   };
 
-  const toggleUserSelection = (id) => {
-    setSelectedUsers((prev) =>
-      prev.includes(id) ? prev.filter((uid) => uid !== id) : [...prev, id]
-    );
-  };
-
-  const toggleTheme = () => {
-    setThemes((prev) => (prev === 'light' ? 'dark' : 'light'));
-  };
-
-  const sortedUsers = [...users]
-    .filter((user) => {
-      const name = user.name || user.username || '';
-      return name.toLowerCase().includes(searchTerm.toLowerCase());
-    })
-    .sort((a, b) => {
-      const timeA = latestTimestamps[a.id] || new Date(0);
-      const timeB = latestTimestamps[b.id] || new Date(0);
-      return timeB - timeA;
+  const handleContextMenu = (event, chat) => {
+    event.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: event.clientX,
+      y: event.clientY,
+      chat,
     });
-
-  const sortedGroups = [...userGroups].sort((a, b) => {
-    const timeA = latestGroupTimestamps[a.id] || new Date(0);
-    const timeB = latestGroupTimestamps[b.id] || new Date(0);
-    return timeB - timeA;
-  });
-
-  const handleSwipeReply = (message) => {
-    setSwipeAction(message);
   };
 
-  // Function to get profile picture (either Google login or Firestore)
-  const getUserProfilePic = (user) => {
-    return user.photoURL || auth.currentUser?.photoURL || 'https://via.placeholder.com/50';
-  };
+  const combinedChats = [
+    ...users.map((user) => ({
+      type: 'user',
+      id: user.id,
+      name: user.name || user.username,
+      photoURL: user.photoURL,
+      lastMessage: latestMessages[user.id],
+      timestamp: latestTimestamps[user.id] || new Date(0),
+      unreadCount: unreadCounts[user.id] || 0,
+    })),
+    ...userGroups.map((group) => ({
+      type: 'group',
+      id: group.id,
+      name: group.name,
+      emoji: group.emoji,
+      lastMessage: latestGroupMessages[group.id]?.text,
+      timestamp: latestGroupTimestamps[group.id] || new Date(0),
+      unreadCount: groupUnreadCounts[group.id] || 0,
+    })),
+  ]
+    .filter((chat) => chat.name?.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => b.timestamp - a.timestamp);
 
   return (
-    <div style={{ padding: '20px', backgroundColor: themes === 'light' ? '#fff' : '#333', transition: 'background-color 0.3s' }}>
-      <h2 style={{ color: themes === 'light' ? '#333' : '#fff' }}>Chats</h2>
+    <div style={{ padding: '10px', backgroundColor: '#02020200' }}>
+      <h2 style={{ color: '#FFFFFF', fontSize: '32px' }}>Chats</h2>
 
       <input
         type="text"
-        placeholder="Search users..."
+        placeholder="Search users or groups..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         style={{
-          padding: '8px',
-          width: '100%',
+          padding: '14px 10px',
+          width: '93%',
           marginBottom: '20px',
-          borderRadius: '6px',
-          border: '1px solid #ccc',
+          borderRadius: '12px',
+          backgroundColor: '#101010',
+          border: '1px solid rgb(24, 24, 24)',
         }}
       />
-
-      <button
-        onClick={() => setShowGroupForm(!showGroupForm)}
-        style={{
-          marginBottom: '20px',
-          padding: '10px 15px',
-          borderRadius: '6px',
-          backgroundColor: '#4caf50',
-          color: 'white',
-          border: 'none',
-          cursor: 'pointer',
-        }}
-      >
-        ➕ Create Group Chat
-      </button>
-
-      {showGroupForm && (
-        <form
-          onSubmit={handleGroupSubmit}
-          style={{ marginBottom: '30px', padding: '15px', background: '#eee', borderRadius: '10px' }}
-        >
-          <input
-            type="text"
-            placeholder="Enter group name"
-            value={groupName}
-            onChange={(e) => setGroupName(e.target.value)}
-            required
-            style={{ padding: '8px', width: '100%', marginBottom: '10px' }}
-          />
-
-          <input
-            type="text"
-            placeholder="Choose group emoji (e.g. 🎉)"
-            value={groupEmoji}
-            onChange={(e) => setGroupEmoji(e.target.value)}
-            style={{ padding: '8px', width: '100%', marginBottom: '10px' }}
-          />
-
-          <label style={{ fontWeight: 'bold' }}>Select members:</label>
-          <div style={{ maxHeight: '150px', overflowY: 'auto', margin: '10px 0' }}>
-            {users.map((user) => (
-              <div key={user.id} style={{ marginBottom: '5px' }}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={selectedUsers.includes(user.id)}
-                    onChange={() => toggleUserSelection(user.id)}
-                  />{' '}
-                  {user.name || user.username}
-                </label>
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="submit"
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#2196f3',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer',
-            }}
-          >
-            ✅ Create Group
-          </button>
-        </form>
-      )}
 
       {notification && (
         <div
           style={{
             position: 'fixed',
+            display: 'flex',
+            flexDirection: 'row',
             top: '20px',
             right: '20px',
-            backgroundColor: '#444',
-            color: '#fff',
+            backgroundColor: '#444444ea',
+            color: '#f0f0f0',
             padding: '10px 20px',
-            borderRadius: '8px',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+            borderRadius: '12px',
+            width: '330px',
+            height: 'auto',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.06)',
+            fontSize: '14px',
             zIndex: 1000,
           }}
         >
-          <strong>{notification.user}</strong>: {notification.message}
+          <Avatar src={notification.photoURL} style={{marginRight: '20px'}}></Avatar><div><strong style={{color: '#fff', fontSize: '16px'}}>{notification.user}</strong> <br></br> {notification.message}</div>
         </div>
       )}
 
-      <h3>Personal Chats</h3>
-      {sortedUsers.map((user) => {
-        const unread = unreadCounts[user.id] || 0;
-        const profilePic = getUserProfilePic(user); // Get profile pic from Firestore or Google
-        return (
+      <div>
+        {combinedChats.map((chat) => (
           <div
-            key={user.id}
-            onClick={() => handleSelect(user.id)}
+            key={chat.id}
+            onClick={() => chat.type === 'user' ? handleSelect(chat.id) : handleGroupClick(chat.id)}
+            onContextMenu={(e) => handleContextMenu(e, chat)}
             style={{
-              backgroundColor: unread > 0 ? '#fff4e4' : '#eef',
-              padding: '10px',
+              padding: '12px',
               marginBottom: '10px',
-              borderRadius: '8px',
-              cursor: 'pointer',
+              borderRadius: '18px',
               display: 'flex',
               alignItems: 'center',
+              backgroundColor: chat.unreadCount > 0 ? '#009b5929' : '#00000000',
+              cursor: 'pointer',
               transition: 'background-color 0.3s',
             }}
           >
-            <img
-              src={profilePic}
-              alt={`${user.name || user.username} profile`}
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                marginRight: '10px',
-              }}
-            />
-            <div style={{ flex: 1 }}>
-              <strong>{user.name || user.username}</strong>
-              <div style={{ fontSize: '13px', color: '#555', marginTop: '5px' }}>
-                {latestMessages[user.id] || 'No messages yet'}
-              </div>
-            </div>
-            {unread > 0 && (
-              <span
-                style={{
-                  backgroundColor: '#ff0000',
-                  color: '#fff',
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  fontSize: '12px',
+            {chat.type === 'group' ? (
+              <Avatar
+                sx={{
+                  bgcolor: '#f0f0f0',
+                  color: '#000',
+                  fontSize: 28,
+                  width: 48,
+                  height: 48,
+                  marginRight: 2,
                 }}
               >
-                {unread}
-              </span>
+                {chat.emoji || chat.name?.[0]?.toUpperCase() || ''}
+              </Avatar>
+            ) : (
+              <Avatar
+                src={chat.photoURL || 'https://via.placeholder.com/50'}
+                alt={chat.name}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  marginRight: '20px',
+                }}
+              />
             )}
-          </div>
-        );
-      })}
 
-      <h3 style={{ marginTop: '40px' }}>Group Chats</h3>
-      {sortedGroups.map((group) => {
-        const unread = groupUnreadCounts[group.id] || 0;
-        const groupEmoji = group.emoji || '😊'; // Default to smiley emoji
-        return (
-          <div
-            key={group.id}
-            onClick={() => handleGroupClick(group.id)}
-            style={{
-              backgroundColor: unread > 0 ? '#f9f2ff' : '#eef',
-              padding: '10px',
-              marginBottom: '10px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{ fontSize: '24px', marginRight: '10px' }}>{groupEmoji}</div>
             <div style={{ flex: 1 }}>
-              <strong>{group.name}</strong>
-              <div style={{ fontSize: '13px', color: '#555', marginTop: '5px' }}>
-                {latestGroupMessages[group.id] || 'No messages yet'}
-              </div>
+              <p style={{ margin: 0, fontWeight: 'bold', color: '#FFFFFF' }}>
+                {chat.name}
+              </p>
+              <p style={{ margin: 0, color: '#BDBDBD' }}>
+                {chat.lastMessage || 'No messages yet'}
+              </p>
+              <span style={{ fontSize: '12px', color: '#BDBDBD' }}>
+                {formatTimestamp(chat.timestamp)}
+              </span>
             </div>
-            {unread > 0 && (
+
+            {chat.unreadCount > 0 && (
               <span
                 style={{
-                  backgroundColor: '#ff0000',
-                  color: '#fff',
+                  backgroundColor: '#00ff92e8',
+                  color: '#212121',
+                  padding: '4px 8px',
                   borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  fontSize: '12px',
                 }}
               >
-                {unread}
+                {chat.unreadCount}
               </span>
             )}
           </div>
-        );
-      })}
+        ))}
+      </div>
     </div>
   );
 }
