@@ -603,32 +603,6 @@ useEffect(() => {
         {friendDetails.status}
       </Typography>
     </Box>
-
-    <Divider sx={{ my: 3, backgroundColor: '#333' }} />
-
-    {/* Common Groups */}
-    <Box sx={{ mb: 3 }}>
-      <Typography variant="h6" gutterBottom>Common Groups</Typography>
-      {commonGroups.length > 0 ? (
-        commonGroups.map(group => (
-          <Typography key={group} sx={{ my: 0.5 }}>• {group}</Typography>
-        ))
-      ) : (
-        <Typography sx={{ color: '#888' }}>No common groups</Typography>
-      )}
-    </Box>
-
-    {/* Trips Together */}
-    <Box>
-      <Typography variant="h6" gutterBottom>Trips Together</Typography>
-      {commonTrips.length > 0 ? (
-        commonTrips.map(trip => (
-          <Typography key={trip} sx={{ my: 0.5 }}>• {trip}</Typography>
-        ))
-      ) : (
-        <Typography sx={{ color: '#888' }}>No trips together</Typography>
-      )}
-    </Box>
   </Box>
 </SwipeableDrawer>
 </motion.div>
