@@ -574,7 +574,8 @@ useEffect(() => {
       height: '85vh',
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
-      backgroundColor: '#121212',
+      backgroundColor: '#0c0c0c0a',
+      backdropFilter: 'blur(70px)',
       color: '#fff',
     }
   }}
