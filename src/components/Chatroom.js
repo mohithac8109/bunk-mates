@@ -3,7 +3,7 @@ import {
   Box, Avatar, Typography, TextField, IconButton, CircularProgress,
   AppBar, Toolbar, Paper, Menu, MenuItem, Slide, Dialog, Divider, SwipeableDrawer, Stack, Chip
 } from '@mui/material';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { X, Phone, Video, MoreVertical } from 'lucide-react';
 import SendIcon from '@mui/icons-material/Send';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
@@ -15,11 +15,13 @@ import {
   serverTimestamp, doc, updateDoc, getDoc, getDocs, where, deleteDoc
 } from "firebase/firestore";
 import { db, auth } from '../firebase';
+import { onAuthStateChanged } from "firebase/auth";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 function ChatRoom() {
   const { friendId } = useParams();
-  const currentUser = auth.currentUser;
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -30,9 +32,15 @@ function ChatRoom() {
   const [showProfile, setShowProfile] = useState(false);
   const [commonGroups, setCommonGroups] = useState([]);
   const [commonTrips, setCommonTrips] = useState([]);
+  const [replyingTo, setReplyingTo] = useState(null);
   const [selectedReplyMessage, setSelectedReplyMessage] = useState(null);
+  const controls = useAnimation();
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
 
-  const chatId = [currentUser.uid, friendId].sort().join('_');
+  const scrollContainerRef = useRef(null);
+  const chatId = currentUser && friendId ? [currentUser.uid, friendId].sort().join('_') : null;
+
   const history = useNavigate();
   const messagesEndRef = useRef(null);
 
@@ -56,6 +64,50 @@ const toggleDrawer = (open) => (event) => {
   if (event && event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) return;
   setDrawerOpen(open);
 };
+
+useEffect(() => {
+  if (messages.length > 0) {
+    if (isAtBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      // Don't scroll, just show button
+      setNewMessagesCount(prev => prev + 1);
+    }
+  }
+}, [messages]);
+
+
+const handleScroll = () => {
+  const scrollEl = scrollContainerRef.current;
+  if (!scrollEl) return;
+
+  const atBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 100;
+  setIsAtBottom(atBottom);
+
+  if (atBottom) {
+    setNewMessagesCount(0); // Reset if user scrolls down
+  }
+};
+
+useEffect(() => {
+  const scrollEl = scrollContainerRef.current;
+  if (scrollEl) {
+    scrollEl.addEventListener('scroll', handleScroll);
+  }
+  return () => {
+    if (scrollEl) scrollEl.removeEventListener('scroll', handleScroll);
+  };
+}, []);
+
+
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    setCurrentUser(user);
+    setAuthLoading(false);
+  });
+
+  return () => unsubscribe();
+}, []);
 
 
   useEffect(() => {
@@ -98,6 +150,8 @@ const toggleDrawer = (open) => (event) => {
   }, [friendId]);
 
   useEffect(() => {
+    if (!chatId) return;
+  
     const q = query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "asc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const msgs = [];
@@ -107,16 +161,18 @@ const toggleDrawer = (open) => (event) => {
         msgs.push(msg);
       });
       setMessages(msgs);
-
+  
       const lastMessage = msgs[msgs.length - 1];
-      if (lastMessage && lastMessage.senderId !== currentUser.uid && !lastMessage.isRead) {
+      if (lastMessage && lastMessage.senderId !== currentUser?.uid && !lastMessage.isRead) {
         updateDoc(doc(db, "chats", chatId, "messages", lastMessage.id), {
           isRead: true
         });
       }
     });
+  
     return () => unsubscribe();
-  }, [chatId]);
+  }, [chatId, currentUser]);
+  
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -134,10 +190,10 @@ const toggleDrawer = (open) => (event) => {
         senderId: currentUser.uid,
         timestamp: serverTimestamp(),
         isRead: false,
-        replyTo: selectedReplyMessage ? {
-          id: selectedReplyMessage.id,
-          text: selectedReplyMessage.text,
-          senderId: selectedReplyMessage.senderId
+        replyTo: replyingTo ? {
+          id: replyingTo.id,
+          text: replyingTo.text,
+          senderId: replyingTo.senderId
         } : null
       });      
     }
@@ -191,6 +247,14 @@ const toggleDrawer = (open) => (event) => {
     }
   }, [messages]);
 
+  if (authLoading || !currentUser) {
+    return (
+      <Box sx={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff' }}>
+        <CircularProgress color="inherit" />
+      </Box>
+    );
+  }
+  
   return (
     <Box sx={{ backgroundColor: '#21212100', height: '98vh', display: 'flex', flexDirection: 'column', color: '#fff' }}>
       
@@ -213,6 +277,7 @@ const toggleDrawer = (open) => (event) => {
 
       {/* Messages */}
       <Box
+      ref={scrollContainerRef}
   sx={{
     flex: 1,
     overflowY: 'auto',
@@ -222,137 +287,156 @@ const toggleDrawer = (open) => (event) => {
     display: 'flex',
     flexDirection: 'column',
   }}
-  ref={messagesEndRef}
 >
   <AnimatePresence initial={false}>
-    {messages.map((msg, index) => {
-      const isOwn = msg.senderId === currentUser.uid;
-      const showDate =
-        index === 0 ||
-        getMessageDate(msg.timestamp) !== getMessageDate(messages[index - 1].timestamp);
+  {messages.map((msg, index) => {
+  const isOwn = msg.senderId === currentUser.uid;
+  const showDate =
+    index === 0 ||
+    getMessageDate(msg.timestamp) !== getMessageDate(messages[index - 1].timestamp);
 
-      return (
+  return (
+    <motion.div
+      key={msg.id}
+      className={`message-container ${isOwn ? 'own' : ''}`}
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      onDragEnd={(event, info) => {
+        if (info.offset.x > 100) {
+          setReplyingTo(msg);
+        }
+        // Always reset x to 0 after drag
+        controls.start({ x: 0 });
+      }}
+      animate="visible"
+      initial="hidden"
+      exit="exit"
+      variants={messageVariants}
+      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+      style={{ touchAction: 'pan-y' }}
+    >
+      {showDate && (
         <motion.div
-          key={msg.id}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          variants={messageVariants}
-          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          style={{
+            width: '100%',
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: 0,
+            marginTop: 15
+          }}
         >
-          {showDate && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              style={{
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'center',
-                marginBottom: 0,
-                marginTop: 15
+          <Typography
+            variant="caption"
+            sx={{ color: '#BDBDBD', textAlign: 'center' }}
+          >
+            {getMessageDate(msg.timestamp)}
+          </Typography>
+        </motion.div>
+      )}
+
+      <Box
+        onContextMenu={(e) => handleContextMenu(e, msg)}
+        onDoubleClick={() => isOwn && handleEdit(msg)}
+        sx={{
+          display: 'flex',
+          justifyContent: isOwn ? 'flex-end' : 'flex-start',
+          mb: 2,
+        }}
+      >
+        <Paper
+          elevation={1}
+          sx={{
+            px: 2,
+            py: 1,
+            maxWidth: '70%',
+            bgcolor: isOwn ? '#005c4b' : '#353535',
+            borderRadius: isOwn ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+            color: '#FFFFFF',
+            position: 'relative'
+          }}
+        >
+          {msg.replyTo && (
+            <Box
+              sx={{
+                borderLeft: '4px solid #00f721',
+                pl: 1,
+                mb: 1,
+                bgcolor: '#2b2b2b',
+                borderRadius: 1,
               }}
             >
-              <Typography
-                variant="caption"
-                sx={{ color: '#BDBDBD', textAlign: 'center' }}
-              >
-                {getMessageDate(msg.timestamp)}
+              <Typography variant="caption" color="primary">
+                {msg.replyTo.senderId === currentUser.uid ? 'You' : friendDetails.name}
               </Typography>
-            </motion.div>
+              <Typography variant="body2" sx={{ color: '#ccc', fontStyle: 'italic' }}>
+                {msg.replyTo.text.length > 60
+                  ? msg.replyTo.text.slice(0, 60) + '...'
+                  : msg.replyTo.text}
+              </Typography>
+            </Box>
           )}
-          <Box
-            onContextMenu={(e) => handleContextMenu(e, msg)}
-            onDoubleClick={() => isOwn && handleEdit(msg)}
+
+          <Typography variant="body1">{msg.text}</Typography>
+
+          <Typography
+            variant="caption"
             sx={{
-              display: 'flex',
-              justifyContent: isOwn ? 'flex-end' : 'flex-start',
-              mb: 2
+              fontSize: '0.7rem',
+              color: '#BDBDBD',
+              mt: 0.5,
             }}
           >
-            {/* Message bubble */}
-            <Paper
-              elevation={1}
+            {msg.timestamp?.toDate().toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </Typography>
+
+          {msg.reaction && (
+            <Typography
+              variant="body2"
               sx={{
-                px: 1.2,
-                py: 1,
-                maxWidth: '70%',
-                bgcolor: isOwn ? '#005c4b' : '#353535',
-                borderRadius: isOwn ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-                color: '#FFFFFF',
-                position: 'relative'
+                position: 'absolute',
+                backgroundColor: '#272727',
+                width: '18px',
+                borderRadius: '40px',
+                bottom: -10,
+                right: 10,
               }}
             >
-              {/* Reply Preview */}
-              {msg.replyTo && (
-                <Box
-                  sx={{
-                    borderLeft: '4px solid #00f721',
-                    pl: 1,
-                    mb: 1,
-                    bgcolor: '#2b2b2b',
-                    borderRadius: 2,
-                  }}
-                >
-                  <Typography variant="caption" color="primary">
-                    {msg.replyTo.senderId === currentUser.uid ? 'You' : friendDetails.name}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: '#ccc', fontStyle: 'italic' }}>
-                    {msg.replyTo.text.length > 60
-                      ? msg.replyTo.text.slice(0, 60) + '...'
-                      : msg.replyTo.text}
-                  </Typography>
-                </Box>
-              )}
+              {msg.reaction}
+            </Typography>
+          )}
 
-              {/* Actual Message */}
-              <Typography variant="body1">{msg.text}</Typography>
+          {isOwn && (
+            <Box sx={{ textAlign: 'right', mt: 0.5 }}>
+              <DoneAllIcon
+                fontSize="small"
+                sx={{ color: msg.isRead ? '#0099ff' : '#BDBDBD' }}
+              />
+            </Box>
+          )}
+        </Paper>
+        {!isAtBottom && newMessagesCount > 0 && (
+  <button
+    className="scroll-to-bottom-btn"
+    onClick={() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setNewMessagesCount(0);
+    }}
+  >
+    ↓ {newMessagesCount} New Message{newMessagesCount > 1 ? 's' : ''}
+  </button>
+)}
 
-              {/* Timestamp */}
-              <Typography
-                variant="caption"
-                sx={{
-                  fontSize: '0.7rem',
-                  color: '#BDBDBD',
-                  mt: 0.5,
-                }}
-              >
-                {msg.timestamp?.toDate().toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </Typography>
+        <div ref={messagesEndRef} />
+      </Box>
+    </motion.div>
+  );
+})}
 
-              {/* Reactions */}
-              {msg.reaction && (
-                <Typography
-                  variant="body2"
-                  sx={{
-                    position: 'absolute',
-                    backgroundColor: '#272727',
-                    width: '18px',
-                    borderRadius: '40px',
-                    bottom: -10,
-                    right: 10,
-                  }}
-                >
-                  {msg.reaction}
-                </Typography>
-              )}
-
-              {/* Read Receipt */}
-              {isOwn && (
-                <Box sx={{ textAlign: 'right', mt: 0.5 }}>
-                  <DoneAllIcon
-                    fontSize="small"
-                    sx={{ color: msg.isRead ? '#0099ff' : '#BDBDBD' }}
-                  />
-                </Box>
-              )}
-            </Paper>
-          </Box>
-        </motion.div>
-      );
-    })}
   </AnimatePresence>
 
   <div ref={messagesEndRef} />
@@ -361,22 +445,25 @@ const toggleDrawer = (open) => (event) => {
 
 
 
-{selectedReplyMessage && (
-  <Box sx={{ px: 2, py: 1, bgcolor: '#1e1e1e', borderLeft: '4px solid #00f721', borderRadius: 2, mb: 1 }}>
-    <Typography variant="caption" color="primary">
-      Replying to {selectedReplyMessage.senderId === currentUser.uid ? 'You' : friendDetails.name}
-    </Typography>
-    <Typography variant="body2" sx={{ color: '#fff' }}>
-      {selectedReplyMessage.text.length > 60
-        ? selectedReplyMessage.text.slice(0, 60) + '...'
-        : selectedReplyMessage.text}
-    </Typography>
-    <IconButton size="small" onClick={() => setSelectedReplyMessage(null)} sx={{ color: '#fff', ml: 1 }}>
-      <CloseIcon fontSize="small" />
-    </IconButton>
-  </Box>
+{replyingTo && (
+  <Paper sx={{ p: 1, position: 'relative', bottom: '55px', width: '9v5w', bgcolor: '#2b2b2bb0', mb: 1, borderLeft: '4px solid #00f721', backdropFilter: 'blur(30px)' }}>
+    <Box display="flex" justifyContent="space-between" alignItems="center">
+      <Box>
+        <Typography variant="caption" color="primary">
+          Replying to {replyingTo.senderId === currentUser.uid ? 'You' : friendDetails.name}
+        </Typography>
+        <Typography variant="body2" sx={{ color: '#ccc' }}>
+          {replyingTo.text.length > 60
+            ? replyingTo.text.slice(0, 60) + '...'
+            : replyingTo.text}
+        </Typography>
+      </Box>
+      <IconButton onClick={() => setReplyingTo(null)}>
+        <CloseIcon fontSize="small" sx={{ color: 'white' }} />
+      </IconButton>
+    </Box>
+  </Paper>
 )}
-
 
       {/* Input Field */}
       <Box
@@ -438,7 +525,7 @@ const toggleDrawer = (open) => (event) => {
 
       {/* Context Menu */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={() => { setSelectedReplyMessage(selectedMsg); handleMenuClose();}}>Reply</MenuItem>
+        <MenuItem onClick={() => { setReplyingTo(selectedMsg); handleMenuClose();}}>Reply</MenuItem>
         <MenuItem onClick={() => handleEdit(selectedMsg)}>Edit</MenuItem>
         <MenuItem onClick={() => handleDelete(selectedMsg?.id)}>Delete</MenuItem>
         <MenuItem onClick={() => handleReaction('❤️')}>❤️ React</MenuItem>
