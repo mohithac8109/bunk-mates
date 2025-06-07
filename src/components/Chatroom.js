@@ -600,6 +600,7 @@ useEffect(() => {
       />
       <Typography variant="h6">{friendDetails.name}</Typography>
       <Typography variant="subtitle1" sx={{ color: '#aaa' }}>@{friendDetails.username}</Typography>
+      <Typography variant="subtitle1" sx={{ color: '#aaa' }}>{friendDetails.bio}</Typography>
       <Typography variant="body2" sx={{ color: friendDetails.status === 'online' ? '#00e676' : '#888' }}>
         {friendDetails.status}
       </Typography>
