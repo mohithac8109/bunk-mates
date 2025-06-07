@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { auth, db, firestore } from "../firebase";
+import { auth } from "../firebase"; // Assuming you have firebase auth
 import packageJson from '../../package.json'; 
 import {
   AppBar,
@@ -69,14 +69,33 @@ const theme = createTheme({
       default: "#02020200", // almost transparent black for main background
       paper: "#0c0c0c", // deep black for dialogs/paper
     },
+    mode: "dark",
+    background: {
+      default: "#02020200", // almost transparent black for main background
+      paper: "#0c0c0c", // deep black for dialogs/paper
+    },
     primary: {
+      main: "#00f721", // bright green solid for buttons and accents
+      contrastText: "#000000", // black text on bright green buttons
       main: "#00f721", // bright green solid for buttons and accents
       contrastText: "#000000", // black text on bright green buttons
     },
     secondary: {
       main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
+      main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
     },
     text: {
+      primary: "#FFFFFF", // pure white for main text
+      secondary: "#BDBDBD", // light grey for secondary text
+      disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
+    },
+    action: {
+      hover: "#00f721", // bright green hover for interactive elements
+      selected: "#131313", // dark black for selected states
+      disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
+      disabled: "#BDBDBD",
+    },
+    divider: "rgb(24, 24, 24)", // very dark grey for borders
       primary: "#FFFFFF", // pure white for main text
       secondary: "#BDBDBD", // light grey for secondary text
       disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
@@ -94,18 +113,22 @@ const theme = createTheme({
     h6: {
       fontWeight: "bold",
       color: "#FFFFFF",
+      color: "#FFFFFF",
     },
     body1: {
       fontSize: "1rem",
       lineHeight: "1.5",
       color: "#FFFFFF",
+      color: "#FFFFFF",
     },
     body2: {
       fontSize: "0.875rem",
       color: "#BDBDBD",
+      color: "#BDBDBD",
     },
   },
   shape: {
+    borderRadius: 12,
     borderRadius: 12,
   },
   components: {
@@ -118,9 +141,30 @@ const theme = createTheme({
         },
       },
     },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#0c0c0c", // dark grey/black for app bar background
+          boxShadow: "none",
+          borderBottom: "1px solid rgb(24, 24, 24)",
+        },
+      },
+    },
     MuiCard: {
       styleOverrides: {
         root: {
+          backgroundColor: "#2c2c2c", // dark grey card background
+          color: "#FFFFFF",
+          boxShadow:
+            "0 4px 12px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6)",
+          borderRadius: 16,
+          transition: "box-shadow 0.3s ease, transform 0.3s ease",
+          cursor: "pointer",
+          "&:hover": {
+            transform: "translateY(-4px)",
+            backgroundColor: "#131313",
+          },
+          animation: `${fadeIn} 0.6s ease forwards`,
           backgroundColor: "#2c2c2c", // dark grey card background
           color: "#FFFFFF",
           boxShadow:
@@ -203,6 +247,7 @@ const Home = () => {
   // User data states
   const [userData, setUserData] = useState({
     name: "",
+    username: "",
     username: "",
     email: "",
     mobile: "",
@@ -402,20 +447,25 @@ const Home = () => {
       }
 
       const { displayName, email, photoURL, phoneNumber, userBio } = user;
+      const { displayName, email, photoURL, phoneNumber, userBio } = user;
       const newUserData = {
         name: displayName || "User",
         email: email || "",
         mobile: phoneNumber || "Not provided",
+        mobile: phoneNumber || "Not provided",
         photoURL: photoURL || "",
+        bio: userBio || "",
         bio: userBio || "",
       };
 
       setUserData(newUserData);
       localStorage.setItem("bunkmateuser", JSON.stringify(newUserData));
+      localStorage.setItem("bunkmateuser", JSON.stringify(newUserData));
       setLoading(false);
     };
 
     fetchUserData();
+  }, [navigate]);
   }, [navigate]);
 
   const handleMenuOpen = (event) => {
@@ -431,6 +481,9 @@ const Home = () => {
       await signOut(auth);
       localStorage.removeItem("bunkmateuser");
       navigate("/login");
+      await signOut(auth);
+      localStorage.removeItem("bunkmateuser");
+      navigate("/login");
     } catch (error) {
       console.error("Error logging out:", error);
     }
@@ -438,10 +491,18 @@ const Home = () => {
 
   const handleProfileClick = () => {
     navigate("/profile");
+    navigate("/profile");
   };
 
   return (
     <ThemeProvider theme={theme}>
+      <Box
+        sx={{
+          display: "flex",
+          minHeight: "100vh",
+          flexDirection: "column",
+        }}
+      >
       <Box
         sx={{
           display: "flex",
@@ -455,474 +516,40 @@ const Home = () => {
             <Typography variant="h6" sx={{ userSelect: "none" }}>
               BunkMate 🏖️
             </Typography>
-
-<>
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      cursor: "pointer",
-      borderRadius: "12px",
-      p: 1,
-      backgroundColor: "#101010",
-      transition: "background-color 0.3s ease",
-      "&:hover": {
-        backgroundColor: "#2c2c2c",
-      },
-    }}
-    onClick={handleDrawerOpen}
-  >
-    <Avatar src={userData.photoURL || ""} sx={{ width: 40, height: 40, mr: isSmallScreen ? 0 : 1 }} />
-    {!isSmallScreen && (
-      <>
-        <Box sx={{ textAlign: "right", mr: 1 }}>
-          <Typography variant="body1" sx={{ fontWeight: "bold", color: "text.primary" }}>
-            {userData.name || "Username"}
-          </Typography>
-          <Typography variant="body2" sx={{ fontSize: "0.8rem", color: "text.secondary" }}>
-            {userData.email || "Email"}
-          </Typography>
-        </Box>
-        <ArrowDropDownIcon sx={{ color: "text.primary" }} />
-      </>
-    )}
-  </Box>
-
-  {/* Bottom Drawer */}
-  <SwipeableDrawer
-    anchor="bottom"
-    open={drawerOpen}
-    onClose={handleDrawerClose}
-    PaperProps={{
-      sx: {
-        height: '90vh',
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        backgroundColor: "#0c0c0c00",
-        backdropFilter: 'blur(80px)',
-        backgroundImage: 'none',
-        color: "#fff",
-        px: 2,
-        pb: 3,
-      },
-    }}
-  >
-    {/* Drawer drag indicator */}
-    <Slide direction="down" in={true} timeout={200}>
-      <Box
-        sx={{ width: 40, height: 5, backgroundColor: "#666", borderRadius: 3, my: 1, mx: "auto" }}
-      />
-    </Slide>
-
-    {/* Main Settings Page */}
-    {drawerPage === "main" && (
-      <>
-        {/* User info */}
-        <Box sx={{ display: "flex", alignItems: "left", my: 2, mx: 2 }}>
-          <Typography sx={{ fontSize: '1.5rem' }}><h2>Settings</h2></Typography>
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, my: 2, mx: 2 }}>
-          <Avatar src={userData.photoURL || ""} sx={{ width: 50, height: 50 }} />
-          <Box>
-            <Typography variant="subtitle1" fontWeight="bold">
-              {userData.name || "Username"}
-            </Typography>
-            <Typography variant="body2" sx={{ color: "#aaa" }}>
-              {userData.email || "Email"}
-            </Typography>
-          </Box>
-        </Box>
-
-        <Divider sx={{ borderColor: "#333" }} />
-
-        {/* Menu List */}
-        <List sx={{ my: 2, gap: 0.5, display: "flex", flexDirection: "column" }}>
-          <ListItem>
-            <ListItemButton onClick={() => setDrawerPage("editProfile")} 
-                sx={{ 
-                  backgroundColor: "#f1f1f111", 
-                  borderRadius: 1.6, 
-                  py: 2,
-                  '&:hover': { bgcolor: '#f1f1f121'}
-
-                  }}>
-              <ListItemIcon>
-                <PersonOutlineIcon sx={{ color: "#fff" }} />
-              </ListItemIcon>
-              <ListItemText primary="Edit Profile" />
-            </ListItemButton>
-          </ListItem>
-
-          {/* New: App Version & About */}
-          <ListItem>
-            <ListItemButton onClick={() => setDrawerPage("about")} sx={{ backgroundColor: "#f1f1f111", borderRadius: 1.6, py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}>
-              <ListItemIcon>
-                <InfoOutlinedIcon sx={{ color: "#fff" }} />
-              </ListItemIcon>
-              <ListItemText primary="App Version & About" />
-            </ListItemButton>
-          </ListItem>
-
-          {/* New: Support / Help */}
-          <ListItem>
-            <ListItemButton onClick={() => setDrawerPage("support")} sx={{ backgroundColor: "#f1f1f111", borderRadius: 1.6, py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}>
-              <ListItemIcon>
-                <HelpOutlineIcon sx={{ color: "#fff" }} />
-              </ListItemIcon>
-              <ListItemText primary="Support / Help" />
-            </ListItemButton>
-          </ListItem>
-
-          <ListItem>
-            <ListItemButton onClick={() => setConfirmLogout(true)} sx={{ backgroundColor: "#ff000036", borderRadius: 1.6, py: 2.2, '&:hover': { bgcolor: '#ff000086', color: '#ff000046'}}}>
-              <ListItemIcon>
-                <LogoutIcon sx={{ color: "#ff1b1bcc" }} />
-              </ListItemIcon>
-              <Typography sx={{ color: "#ff1b1bcc" }}>Logout</Typography>
-            </ListItemButton>
-          </ListItem>
-        </List>
-      </>
-    )}
-
-    {/* Edit Profile Page */}
-    {drawerPage === "editProfile" && (
-      <Container sx={{ mt: 1, mb: 2 }}>
-        <Typography variant="h5" gutterBottom>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => setDrawerPage("main")}
-            sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 1.5, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}
-          />
-          <h2>Edit Profile</h2>
-        </Typography>
-        {/* Your edit profile form here */}
-        {/* ... */}
-      </Container>
-    )}
-
-{drawerPage === "about" && (
-  <Container sx={{ mt: 1, mb: 2 }}>
-    <Button
-      startIcon={<ArrowBackIcon />}
-      onClick={() => setDrawerPage("main")}
-      sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 1.5, height: '50px', color: "#fff", backgroundColor: "#f1f1f111" }}
-    />
-    <Typography variant="h5" gutterBottom><h2>App Version & About</h2></Typography>
-
-          <Typography
-            variant="body1"
-            sx={{ mb: 2, backgroundColor: '#f1f1f111', fontSize: 18, py: 1, px: 2, borderRadius: 1, cursor: "pointer" }}
-            onClick={() => setDrawerPage("featuresChangelog")}
-          >
-            Version: <strong>{packageJson.version || "N/A"}</strong>
-          </Typography>
-
-    <Typography variant="body2" sx={{ mb: 2, color: "#aaa" }}>
-      Made with ❤️ In India!
-    </Typography>
-
-    <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Licenses & Credits</Typography>
-    <Typography variant="body2" sx={{ mb: 1 }}>
-      - React.js: MIT License<br />
-      - Material-UI: MIT License<br />
-      - Firebase: Apache 2.0 License<br />
-      {/* Add more licenses as relevant */}
-    </Typography>
-
-    <Typography variant="body2" sx={{ mb: 1 }}>
-      Special thanks to all contributors and open-source projects that made this app possible.
-    </Typography>
-
-    {/* --- New Features to Add --- */}
-
-    {/* 2. Privacy Policy */}
-    <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Privacy Policy</Typography>
-    <Typography variant="body2" sx={{ mb: 2, color: "#aaa" }}>
-      Learn how we collect, use, and protect your data.
-    </Typography>
-    <Button
-      variant="outlined"
-      onClick={() => window.open('https://yourapp.com/privacy-policy', '_blank')}
-      sx={{ mb: 3, backgroundColor: '#f1f1f111', color: '#fff', border: 'transparent' }}
-    >
-      Read Privacy Policy
-    </Button>
-
-    {/* 3. Terms of Service */}
-    <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Terms of Service</Typography>
-    <Typography variant="body2" sx={{ mb: 2, color: "#aaa" }}>
-      Review the rules and guidelines for using this app.
-    </Typography>
-    <Button
-      variant="outlined"
-      onClick={() => window.open('https://yourapp.com/terms', '_blank')}
-      sx={{ mb: 3, backgroundColor: '#f1f1f111', color: '#fff', border: 'transparent' }}
-    >
-      View Terms
-    </Button>
-
-    {/* 4. Contact Info / Social Links */}
-    <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Contact & Social</Typography>
-    <Typography variant="body2" sx={{ mb: 1, color: "#aaa" }}>
-      Have questions or want to follow us? Connect via:
-    </Typography>
-    <Box sx={{ display: 'flex', gap: 2 }}>
-      <Button
-        variant="contained"
-        sx={{ mb: 3, backgroundColor: '#f1f1f111', color: '#fff', border: 'transparent', boxShadow: 'none' }}
-        onClick={() => window.open('mailto:support@yourapp.com')}
-      >
-        <MailOutlinedIcon />
-      </Button>
-      {/* <Button
-        variant="contained"
-        color="secondary"
-        onClick={() => window.open('https://twitter.com/yourapp')}
-      >
-        Twitter
-      </Button>
-      <Button
-        variant="contained"
-        sx={{ backgroundColor: '#0077b5', '&:hover': { backgroundColor: '#005582' } }}
-        onClick={() => window.open('https://linkedin.com/company/yourapp')}
-      >
-        LinkedIn
-      </Button> */}
-    </Box>
-
-    {/* 5. Open Source Link (if applicable) */}
-    <Box sx={{ backgroundColor: '#f1f1f111', px: 3, py: 1, borderRadius: 2 }}>
-      <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Open Source</Typography>
-    <Typography variant="body2" sx={{ mb: 2, color: "#aaa" }}>
-      Our source code is available on GitHub for transparency and contributions.
-    </Typography>
-    <Button
-      variant="outlined"
-      onClick={() => window.open('https://github.com/yourapp', '_blank')}
-      sx={{ mb: 3, backgroundColor: '#f1f1f111', color: '#fff', border: 'transparent' }}
-    >
-      View on GitHub
-    </Button>
-    </Box>
-  </Container>
-)}
-
-      {drawerPage === "featuresChangelog" && (
-        <Container sx={{ mt: 1, mb: 2 }}>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => setDrawerPage("about")}
-            sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 1.5, height: '50px', color: "#fff", backgroundColor: "#f1f1f111" }}
-          />
-          <Typography variant="h5" gutterBottom><h2>Features & Changelog</h2></Typography>
-
-          {/* Features Section */}
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" gutterBottom>Features</Typography>
-            {features.map(({ name, detail }, idx) => (
-              <Box key={idx} sx={{ mb: 2, ml: 2 }}>
-                <Typography variant="subtitle1" component="div" fontWeight="bold">{name}</Typography>
-                <Typography variant="body2" sx={{ color: "#aaa" }}>{detail}</Typography>
-              </Box>
-            ))}
-          </Box>
-
-          {/* Changelog Section */}
-          <Box>
-            <Typography variant="h6" gutterBottom>Changelog</Typography>
-            {changelogs.map(({ version, date, changes }, idx) => (
-              <Box key={idx} sx={{ mb: 3, pl: 2, borderLeft: '3px solid rgba(0, 122, 0, 0.79)' }}>
-                <Typography variant="subtitle1" fontWeight="bold">
-                  Version {version} <Typography component="span" variant="body2" color="text.secondary">({date})</Typography>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                cursor: "pointer",
+                borderRadius: "8px",
+                padding: "5px",
+                backgroundColor: "#F1F1F1",
+              }}
+              onClick={handleMenuOpen}
+            >
+              <Avatar alt={userData.name} src={userData.photoURL || ""} sx={{ width: 40, height: 40, marginRight: 1 }} />
+              <Box sx={{ textAlign: "right" }}>
+                <Typography variant="body1" sx={{ fontWeight: "bold", color: theme.palette.text.primary }}>
+                  {userData.name || "Username"}
                 </Typography>
-                <ul>
-                  {changes.map((change, cidx) => (
-                    <li key={cidx}><Typography variant="body2">{change}</Typography></li>
-                  ))}
-                </ul>
+                <Typography variant="body2" sx={{ fontSize: "0.8rem", color: theme.palette.text.secondary }}>
+                  {userData.email || "Email"}
+                </Typography>
               </Box>
-            ))}
-          </Box>
-        </Container>
-      )}
-
-{drawerPage === "support" && (
-  <Container sx={{ mt: 1, mb: 2 }}>
-    <Button
-      startIcon={<ArrowBackIcon />}
-      onClick={() => setDrawerPage("main")}
-      sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 1.5, height: '50px', color: "#fff", backgroundColor: "#f1f1f111" }}
-    />
-    <Typography variant="h5" gutterBottom><h2>Support & Help</h2></Typography>
-
-    <Typography variant="body1" sx={{ mb: 3 }}>
-      We're here to help you! If you encounter any issues, have questions, or need assistance, please explore the following resources or get in touch with us directly.
-    </Typography>
-
-    <List sx={{ mb: 3 }}>
-      <ListItem>
-        <ListItemText
-          primary={
-            <a href="/faq" style={{ color: "#00f721", textDecoration: "none" }} target="_blank" rel="noopener noreferrer">
-              Support & Help
-            </a>
-          }
-        />
-        </ListItem>
-        <ListItem>
-        <ListItemText
-          primary={
-            <a href="/faq" style={{ color: "#00f721", textDecoration: "none" }} target="_blank" rel="noopener noreferrer">
-              Frequently Asked Questions (FAQ)
-            </a>
-          }
-        />
-      </ListItem>
-      <ListItem>
-        <ListItemText
-          primary={
-            <a href="mailto:support@example.com" style={{ color: "#00f721", textDecoration: "none" }}>
-              Contact Us: support@example.com
-            </a>
-          }
-        />
-      </ListItem>
-      <ListItem>
-        <ListItemText
-          primary={
-            <a href="/terms-and-conditions" style={{ color: "#00f721", textDecoration: "none" }} target="_blank" rel="noopener noreferrer">
-              Terms & Conditions
-            </a>
-          }
-        />
-      </ListItem>
-    </List>
-
-    <Button
-      variant="contained"
-      color="success"
-      fullWidth
-      onClick={() => {
-        // Navigate to community page (adjust if using react-router or other navigation)
-        window.open("/community", "_blank");
-      }}
-      sx={{ fontWeight: "bold", textTransform: "none", mb: 3, backgroundColor: '#f1f1f131', color: '#fff', border: 'transparent', boxShadow: 'none' }}
-    >
-      Visit Our Community
-    </Button>
-  </Container>
-)}
-
-
-      {drawerPage === "editProfile" && (
-        <Container sx={{ mt: 1, mb: 2 }}>
-
-          {loading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 5 }}>
-              <CircularProgress />
+              <ArrowDropDownIcon sx={{ color: theme.palette.text.primary }} />
             </Box>
-          ) : (
-            <>
-              {/* Profile Picture */}
-              <Box sx={{ display: "flex", alignItems: "center",justifyContent: "center", mb: 3 }}>
-                <Avatar
-                  alt={userData.name}
-                  src={userData.photoURL || ""}
-                  sx={{ width: 140, height: 140, mr: 2 }}
-                />
-              </Box>
 
-              {/* Name */}
-              <TextField
-                fullWidth
-                label="Name"
-                value={userData.name}
-                onChange={(e) => setUserData({ ...userData, name: e.target.value })}
-                margin="normal"
-                disabled={isSaving}
-              />
-
-              {/* Username */}
-              <TextField
-                fullWidth
-                label="Username"
-                value={userData.username}
-                onChange={(e) => setUserData({ ...userData, username: e.target.value })}
-                margin="normal"
-                disabled={isSaving}
-              />
-
-              {/* Email */}
-              <TextField fullWidth label="Email" value={userData.email} disabled margin="normal" />
-
-              {/* Mobile */}
-              <TextField
-                fullWidth
-                label="Mobile"
-                value={userData.mobile}
-                onChange={(e) => setUserData({ ...userData, mobile: e.target.value })}
-                margin="normal"
-                disabled={isSaving}
-              />
-              
-              {/* Bio */}
-              <TextField
-                fullWidth
-                label="Bio"
-                value={userData.bio}
-                onChange={(e) => setUserData({ ...userData, bio: e.target.value })}
-                margin="normal"
-                disabled={isSaving}
-              />
-
-              {/* Skeleton loaders while Firestore data is loading */}
-              {!firestoreDataLoaded && (
-                <>
-                  <Skeleton variant="text" width="80%" height={40} />
-                  <Skeleton variant="text" width="80%" height={40} />
-                  <Skeleton variant="text" width="80%" height={40} />
-                  <Skeleton variant="text" width="80%" height={40} />
-                </>
-              )}
-
-              <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => setDrawerPage("main")}
-                  sx={{ mr: 1, backgroundColor: '#f1f1f111', color: '#fff', border: 'transparent' }}
-                  disabled={isSaving}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={handleSave}
-                  disabled={isSaving || !firestoreDataLoaded}
-                  sx={{ backgroundColor: '#00f721ba' }}
-                >
-                  {isSaving ? <CircularProgress size={24} /> : "Save Changes"}
-                </Button>
-              </Box>
-            </>
-          )}
-        </Container>
-      )}
-
-  </SwipeableDrawer>
-</>
-
-
-      {/* Logout Confirm Dialog */}
-      <Dialog sx={{ backgroundColor: 'transparent', backdropFilter: 'blur(10px)' }} open={confirmLogout} onClose={() => setConfirmLogout(false)}>
-        <DialogTitle sx={{ backgroundColor: 'transparent', px: 3, py: 3 }}>Are you sure you want to logout?</DialogTitle>
-        <DialogActions sx={{ backgroundColor: 'transparent', px: 3, py: 3 }}>
-          <Button sx={{ backgroundColor: '#f1f1f111', color: '#fff', p: 1.5 }} onClick={() => setConfirmLogout(false)}>Cancel</Button>
-          <Button sx={{ backgroundColor: '#ff000056', color: '#ff1b1bff', p: 1.5 }} onClick={() => { handleLogout(); setConfirmLogout(false); }}>
-            Logout
-          </Button>
-        </DialogActions>
-      </Dialog>
+            {/* Menu */}
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+              transformOrigin={{ vertical: "top", horizontal: "right" }}
+            >
+              <MenuItem onClick={handleProfileClick}>Profile</MenuItem>
+              <MenuItem onClick={handleLogout}>Logout</MenuItem>
+            </Menu>
           </Toolbar>
         </AppBar>
 
@@ -942,15 +569,10 @@ const Home = () => {
                 <CircularProgress color="primary" />
               </Box>
             ) : (
-              <>
-                <Typography variant="h5" gutterBottom sx={{ mb: 4, color: "text.primary" }}>
-                  Welcome,<br></br>{userData.name}!
-                </Typography>
-
-                <Grid container spacing={3}>
-                  {/* Example Cards */}
-                  <Grid item xs={12} md={6} lg={4} sx={{ backgroundColor: 'transparent' }}>
-                    <Card onClick={gotoBudgetMngr}>
+              <Box sx={{ mt: 4 }}>
+                <Grid container spacing={4}>
+                  <Grid item xs={12} sm={6} md={4}>
+                    <Card sx={{ backgroundColor: "#F9F9F9", borderRadius: "16px" }}>
                       <CardMedia
                         component="img"
                         height="140"
@@ -987,35 +609,8 @@ const Home = () => {
                   </Grid>
                   {/* Add more cards as needed */}
                 </Grid>
-              </>
+              </Box>
             )}
-                {/* Floating Chat Button on Mobile */}
-    {isSmallScreen && (
-      <Zoom in>
-        <Fab
-          color="primary"
-          aria-label="chat"
-          sx={{
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            zIndex: 999,
-            width: '70px',
-            height: '70px',
-            borderRadius: 1.5,
-            backgroundColor: "#00f721ba",
-            color: "#000",
-            "&:hover": {
-              backgroundColor: "#00cc1a",
-            },
-          }}
-          onClick={() => navigate("/chats")} // Or your chat route
-        >
-          <ChatBubbleOutlineIcon />
-        </Fab>
-      </Zoom>
-    )}
-
           </Container>
         </Box>
       </Box>
