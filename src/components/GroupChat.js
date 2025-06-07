@@ -172,7 +172,6 @@ function GroupChat() {
   const [newMessage, setNewMessage] = useState('');
   const controls = useAnimation();
   
-    
     const handleExitGroup = async () => {
       const user = auth.currentUser;
       if (!user || !groupId) return;

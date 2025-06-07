@@ -1,0 +1,25 @@
+.map-container {
+    margin-top: 30px;
+    border: 2px solid #90caf9;
+    border-radius: 10px;
+  }
+  
+  .leaflet-container {
+    filter: brightness(0.95);
+  }
+  
+  .custom-popup {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 14px;
+  }
+  
+  .animated-marker {
+    animation: float 2s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+    100% { transform: translateY(0px); }
+  }
+  
