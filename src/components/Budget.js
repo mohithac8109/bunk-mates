@@ -4,19 +4,23 @@ import {
   Typography,
   TextField,
   Button,
-  IconButton,
-  Divider,
   Paper,
   CircularProgress,
-  Grow,
-  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   ButtonBase,
+  Drawer,
+  Fab,
+  Grid,
+  Chip,
+  Stack,
+  IconButton
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import Card from "@mui/material/Card";
+import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
 
@@ -41,12 +45,11 @@ const BudgetManager = () => {
   const [userId, setUserId] = useState(null);
   const [budgetItems, setBudgetItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [newCategory, setNewCategory] = useState("");
-  const [newAmount, setNewAmount] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [editIndex, setEditIndex] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false); // Whether drawer is in edit mode
   const [editCategory, setEditCategory] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -54,10 +57,39 @@ const BudgetManager = () => {
   // Drawer states
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null);
+  const [ExpdrawerOpen, setExpDrawerOpen] = useState(false);
 
-  // Expense input inside drawer
-  const [expenseAmount, setExpenseAmount] = useState("");
-  const [expenseError, setExpenseError] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    category: "",
+    amount: "",
+    contributor: "",
+    contributors: [],
+  });
+
+const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+const [selectedBudgetIndex, setSelectedBudgetIndex] = useState(null);
+const [newExpense, setNewExpense] = useState({
+  amount: "",
+  name: "",
+  category: "",
+  date: new Date().toISOString().slice(0, 10), // default today
+  time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+});
+const [addError, setAddError] = useState("");
+
+const selectedBudget = selectedBudgetIndex !== null ? budgetItems[selectedBudgetIndex] : null;
+
+const totalBudget = selectedBudget?.amount ?? 0;
+
+const totalExpense = selectedBudget?.expenses?.reduce(
+  (sum, exp) => sum + Number(exp.amount),
+  0
+) ?? 0;
+
+const currentBudget = totalBudget - totalExpense;
+
+
 
   // On auth state change, save user info in localStorage & cookies as "bunkmateuser"
   useEffect(() => {
@@ -78,6 +110,8 @@ const BudgetManager = () => {
     });
     return () => unsubscribe();
   }, []);
+
+
 
   useEffect(() => {
     if (!userId) {
@@ -152,39 +186,7 @@ const BudgetManager = () => {
     }
   };
 
-  const handleAddItem = () => {
-    if (!newCategory.trim() || !newAmount.trim() || isNaN(Number(newAmount))) {
-      setError("Please enter a valid category and numeric amount.");
-      return;
-    }
-    const newItem = {
-      category: newCategory.trim(),
-      amount: parseFloat(newAmount),
-      expenses: [], // Initialize empty expenses array
-    };
-    const updatedItems = [...budgetItems, newItem];
-    saveBudget(updatedItems);
-    setNewCategory("");
-    setNewAmount("");
-    setError("");
-  };
 
-  const handleDeleteItem = (index) => {
-    if (selectedIndex === index) {
-      setDrawerOpen(false);
-      setSelectedIndex(null);
-    }
-    const updatedItems = budgetItems.filter((_, i) => i !== index);
-    saveBudget(updatedItems);
-  };
-
-  const openEditDialog = (index) => {
-    setEditIndex(index);
-    setEditCategory(budgetItems[index].category);
-    setEditAmount(budgetItems[index].amount.toString());
-    setDialogOpen(true);
-    setError("");
-  };
 
   const handleEditSave = () => {
     if (!editCategory.trim() || !editAmount.trim() || isNaN(Number(editAmount))) {
@@ -205,16 +207,14 @@ const BudgetManager = () => {
     setError("");
   };
 
-  // Calculate total budget
-  const totalBudget = budgetItems.reduce((acc, item) => acc + item.amount, 0);
 
-  // Drawer open handler for budget item click
-  const handleOpenDrawer = (index) => {
+  const handleOpenExpDrawer = (index) => {
+    setSelectedBudgetIndex(index);
     setSelectedIndex(index);
-    setExpenseAmount("");
-    setExpenseError("");
-    setDrawerOpen(true);
+    setAddDrawerOpen(false);      // Close Add Drawer
+    setExpDrawerOpen(true);       // Open Expense Drawer
   };
+
 
   // Calculate current balance for selected budget item
   const getCurrentBalance = (item) => {
@@ -222,45 +222,74 @@ const BudgetManager = () => {
     return item.amount - totalExpenses;
   };
 
-  // Add expense handler inside drawer
-  const handleAddExpense = () => {
-    if (!expenseAmount.trim() || isNaN(Number(expenseAmount)) || Number(expenseAmount) <= 0) {
-      setExpenseError("Please enter a valid positive expense amount.");
-      return;
-    }
 
-    const amountNum = parseFloat(expenseAmount);
-    const item = budgetItems[selectedIndex];
-    const totalExpenses = item.expenses?.reduce((sum, e) => sum + e.amount, 0) || 0;
-    const currentBalance = item.amount - totalExpenses;
+const handleAddExpense = () => {
+  const amountNum = parseFloat(newExpense.amount);
+  if (isNaN(amountNum) || amountNum <= 0) {
+    setAddError("Enter a valid positive amount.");
+    return;
+  }
 
-    if (amountNum > currentBalance) {
-      setExpenseError("Expense exceeds current balance.");
-      return;
-    }
+  const updatedItems = [...budgetItems];
+  const selected = updatedItems[selectedBudgetIndex];
 
-    const newExpense = {
-      amount: amountNum,
-      date: new Date().toISOString(),
-    };
-
-    const updatedItems = [...budgetItems];
-    if (!updatedItems[selectedIndex].expenses) {
-      updatedItems[selectedIndex].expenses = [];
-    }
-    updatedItems[selectedIndex].expenses.push(newExpense);
-
-    saveBudget(updatedItems);
-    setExpenseAmount("");
-    setExpenseError("");
+  const expenseData = {
+    ...newExpense,
+    amount: amountNum,
+    date: new Date(`${newExpense.date}T${newExpense.time}`).toISOString(),
   };
 
-  // Delete expense from expense history
-  const handleDeleteExpense = (expenseIndex) => {
-    const updatedItems = [...budgetItems];
-    updatedItems[selectedIndex].expenses.splice(expenseIndex, 1);
-    saveBudget(updatedItems);
-  };
+  if (!selected.expenses) selected.expenses = [];
+
+  if (isEditMode && editIndex !== null) {
+    selected.expenses[editIndex] = expenseData;
+  } else {
+    selected.expenses.push(expenseData);
+  }
+
+  saveBudget(updatedItems);
+
+  // Reset form
+  setNewExpense({
+    amount: "",
+    name: "",
+    category: "",
+    date: new Date().toISOString().slice(0, 10),
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  });
+  setEditIndex(null);
+  setIsEditMode(false);
+  setAddError("");
+};
+
+
+const handleEditExpense = (index) => {
+  const exp = budgetItems[selectedBudgetIndex]?.expenses?.[index];
+  if (!exp) return;
+
+  setNewExpense({
+    amount: exp.amount,
+    name: exp.name || "",
+    category: exp.category || "",
+    date: exp.date ? exp.date.slice(0, 10) : new Date().toISOString().slice(0, 10),
+    time: exp.date
+      ? new Date(exp.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  });
+
+  setEditIndex(index);
+  setIsEditMode(true);
+  setAddDrawerOpen(true);
+};
+
+
+const handleDeleteExpense = (index) => {
+  const updatedItems = [...budgetItems];
+  updatedItems[selectedBudgetIndex].expenses.splice(index, 1);
+  saveBudget(updatedItems);
+};
+
+
 
   return (
     <Box
@@ -272,7 +301,6 @@ const BudgetManager = () => {
         maxWidth: 600,
         mx: "auto",
         borderRadius: 3,
-        boxShadow: "0 0 10px #00f72166",
       }}
     >
       <Typography variant="h4" sx={{ mb: 3, fontWeight: "bold" }}>
@@ -296,125 +324,58 @@ const BudgetManager = () => {
             Total Budget: ₹{totalBudget.toFixed(2)}
           </Typography>
 
-          <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
-            <TextField
-              label="Category"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              size="small"
-              sx={{ flex: 1 }}
-              InputProps={{ style: { color: "#00ff00" } }}
-              variant="outlined"
-            />
-            <TextField
-              label="Amount"
-              value={newAmount}
-              onChange={(e) => setNewAmount(e.target.value)}
-              size="small"
-              sx={{ width: 120 }}
-              type="number"
-              InputProps={{ style: { color: "#00ff00" } }}
-              variant="outlined"
-            />
-            <Button
-              variant="contained"
-              color="success"
-              onClick={handleAddItem}
-              sx={{ px: 3 }}
-            >
-              Add
-            </Button>
-          </Box>
-
           {budgetItems.length === 0 ? (
             <Typography sx={{ fontStyle: "italic" }}>
               No budget items added yet.
             </Typography>
           ) : (
-            <Box>
-              {budgetItems.map((item, index) => {
-                const balance = getCurrentBalance(item);
-                return (
-                  <Grow
-                    in={true}
-                    style={{ transformOrigin: "0 0 0" }}
-                    timeout={300 + index * 200}
-                    key={index}
-                  >
-                    <Paper
-                      elevation={4}
-                      sx={{
-                        mb: 2,
-                        p: 2,
-                        backgroundColor: "#111",
-                        cursor: "pointer",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        border: selectedIndex === index ? "2px solid #00ff00" : "none",
-                        "&:hover": { backgroundColor: "#222" },
-                      }}
-                      onClick={() => handleOpenDrawer(index)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          handleOpenDrawer(index);
-                        }
-                      }}
-                      aria-label={`Budget category ${item.category}, amount ₹${item.amount}`}
-                    >
-                      <Box>
-                        <Typography
-                          sx={{ fontWeight: "bold", fontSize: 16, color: "#00ff00" }}
-                        >
-                          {item.category}
-                        </Typography>
-                        <Typography sx={{ fontSize: 14, opacity: 0.8 }}>
-                          Budget: ₹{item.amount.toFixed(2)}
-                        </Typography>
-                        <Typography sx={{ fontSize: 14, opacity: 0.8, mt: 0.5 }}>
-                          Balance: ₹{balance.toFixed(2)}
-                        </Typography>
-                      </Box>
+            <Grid container spacing={2}>
+  {budgetItems.map((item, index) => {
+    const balance = getCurrentBalance(item);
+    return (
+      <Grid item xs={12} sm={6} md={4} key={index}>
+        <Paper
+          elevation={3}
+          sx={{
+            p: 2,
+            backgroundColor: "#1e1e1e",
+            borderRadius: 2,
+            cursor: "pointer",
+            transition: "0.3s",
+            color: "#fff",
+            "&:hover": {
+              backgroundColor: "#292929",
+            },
+          }}
+          onClick={() => handleOpenExpDrawer(index)}
+        >
+          <Typography variant="subtitle1" fontWeight="bold">
+            {item.name}
+          </Typography>
+          <Typography variant="body2" color="white">
+            {item.category}
+          </Typography>
+          <Typography variant="body2">
+            ₹{item.amount} | Left: ₹{balance.toFixed(2)}
+          </Typography>
+          {item.contributors?.length > 0 && (
+            <Stack direction="row" spacing={1} mt={1} flexWrap="wrap">
+              {item.contributors.map((c, i) => (
+                <Chip
+                  key={i}
+                  label={c}
+                  size="small"
+                  sx={{ bgcolor: "#333", color: "#fff" }}
+                />
+              ))}
+            </Stack>
+          )}
+        </Paper>
+      </Grid>
+    );
+  })}
+</Grid>
 
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        <Tooltip title="Edit Category & Amount">
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditDialog(index);
-                            }}
-                            color="success"
-                            size="small"
-                          >
-                            <EditIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete Category">
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (
-                                window.confirm(
-                                  `Delete budget category "${item.category}"? This will remove all its expenses.`
-                                )
-                              ) {
-                                handleDeleteItem(index);
-                              }
-                            }}
-                            color="error"
-                            size="small"
-                          >
-                            <DeleteOutlineIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </Paper>
-                  </Grow>
-                );
-              })}
-            </Box>
           )}
 
           {/* Edit Dialog */}
@@ -454,7 +415,7 @@ const BudgetManager = () => {
           </Dialog>
 
           {/* Expense Drawer */}
-          {drawerOpen && selectedIndex !== null && (
+          {ExpdrawerOpen && selectedIndex !== null && (
             <Box
               sx={{
                 position: "fixed",
@@ -465,137 +426,257 @@ const BudgetManager = () => {
                 p: 3,
                 display: "flex",
                 flexDirection: "column",
-                zIndex: 1500,
+                zIndex: 999,
                 overflowY: "auto",
               }}
               role="dialog"
               aria-modal="true"
               aria-labelledby="expense-drawer-title"
             >
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 2,
-                }}
-              >
-                <Typography
-                  id="expense-drawer-title"
-                  variant="h6"
-                  sx={{ fontWeight: "bold", color: "#00ff00" }}
-                >
-                  {budgetItems[selectedIndex].category} Expenses
-                </Typography>
-                <ButtonBase
-                  onClick={() => {
-                    setDrawerOpen(false);
-                    setSelectedIndex(null);
-                  }}
-                  sx={{
-                    color: "#00ff00",
-                    fontWeight: "bold",
-                    fontSize: 24,
-                    cursor: "pointer",
-                    px: 1,
-                  }}
-                  aria-label="Close expense drawer"
-                >
-                  &times;
-                </ButtonBase>
-              </Box>
 
-              <Box sx={{ mb: 2 }}>
-                <Typography sx={{ fontSize: 14, mb: 1 }}>
-                  Budget Amount: ₹{budgetItems[selectedIndex].amount.toFixed(2)}
-                </Typography>
-                <Typography sx={{ fontSize: 14, mb: 2 }}>
-                  Current Balance: ₹{getCurrentBalance(budgetItems[selectedIndex]).toFixed(2)}
-                </Typography>
+<Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+  <Typography variant="h6" sx={{ color: "#00ff00", fontWeight: "bold" }}>
+            Exp_Name
+  </Typography>
+  <IconButton onClick={() => setExpDrawerOpen(false)} sx={{ color: "#00ff00" }}>
+    <CloseIcon />
+  </IconButton>
+</Box>
 
-                <TextField
-                  label="Add Expense Amount"
-                  type="number"
-                  fullWidth
-                  value={expenseAmount}
-                  onChange={(e) => setExpenseAmount(e.target.value)}
-                  InputProps={{ style: { color: "#00ff00" } }}
-                  variant="outlined"
-                  size="small"
-                  sx={{ mb: 1 }}
-                />
-                {expenseError && (
-                  <Typography color="error" sx={{ mb: 1 }}>
-                    {expenseError}
-                  </Typography>
-                )}
-                <Button
-                  variant="contained"
-                  color="success"
-                  fullWidth
-                  onClick={handleAddExpense}
-                  disabled={saving}
-                >
-                  Add Expense
-                </Button>
-              </Box>
 
-              <Divider sx={{ mb: 2, borderColor: "#00ff00aa" }} />
+              {/* Main Budget Overview Section */}
+<Box sx={{ p: 2 }}>
+{selectedBudget ? (
+  <Box sx={{ p: 2 }}>
+    {/* Current Budget Left Section */}
+    <Card sx={{ mb: 2, p: 2, backgroundColor: "#1b1b1b", color: "#00ff00" }}>
+      <Typography variant="h6" fontWeight="bold">
+        Current Budget Left
+      </Typography>
+      <Typography variant="h4">
+        ₹{currentBudget.toFixed(2)}
+      </Typography>
+    </Card>
 
-              <Typography
-                variant="subtitle1"
-                sx={{ mb: 1, fontWeight: "bold", color: "#00ff00" }}
-              >
-                Expense History
-              </Typography>
+    {/* Row: Total Expense & Total Budget */}
+    <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+      <Card sx={{ flex: 1, p: 2, backgroundColor: "#2c2c2c", color: "#ff4444" }}>
+        <Typography variant="subtitle2">Total Expenses</Typography>
+        <Typography variant="h6">₹{totalExpense.toFixed(2)}</Typography>
+      </Card>
+      {selectedBudget && (
+  <Card sx={{ mb: 2, p: 2, backgroundColor: "#1b1b1b", color: "#00ff00" }}>
+    <Typography variant="h6" fontWeight="bold">
+      Current Budget
+    </Typography>
+    <Typography variant="h4">
+      ₹{selectedBudget.amount.toFixed(2)}
+    </Typography>
+  </Card>
+)}
 
-              {budgetItems[selectedIndex].expenses?.length === 0 ? (
-                <Typography sx={{ fontStyle: "italic", color: "#ccc" }}>
-                  No expenses added yet.
-                </Typography>
-              ) : (
-                budgetItems[selectedIndex].expenses
-                  .slice()
-                  .reverse()
-                  .map((expense, i) => {
-                    const revIndex =
-                      budgetItems[selectedIndex].expenses.length - 1 - i;
-                    const date = new Date(expense.date);
-                    return (
-                      <Box
-                        key={revIndex}
-                        sx={{
-                          mb: 1,
-                          p: 1,
-                          backgroundColor: "#222",
-                          borderRadius: 1,
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Box>
-                          <Typography sx={{ color: "#00ff00", fontWeight: "bold" }}>
-                            ₹{expense.amount.toFixed(2)}
-                          </Typography>
-                          <Typography sx={{ fontSize: 12, opacity: 0.7 }}>
-                            {date.toLocaleString()}
-                          </Typography>
-                        </Box>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleDeleteExpense(revIndex)}
-                          aria-label={`Delete expense of ₹${expense.amount.toFixed(2)}`}
-                        >
-                          <DeleteOutlineIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    );
-                  })
-              )}
+    </Box>
+
+    <Typography variant="subtitle1" sx={{ mt: 4, mb: 1, color: "#00ff00" }}>
+  Existing Expenses
+</Typography>
+
+{selectedBudget?.expenses?.length > 0 ? (
+  selectedBudget.expenses.map((expense, index) => (
+    <Box
+      key={index}
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        mb: 1,
+        p: 1,
+        border: "1px solid #333",
+        borderRadius: 2,
+        color: "#00ff00",
+      }}
+    >
+      <Box>
+        <Typography variant="body1">{expense.name || "Unnamed"}</Typography>
+        <Typography variant="caption">
+          ₹{expense.amount} | {expense.category || "No Category"} <br />
+          {new Date(expense.date).toLocaleDateString()}{" "}
+          {new Date(expense.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </Typography>
+      </Box>
+      <Box>
+        <IconButton
+          size="small"
+          onClick={() => handleEditExpense(index)}
+          sx={{ color: "#00ccff" }}
+        >
+          ✏️
+        </IconButton>
+        <IconButton
+          size="small"
+          onClick={() => handleDeleteExpense(index)}
+          sx={{ color: "#ff4444" }}
+        >
+          🗑️
+        </IconButton>
+      </Box>
+    </Box>
+  ))
+) : (
+  <Typography variant="body2" sx={{ color: "#888" }}>
+    No expenses yet.
+  </Typography>
+)}
+
+  </Box>
+) : (
+  <Typography sx={{ color: "#ccc", textAlign: "center", mt: 4 }}>
+    Please select a budget to view details.
+  </Typography>
+)}
+
+</Box>
+
             </Box>
           )}
+<Fab
+  color="success"
+  sx={{
+    position: "fixed",
+    bottom: 24,
+    right: 24,
+    backgroundColor: "#00cc00",
+    color: "#000",
+    "&:hover": {
+      backgroundColor: "#00ff00",
+    },
+  }}
+  onClick={() => setAddDrawerOpen(true)}
+  aria-label="Add Expense"
+>
+  <AddIcon />
+</Fab>
+
+{addDrawerOpen && (
+  <Box
+    sx={{
+      position: "fixed",
+      bottom: 0,
+      left: 0,
+      width: "100%",
+      bgcolor: "#121212",
+      p: 3,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      zIndex: 1000,
+      boxShadow: "0 -4px 20px #00ff0044",
+    }}
+  >
+    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
+      <Typography variant="h6" sx={{ color: "#00ff00", fontWeight: "bold" }}>
+        Add New Expense
+      </Typography>
+      <ButtonBase
+        onClick={() => setAddDrawerOpen(false)}
+        sx={{ color: "#00ff00", fontSize: 24, px: 1 }}
+      >
+        &times;
+      </ButtonBase>
+    </Box>
+
+    <TextField
+      label="Amount"
+      type="number"
+      fullWidth
+      variant="outlined"
+      size="small"
+      sx={{ mb: 2 }}
+      value={newExpense.amount}
+      onChange={(e) =>
+        setNewExpense({ ...newExpense, amount: e.target.value })
+      }
+      InputProps={{ style: { color: "#00ff00" } }}
+    />
+
+    <TextField
+      label="Name"
+      fullWidth
+      variant="outlined"
+      size="small"
+      sx={{ mb: 2 }}
+      value={newExpense.name}
+      onChange={(e) =>
+        setNewExpense({ ...newExpense, name: e.target.value })
+      }
+      InputProps={{ style: { color: "#00ff00" } }}
+    />
+
+    <TextField
+      label="Category"
+      fullWidth
+      variant="outlined"
+      size="small"
+      sx={{ mb: 2 }}
+      value={newExpense.category}
+      onChange={(e) =>
+        setNewExpense({ ...newExpense, category: e.target.value })
+      }
+      InputProps={{ style: { color: "#00ff00" } }}
+    />
+
+    <TextField
+      label="Date"
+      type="date"
+      fullWidth
+      variant="outlined"
+      size="small"
+      sx={{ mb: 2 }}
+      value={newExpense.date}
+      onChange={(e) =>
+        setNewExpense({ ...newExpense, date: e.target.value })
+      }
+      InputLabelProps={{ shrink: true }}
+      InputProps={{ style: { color: "#00ff00" } }}
+    />
+
+    <TextField
+      label="Time"
+      type="time"
+      fullWidth
+      variant="outlined"
+      size="small"
+      sx={{ mb: 2 }}
+      value={newExpense.time}
+      onChange={(e) =>
+        setNewExpense({ ...newExpense, time: e.target.value })
+      }
+      InputLabelProps={{ shrink: true }}
+      InputProps={{ style: { color: "#00ff00" } }}
+    />
+
+    {addError && (
+      <Typography sx={{ color: "#ff4444", mb: 2 }}>{addError}</Typography>
+    )}
+
+
+<Button
+  variant="contained"
+  color="success"
+  fullWidth
+  onClick={() => {
+    handleAddExpense();
+    setAddDrawerOpen(false); // Close after save
+  }}
+>
+  {isEditMode ? "Update Expense" : "Add Expense"}
+</Button>
+
+
+  </Box>
+)}
+
+
+
         </>
       )}
 
@@ -618,7 +699,131 @@ const BudgetManager = () => {
           Saving...
         </Box>
       )}
+
+      <Fab
+  color="success"
+  onClick={() => setDrawerOpen(true)}
+  sx={{
+    position: "fixed",
+    bottom: 24,
+    right: 24,
+    zIndex: 988,
+  }}
+>
+  <AddIcon />
+</Fab>
+
+<Drawer
+  anchor="bottom"
+  open={drawerOpen}
+  onClose={() => {
+    setDrawerOpen(false);
+    setFormData({ name: "", category: "", amount: "", contributor: "", contributors: [] });
+  }}
+  PaperProps={{
+    sx: {
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      backgroundColor: "#121212",
+      padding: 3,
+    },
+  }}
+>
+  <Typography variant="h6" gutterBottom>
+    Add New Budget
+  </Typography>
+
+  <Stack spacing={2}>
+    <TextField
+      label="Budget Name"
+      value={formData.name}
+      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+      fullWidth
+      variant="outlined"
+      InputProps={{ style: { color: "#fff" } }}
+      InputLabelProps={{ style: { color: "#aaa" } }}
+    />
+    <TextField
+      label="Category"
+      value={formData.category}
+      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+      fullWidth
+      variant="outlined"
+      InputProps={{ style: { color: "#fff" } }}
+      InputLabelProps={{ style: { color: "#aaa" } }}
+    />
+    <TextField
+      label="Amount"
+      value={formData.amount}
+      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+      fullWidth
+      type="number"
+      variant="outlined"
+      InputProps={{ style: { color: "#fff" } }}
+      InputLabelProps={{ style: { color: "#aaa" } }}
+    />
+    <TextField
+      label="Add Contributor"
+      value={formData.contributor}
+      onChange={(e) => setFormData({ ...formData, contributor: e.target.value })}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && formData.contributor.trim()) {
+          setFormData({
+            ...formData,
+            contributors: [...formData.contributors, formData.contributor.trim()],
+            contributor: "",
+          });
+        }
+      }}
+      fullWidth
+      variant="outlined"
+      InputProps={{ style: { color: "#fff" } }}
+      InputLabelProps={{ style: { color: "#aaa" } }}
+    />
+    <Stack direction="row" spacing={1} flexWrap="wrap">
+      {formData.contributors.map((name, i) => (
+        <Chip
+          key={i}
+          label={name}
+          onDelete={() =>
+            setFormData({
+              ...formData,
+              contributors: formData.contributors.filter((_, idx) => idx !== i),
+            })
+          }
+          sx={{ bgcolor: "#333", color: "#fff" }}
+        />
+      ))}
+    </Stack>
+
+    <Button
+      variant="contained"
+      color="success"
+      onClick={() => {
+        const { name, category, amount, contributors } = formData;
+        if (!name || !category || isNaN(Number(amount))) return;
+
+        const newItem = {
+          name,
+          category,
+          amount: parseFloat(amount),
+          contributors,
+          expenses: [],
+        };
+
+        const updatedItems = [...budgetItems, newItem];
+        saveBudget(updatedItems);
+        setDrawerOpen(false);
+        setFormData({ name: "", category: "", amount: "", contributor: "", contributors: [] });
+      }}
+    >
+      Save Budget
+    </Button>
+  </Stack>
+</Drawer>
+
     </Box>
+    
   );
 };
 

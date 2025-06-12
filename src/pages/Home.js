@@ -1002,7 +1002,7 @@ const Home = () => {
             width: '70px',
             height: '70px',
             borderRadius: 1.5,
-            backgroundColor: "#00f721ba",
+            backgroundColor: "#00f721",
             color: "#000",
             "&:hover": {
               backgroundColor: "#00cc1a",
