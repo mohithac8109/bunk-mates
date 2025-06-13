@@ -16,13 +16,154 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, IconButton, Dialog, Slide, Box, Typography, TextField, Button } from '@mui/material';
+import { Avatar, useTheme, IconButton, Dialog, createTheme, keyframes, Slide, Box, Typography, TextField, Button, ThemeProvider } from '@mui/material';
 import { format, isToday, isYesterday } from 'date-fns';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
 import CloseIcon from '@mui/icons-material/Close';
+import ProfilePic from '../components/Profile';
 
+
+// Fade-in animation keyframes
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Custom dark theme based on your detailed colors
+const theme = createTheme({
+  palette: {
+    mode: "dark",
+    background: {
+      default: "#02020200", // almost transparent black for main background
+      paper: "#0c0c0c", // deep black for dialogs/paper
+    },
+    primary: {
+      main: "#00f721", // bright green solid for buttons and accents
+      contrastText: "#000000", // black text on bright green buttons
+    },
+    secondary: {
+      main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
+    },
+    text: {
+      primary: "#FFFFFF", // pure white for main text
+      secondary: "#BDBDBD", // light grey for secondary text
+      disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
+    },
+    action: {
+      hover: "#00f721", // bright green hover for interactive elements
+      selected: "#131313", // dark black for selected states
+      disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
+      disabled: "#BDBDBD",
+    },
+    divider: "rgb(24, 24, 24)", // very dark grey for borders
+  },
+  typography: {
+    fontFamily: "Roboto, Arial, sans-serif",
+    h6: {
+      fontWeight: "bold",
+      color: "#FFFFFF",
+    },
+    body1: {
+      fontSize: "1rem",
+      lineHeight: "1.5",
+      color: "#FFFFFF",
+    },
+    body2: {
+      fontSize: "0.875rem",
+      color: "#BDBDBD",
+    },
+  },
+  shape: {
+    borderRadius: 12,
+  },
+  components: {
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#0c0c0c", // dark grey/black for app bar background
+          boxShadow: "none",
+          borderBottom: "1px solid rgb(24, 24, 24)",
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#2c2c2c", // dark grey card background
+          color: "#FFFFFF",
+          boxShadow:
+            "0 4px 12px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6)",
+          borderRadius: 16,
+          transition: "box-shadow 0.3s ease, transform 0.3s ease",
+          cursor: "pointer",
+          "&:hover": {
+            transform: "translateY(-4px)",
+            backgroundColor: "#131313",
+          },
+          animation: `${fadeIn} 0.6s ease forwards`,
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: "none",
+          fontWeight: 600,
+          borderRadius: "12px",
+          transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+          color: "#000",
+          backgroundColor: "#fff",
+          "&:hover": {
+            backgroundColor: "#000",
+            color: "#fff",
+          },
+        },
+      },
+    },
+    MuiAvatar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#f0f0f0", // off-white avatar background
+          color: "#000",
+        },
+      },
+    },
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "#0c0c0c", // deep black menu background
+          color: "#FFFFFF",
+          borderRadius: 8,
+          border: "1px solid rgb(24, 24, 24)",
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          "&:hover": {
+            backgroundColor: "#2c2c2c", // translucent dark green hover
+          },
+        },
+      },
+    },
+    MuiBox: {
+      styleOverrides: {
+        root: {
+          // General box overrides if needed
+        },
+      },
+    },
+  },
+});
 
 function Chats() {
   const [users, setUsers] = useState([]);
@@ -35,7 +176,7 @@ function Chats() {
   const [groupUnreadCounts, setGroupUnreadCounts] = useState({});
   const [latestGroupMessages, setLatestGroupMessages] = useState({});
   const [latestGroupTimestamps, setLatestGroupTimestamps] = useState({});
-  const [themes, setThemes] = useState('light');
+  const muiTheme = useTheme();
   const history = useNavigate();
   const [addUserDialog, setAddUserDialog] = useState(false);
   const [groupDialog, setGroupDialog] = useState(false);
@@ -324,12 +465,14 @@ function Chats() {
     .sort((a, b) => b.timestamp - a.timestamp);
 
   return (
-    <div style={{ padding: '10px', backgroundColor: '#02020200' }}>
+          <div style={{ padding: '10px', backgroundColor: '#02020200' }}>
       <div style={{display: 'flex', flexDirection: 'row'}}>
       <IconButton onClick={goBack} sx={{ mr: 1, color: '#fff' }}>
         <ArrowBackIcon />
       </IconButton>
       <h2 style={{ color: '#FFFFFF', fontSize: '32px' }}>Chats</h2>
+     
+           <ProfilePic />
       </div>
 
       <input

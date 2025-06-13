@@ -16,11 +16,14 @@ import {
   Grid,
   Chip,
   Stack,
-  IconButton
+  IconButton,
+  ThemeProvider,
+  useTheme,
+  keyframes,
+  createTheme
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import Card from "@mui/material/Card";
-import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -29,6 +32,8 @@ import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../firebase"; // Your Firebase config export
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+
+import ProfilePic from "./Profile";
 
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -43,6 +48,149 @@ function getCookie(name) {
   }, "");
 }
 
+
+// Fade-in animation keyframes
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Custom dark theme based on your detailed colors
+const theme = createTheme({
+  palette: {
+    mode: "dark",
+    background: {
+      default: "#02020200", // almost transparent black for main background
+      paper: "#0c0c0c", // deep black for dialogs/paper
+    },
+    primary: {
+      main: "#00f721", // bright green solid for buttons and accents
+      contrastText: "#000000", // black text on bright green buttons
+    },
+    secondary: {
+      main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
+    },
+    text: {
+      primary: "#FFFFFF", // pure white for main text
+      secondary: "#BDBDBD", // light grey for secondary text
+      disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
+    },
+    action: {
+      hover: "#00f721", // bright green hover for interactive elements
+      selected: "#131313", // dark black for selected states
+      disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
+      disabled: "#BDBDBD",
+    },
+    divider: "rgb(24, 24, 24)", // very dark grey for borders
+  },
+  typography: {
+    fontFamily: "Roboto, Arial, sans-serif",
+    h6: {
+      fontWeight: "bold",
+      color: "#FFFFFF",
+    },
+    body1: {
+      fontSize: "1rem",
+      lineHeight: "1.5",
+      color: "#FFFFFF",
+    },
+    body2: {
+      fontSize: "0.875rem",
+      color: "#BDBDBD",
+    },
+  },
+  shape: {
+    borderRadius: 12,
+  },
+  components: {
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#0c0c0c", // dark grey/black for app bar background
+          boxShadow: "none",
+          borderBottom: "1px solid rgb(24, 24, 24)",
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#2c2c2c", // dark grey card background
+          color: "#FFFFFF",
+          boxShadow:
+            "0 4px 12px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6)",
+          borderRadius: 16,
+          transition: "box-shadow 0.3s ease, transform 0.3s ease",
+          cursor: "pointer",
+          "&:hover": {
+            transform: "translateY(-4px)",
+            backgroundColor: "#131313",
+          },
+          animation: `${fadeIn} 0.6s ease forwards`,
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: "none",
+          fontWeight: 600,
+          borderRadius: "12px",
+          transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+          color: "#000",
+          backgroundColor: "#fff",
+          "&:hover": {
+            backgroundColor: "#000",
+            color: "#fff",
+          },
+        },
+      },
+    },
+    MuiAvatar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#f0f0f0", // off-white avatar background
+          color: "#000",
+        },
+      },
+    },
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "#0c0c0c", // deep black menu background
+          color: "#FFFFFF",
+          borderRadius: 8,
+          border: "1px solid rgb(24, 24, 24)",
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          "&:hover": {
+            backgroundColor: "#2c2c2c", // translucent dark green hover
+          },
+        },
+      },
+    },
+    MuiBox: {
+      styleOverrides: {
+        root: {
+          // General box overrides if needed
+        },
+      },
+    },
+  },
+});
+
+
+
 const BudgetManager = () => {
   const [userId, setUserId] = useState(null);
   const [budgetItems, setBudgetItems] = useState([]);
@@ -50,6 +198,7 @@ const BudgetManager = () => {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const history = useNavigate();
+  const muiTheme = useTheme();
 
   const [editIndex, setEditIndex] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false); // Whether drawer is in edit mode
@@ -299,7 +448,8 @@ const handleDeleteExpense = (index) => {
 
 
   return (
-    <Box
+    <ThemeProvider theme={theme}>
+          <Box
       sx={{
         p: 3,
         backgroundColor: "#00000000",
@@ -325,6 +475,9 @@ const handleDeleteExpense = (index) => {
       <Typography variant="h3" sx={{ mb: 3, fontWeight: "bold" }}>
         Budget Manager
       </Typography>
+
+      <ProfilePic />
+      
       </Box>
 
       {loading ? (
@@ -859,6 +1012,7 @@ const handleDeleteExpense = (index) => {
 </Drawer>
 
     </Box>
+    </ThemeProvider>
     
   );
 };
