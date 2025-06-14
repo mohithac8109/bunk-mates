@@ -29,9 +29,12 @@ import AddIcon from "@mui/icons-material/Add";
 import Card from "@mui/material/Card";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import Tooltip from '@mui/material/Tooltip';
 
 import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, setDoc, query, collection, where, getDocs } from "firebase/firestore";
@@ -195,7 +198,29 @@ const theme = createTheme({
   },
 });
 
+const PREDEFINED_CATEGORIES = [
+  "Food",
+  "Tour",
+  "Rent",
+  "Utilities",
+  "Shopping",
+  "Fun",
+  "Hospital",
+  "Education",
+  "Other"
+];
 
+const EXP_PREDEFINED_CATEGORIES = [
+  "Food",
+  "Travel",
+  "Fuel",
+  "Bills",
+  "Utilities",
+  "Shopping",
+  "Entertainment",
+  "Medical",
+  "Other"
+];
 
 const BudgetManager = () => {
   const [userId, setUserId] = useState(null);
@@ -205,7 +230,7 @@ const BudgetManager = () => {
   const [saving, setSaving] = useState(false);
   const history = useNavigate();
   const muiTheme = useTheme();
-
+  const [customCategory, setCustomCategory] = useState("");
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [menuIndex, setMenuIndex] = useState(null);
   const [editIndex, setEditIndex] = useState(null);
@@ -218,10 +243,19 @@ const BudgetManager = () => {
   // Drawer states
   const [budgets, setBudgets] = useState([]); // Main state
   const [editData, setEditData] = useState({ name: "", category: "", amount: 0 }); // initial empty
+  const [aboutDrawerOpen, setAboutDrawerOpen] = useState(false);
+  const [selectedBudgetIndex, setSelectedBudgetIndex] = useState(null);
+  const selectedBudget = selectedBudgetIndex !== null ? budgetItems[selectedBudgetIndex] : null;
+  const isOwner = selectedBudget && userId && selectedBudget.contributors?.[0]?.uid === userId;
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [ExpdrawerOpen, setExpDrawerOpen] = useState(false);
+
+  const getContributorRole = (c, idx) => {
+    if (idx === 0) return "admin";
+   return c.role || "editor";
+  };
 
   const [formData, setFormData] = useState({
     name: "",
@@ -232,7 +266,6 @@ const BudgetManager = () => {
   });
 
 const [addDrawerOpen, setAddDrawerOpen] = useState(false);
-const [selectedBudgetIndex, setSelectedBudgetIndex] = useState(null);
 const [newExpense, setNewExpense] = useState({
   amount: "",
   name: "",
@@ -242,7 +275,6 @@ const [newExpense, setNewExpense] = useState({
 });
 const [addError, setAddError] = useState("");
 
-const selectedBudget = selectedBudgetIndex !== null ? budgetItems[selectedBudgetIndex] : null;
 
 const totalBudget = selectedBudget?.amount ?? 0;
 
@@ -559,6 +591,14 @@ useEffect(() => {
   };
 }, [userId]);
 
+const canEditExpenses = (() => {
+  if (!selectedBudget || !userId) return false;
+  const userIdx = selectedBudget.contributors?.findIndex(c => c.uid === userId);
+  if (userIdx === 0) return true; // owner
+  const role = selectedBudget.contributors?.[userIdx]?.role || "editor";
+  return role === "admin" || role === "editor";
+})();
+
   return (
     <ThemeProvider theme={theme}>
       <Box
@@ -656,7 +696,7 @@ useEffect(() => {
                         onClick={() => handleOpenExpDrawer(index)}
                         elevation={1}
                         sx={{
-                          p: 2,
+                          p: 1.9,
                           borderRadius: '15px',
                           bgcolor: 'background.paper',
                           color: 'text.primary',
@@ -672,33 +712,43 @@ useEffect(() => {
                           },
                         }}
                       >
-                        {/* Header: Name + Balance + Menu */}
-                        <Box display="flex" justifyContent="space-between" alignItems="center">
-                          <Typography variant="titleMedium" fontWeight={600} pr={2}>
+                      <Box>
+                          {/* Header: Name + Balance + Menu */}
+                        <Box display="flex" justifyContent="space-between" alignItems="center" marginBottom={1}>
+                          <Typography variant="h6" fontWeight={600} pr={2}>
                             {item.name}
                           </Typography>
+
                           {/* Three-dot Menu */}
                           <IconButton
                             onClick={(e) => handleMenuOpen(e, index)}
                             size="small"
-                            sx={{ ml: 1 }}
+                            sx={{ ml: 1.2, p: 0 }}
                           >
                             <MoreVertIcon />
                           </IconButton>
                         </Box>
-                        {/* Category */}
-                        <Typography variant="bodySmall" color="text.secondary">
+                      </Box>
+                        
+                      <Box display={"flex"} flexDirection={"row"} alignItems="center" gap={1}>
+                        
+                        <Typography 
+                          sx={{ 
+                            backgroundColor: "#f1f1f111", 
+                            py: 0.4, 
+                            px: 1, 
+                            width: "auto", 
+                            borderRadius: 0.4, 
+                            mt: 0
+                          }}
+                          variant="bodySmall"
+                          color="text.secondary"
+                        >
                           {item.category}
                         </Typography>
-                        {/* Total Amount */}
-                        <Typography variant="bodyMedium">
-                          <Typography variant="bodyMedium" fontWeight={600} color="success.main">
-                            ₹{balance.toFixed(2)}
-                          </Typography><br />/ ₹{item.amount}
-                        </Typography>
-                        {/* Contributors */}
-                       {item.contributors?.length > 0 && (
-  <Box mt={1}>
+  {/* Contributors */}
+  {item.contributors?.length > 0 && (
+  <Box mt={0}>
     <Stack direction="row" spacing={1} flexWrap="wrap">
 
       {item.contributors.length > 3 && (
@@ -711,16 +761,26 @@ useEffect(() => {
             borderRadius: '10px',
             borderColor: 'divider',
             color: 'text.secondary',
-            mb: 0.5,
+            mb: 0,
           }}
         />
       )}
     </Stack>
-    <Typography variant="caption" sx={{ color: "#aaa", mt: 0.5 }}>
-      {item.contributors.length} contributor{item.contributors.length > 1 ? "s" : ""}
+    <Typography variant="caption" sx={{ backgroundColor: "#f1f1f111", color: "#aaa", py: 0.5, px: 1, borderRadius: 0.4, mt: 0, fontWeight: "bolder" }}>
+      {item.contributors.length}
     </Typography>
   </Box>
 )}
+                        </Box>
+
+
+
+                        {/* Total Amount */}
+                        <Typography variant="bodyMedium">
+                          <Typography variant="bodyMedium" fontWeight={600} color="success.main">
+                            ₹{balance.toFixed(2)}
+                          </Typography><br />/ ₹{item.amount}
+                        </Typography>
                       </Paper>
                     </Grid>
                   );
@@ -730,6 +790,7 @@ useEffect(() => {
 
             {/* Shared Menu Component */}
             <Menu
+              sx={{ padding: "14px" }}
               anchorEl={menuAnchorEl}
               open={Boolean(menuAnchorEl)}
               onClose={handleMenuClose}
@@ -738,19 +799,27 @@ useEffect(() => {
               onClick={(e) => e.stopPropagation()} // Prevent triggering card click
             >
               <MenuItem
+                sx={{ borderRadius: 0.5, mx: 1, my: 0, pl: 0, display: "flex", alignItems: "center" }}
                 onClick={() => {
                   handleEdit(menuIndex);
                   handleMenuClose();
                 }}
               >
+                <IconButton size="small" sx={{ color: "#fff", pr: 1, pl: "-10px" }}>
+                  <EditOutlinedIcon />
+                </IconButton>
                 Edit
               </MenuItem>
               <MenuItem
+                sx={{ color: "#f44336", backgroundColor: "#ff000019", borderRadius: 0.5, m: 1, my: 0, pl: 0, display: "flex", alignItems: "center" }}
                 onClick={() => {
                   handleDelete(menuIndex);
                   handleMenuClose();
                 }}
               >
+                <IconButton size="small" sx={{ color: "#f44336", pr: 1, pl: "-40px" }}>
+                  <DeleteOutlineIcon />
+                </IconButton>
                 Delete
               </MenuItem>
             </Menu>
@@ -817,10 +886,23 @@ useEffect(() => {
                     <Button onClick={() => setExpDrawerOpen(false)} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
                       <ArrowBackIcon />
                     </Button>
+
+                  <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 1 }}>
                     <Typography variant="h4" sx={{ color: "#fff", fontWeight: "bold" }}>
                       {selectedBudget?.name || "Unnamed Budget"}
                     </Typography>
+                      <Tooltip title="About this budget">
+                        <IconButton
+                          size="small"
+                          sx={{ color: "#fff" }}
+                          onClick={() => setAboutDrawerOpen(true)}
+                        >
+                          <InfoOutlinedIcon />
+                        </IconButton>
+                      </Tooltip>
                   </Box>
+                  </Box>
+
                   {/* Main Budget Overview Section */}
                   <Box sx={{ p: 2, width: "92vw" }}>
                     {selectedBudget ? (
@@ -885,56 +967,54 @@ useEffect(() => {
                         <Typography variant="h5" sx={{ mt: 4, mb: 1, color: "#fff" }}>
                           Existing Expenses
                         </Typography>
-                        {selectedBudget?.expenses?.length > 0 ? (
-                          selectedBudget.expenses.map((expense, index) => (
-                            <Box
-                              key={index}
-                              sx={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                mb: 1,
-                                p: 1,
-                                border: "1px solid #333",
-                                borderRadius: 2,
-                                color: "#fff",
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  pl: 2,
-                                  pr: 2
-                                }}>
-                                <Typography variant="body1" sx={{ color: "#fff" }}>₹{expense.amount}</Typography>
-                                <Typography variant="caption" sx={{ color: "#999" }}>
-                                  <strong color="#fff">{expense.name || "Unnamed"}</strong> | {expense.category || "No Category"} <br />
-                                  {new Date(expense.date).toLocaleDateString()}{" "}
-                                  {new Date(expense.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                </Typography>
-                              </Box>
-                              <Box sx={{ display: "flex", gap: 1 }}>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleEditExpense(index)}
-                                  sx={{ color: "#fff", backgroundColor: "#f1f1f111", p: 1.2 }}
-                                >
-                                  <EditIcon />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDeleteExpense(index)}
-                                  sx={{ color: "#ff0000", backgroundColor: "#ff000011", p: 1.2 }}
-                                >
-                                  <DeleteOutlineIcon />
-                                </IconButton>
-                              </Box>
-                            </Box>
-                          ))
-                        ) : (
-                          <Typography variant="body2" sx={{ color: "#888" }}>
-                            No expenses recorded for this budget.
-                          </Typography>
-                        )}
+{selectedBudget?.expenses?.length > 0 ? (
+  selectedBudget.expenses.map((expense, expIndex) => (
+    <Box
+      key={expIndex}
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        mb: 1,
+        p: 1,
+        border: "1px solid #333",
+        borderRadius: 2,
+        color: "#fff",
+      }}
+    >
+      <Box sx={{ pl: 2, pr: 2 }}>
+        <Typography variant="body1" sx={{ color: "#fff" }}>₹{expense.amount}</Typography>
+        <Typography variant="caption" sx={{ color: "#999" }}>
+          <strong color="#fff">{expense.name || "Unnamed"}</strong> | {expense.category || "No Category"} <br />
+          {new Date(expense.date).toLocaleDateString()}{" "}
+          {new Date(expense.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </Typography>
+      </Box>
+      <Box sx={{ display: "flex", gap: 1 }}>
+        <IconButton
+          size="small"
+          onClick={() => canEditExpenses && handleEditExpense(expIndex)}
+          sx={{ color: "#fff", backgroundColor: "#f1f1f111", p: 1.2 }}
+          disabled={!canEditExpenses}
+        >
+          <EditIcon />
+        </IconButton>
+        <IconButton
+          size="small"
+          onClick={() => canEditExpenses && handleDeleteExpense(expIndex)}
+          sx={{ color: "#ff0000", backgroundColor: "#ff000011", p: 1.2 }}
+          disabled={!canEditExpenses}
+        >
+          <DeleteOutlineIcon />
+        </IconButton>
+      </Box>
+    </Box>
+  ))
+) : (
+  <Typography variant="body2" sx={{ color: "#888" }}>
+    No expenses recorded for this budget.
+  </Typography>
+)}
                       </Box>
                     ) : (
                       <Typography sx={{ color: "#ccc", textAlign: "center", mt: 4 }}>
@@ -944,27 +1024,143 @@ useEffect(() => {
                   </Box>
                 </Box>
                 <Fab
-                  color="success"
-                  sx={{
-                    position: 'fixed',
-                    bottom: 20,
-                    right: 20,
-                    width: '70px',
-                    height: '70px',
-                    bgcolor: '#00f721ba',
-                    borderRadius: '15px',
-                    fontSize: '38px',
-                    color: '#000',
-                    zIndex: 1000,
-                    '&:hover': { bgcolor: '#00f721' },
-                  }}
-                  onClick={() => setAddDrawerOpen(true)}
-                  aria-label="Add Expense"
-                >
-                  <AddIcon />
-                </Fab>
+  color="success"
+  sx={{
+    position: 'fixed',
+    bottom: 20,
+    right: 20,
+    width: '70px',
+    height: '70px',
+    bgcolor: '#00f721ba',
+    borderRadius: '15px',
+    fontSize: '38px',
+    color: '#000',
+    zIndex: 1000,
+    '&:hover': { bgcolor: '#00f721' },
+    opacity: canEditExpenses ? 1 : 0.5,
+    pointerEvents: canEditExpenses ? "auto" : "none"
+  }}
+  onClick={() => canEditExpenses && setAddDrawerOpen(true)}
+  aria-label="Add Expense"
+>
+  <AddIcon />
+</Fab>
+
+
+
+                <Drawer
+  anchor="right"
+  open={aboutDrawerOpen}
+  onClose={() => setAboutDrawerOpen(false)}
+  PaperProps={{
+    sx: {
+      backgroundColor: "#00000000",
+      backdropFilter: "blur(80px)",
+      color: "#fff",
+      p: 3,
+    },
+  }}
+>
+  <Box sx={{ p: 2 }}>
+    <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+      <Button onClick={() => setAboutDrawerOpen(false)} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
+        <ArrowBackIcon />
+      </Button>
+    <Typography variant="h5" fontWeight="bold">
+      Budget Info
+    </Typography>
+    </Box>
+    <Typography variant="h4" fontWeight="bold" sx={{ mb: 1 }}>
+       {selectedBudget?.name}
+    </Typography>
+    <Typography variant="body1" sx={{ mb: 1 }}>
+      <strong>Created By:</strong> @{selectedBudget?.contributors?.[0]?.username || "Unknown"}
+    </Typography>
+    <Typography variant="body1" sx={{ mb: 1 }}>
+      <strong>Contributors:</strong>
+    </Typography>
+    <Stack spacing={1} sx={{ mb: 2 }}>
+      {selectedBudget?.contributors?.map((c, idx) => (
+        <Box
+          key={c.uid || c.username || idx}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "#f1f1f111",
+            borderRadius: 2,
+            px: 2,
+            py: 1,
+          }}
+        >
+          <Typography>
+            {c.username || c.uid || "Unknown"}
+            <span style={{
+              fontSize: "0.8em",
+              backgroundColor: "#333",
+              borderRadius: "5px",
+              padding: "2px 4px",
+              color: "#aaa",
+              marginLeft: 8,
+              textTransform: "capitalize",
+              fontFamily: "monospace",
+              fontWeight: "bold",
+            }}>
+              {getContributorRole(c, idx)}
+            </span>
+          </Typography>
+          {isOwner && idx !== 0 && (
+            <TextField
+              select
+              size="small"
+              value={getContributorRole(c, idx)}
+              onChange={e => {
+                // Update role for this contributor
+                const updated = [...selectedBudget.contributors];
+                updated[idx] = { ...updated[idx], role: e.target.value };
+                // Save to Firestore for all contributors
+                for (const user of updated) {
+                  if (user.uid) {
+                    const docRef = doc(db, "budgets", user.uid);
+                    getDoc(docRef).then(docSnap => {
+                      let userItems = [];
+                      if (docSnap.exists()) {
+                        userItems = docSnap.data().items || [];
+                        const bIdx = userItems.findIndex(
+                          b => b.name === selectedBudget.name && b.category === selectedBudget.category
+                        );
+                        if (bIdx !== -1) {
+                          userItems[bIdx] = { ...userItems[bIdx], contributors: updated };
+                          setDoc(docRef, { items: userItems }, { merge: true });
+                        }
+                      }
+                    });
+                  }
+                }
+                // Update local state
+                const updatedItems = [...budgetItems];
+                updatedItems[selectedBudgetIndex].contributors = updated;
+                setBudgetItems(updatedItems);
+              }}
+              sx={{ minWidth: 90, ml: 1, background: "#111", borderRadius: 1, position: "absolute", right: 40 }}
+            >
+              <MenuItem value="admin">Admin</MenuItem>
+              <MenuItem value="editor">Editor</MenuItem>
+              <MenuItem value="viewer">Viewer</MenuItem>
+            </TextField>
+          )}
+        </Box>
+      ))}
+    </Stack>
+    <Typography variant="caption" sx={{ color: "#aaa" }}>
+      Only the owner (admin) can manage contributor roles and permissions.
+    </Typography>
+  </Box>
+</Drawer>
               </>
             )}
+
+            
 
             <AnimatePresence>
               {addDrawerOpen && (
@@ -1030,19 +1226,32 @@ useEffect(() => {
                       InputLabelProps={{ style: { color: "#fff" } }}
                       InputProps={{ style: { color: "#fff" } }}
                     />
-                    <TextField
-                      label="Category"
-                      fullWidth
-                      variant="outlined"
-                      size="small"
-                      sx={{ mb: 2, borderRadius: 2, border: "2px solid #f1f1f111" }}
-                      value={newExpense.category}
-                      onChange={(e) =>
-                        setNewExpense({ ...newExpense, category: e.target.value })
-                      }
-                      InputLabelProps={{ style: { color: "#fff" } }}
-                      InputProps={{ style: { color: "#fff" } }}
-                    />
+<TextField
+  select
+  label="Category"
+  value={newExpense.category}
+  onChange={(e) => {
+    if (e.target.value === "__custom__") {
+      setNewExpense({ ...newExpense, category: "" });
+    } else {
+      setNewExpense({ ...newExpense, category: e.target.value });
+      setCustomCategory("");
+    }
+  }}
+  fullWidth
+  variant="outlined"
+  size="small"
+  sx={{ mb: newExpense.category === "" ? 0 : 2, borderRadius: 2, border: "2px solid #f1f1f111" }}
+  InputLabelProps={{ style: { color: "#fff" } }}
+  InputProps={{ style: { color: "#fff" } }}
+>
+  {EXP_PREDEFINED_CATEGORIES.map((cat) => (
+    <MenuItem key={cat} value={cat}>
+      {cat}
+    </MenuItem>
+  ))}
+
+</TextField>
                     <TextField
                       label="Date"
                       type="date"
@@ -1163,14 +1372,30 @@ useEffect(() => {
               InputLabelProps={{ style: { color: "#aaa" } }}
             />
             <TextField
-              label="Category"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              fullWidth
-              variant="outlined"
-              InputProps={{ style: { color: "#fff" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
-            />
+  select
+  label="Category"
+  value={formData.category}
+  onChange={(e) => {
+    if (e.target.value === "__custom__") {
+      setFormData({ ...formData, category: "" });
+    } else {
+      setFormData({ ...formData, category: e.target.value });
+      setCustomCategory("");
+    }
+  }}
+  fullWidth
+  variant="outlined"
+  InputProps={{ style: { color: "#fff" } }}
+  InputLabelProps={{ style: { color: "#aaa" } }}
+  sx={{ mb: customCategory ? 0 : 2 }}
+>
+  {PREDEFINED_CATEGORIES.map((cat) => (
+    <MenuItem key={cat} value={cat}>
+      {cat}
+    </MenuItem>
+  ))}
+</TextField>
+
             <TextField
               label="Amount"
               value={formData.amount}

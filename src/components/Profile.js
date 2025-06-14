@@ -581,7 +581,7 @@ sx={{
           <Button
             startIcon={<ArrowBackIcon />}
             onClick={() => setDrawerPage("main")}
-            sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 1.2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}
+            sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}
           />
           <h2>Edit Profile</h2>
         </Typography>
@@ -595,7 +595,7 @@ sx={{
     <Button
       startIcon={<ArrowBackIcon />}
       onClick={() => setDrawerPage("main")}
-      sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 1.5, height: '50px', color: "#fff", backgroundColor: "#f1f1f111" }}
+      sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}
     />
     <Typography variant="h5" gutterBottom><h2>App Version & About</h2></Typography>
 
@@ -702,7 +702,7 @@ sx={{
           <Button
             startIcon={<ArrowBackIcon />}
             onClick={() => setDrawerPage("about")}
-            sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 1.5, height: '50px', color: "#fff", backgroundColor: "#f1f1f111" }}
+            sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}
           />
           <Typography variant="h5" gutterBottom><h2>Features & Changelog</h2></Typography>
 
@@ -741,7 +741,7 @@ sx={{
     <Button
       startIcon={<ArrowBackIcon />}
       onClick={() => setDrawerPage("main")}
-      sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 1.5, height: '50px', color: "#fff", backgroundColor: "#f1f1f111" }}
+      sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}
     />
     <Typography variant="h5" gutterBottom><h2>Support & Help</h2></Typography>
 

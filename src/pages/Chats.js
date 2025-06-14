@@ -465,15 +465,17 @@ function Chats() {
     .sort((a, b) => b.timestamp - a.timestamp);
 
   return (
+      <ThemeProvider theme={theme}>
           <div style={{ padding: '10px', backgroundColor: '#02020200' }}>
-      <div style={{display: 'flex', flexDirection: 'row'}}>
-      <IconButton onClick={goBack} sx={{ mr: 1, color: '#fff' }}>
+      <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+      <IconButton onClick={goBack} sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
         <ArrowBackIcon />
       </IconButton>
-      <h2 style={{ color: '#FFFFFF', fontSize: '32px' }}>Chats</h2>
      
            <ProfilePic />
       </div>
+
+      <Typography variant="h4" style={{ color: '#FFFFFF', fontWeight: "bolder", marginBottom: 12, mr: 2 }}>Chats</Typography>
 
       <input
         type="text"
@@ -499,6 +501,7 @@ function Chats() {
             top: '20px',
             right: '20px',
             backgroundColor: '#444444ea',
+            backdropFilter: 'blur(80px)',
             color: '#f0f0f0',
             padding: '10px 20px',
             borderRadius: '12px',
@@ -707,7 +710,7 @@ function Chats() {
 
     </div>
 
-    
+    </ThemeProvider>
   );
 }
 
