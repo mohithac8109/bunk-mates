@@ -1,6 +1,6 @@
 {
   "name": "bunk-mates",
-  "version": "1.0.43(Dev Beta)",
+  "version": "1.0.54(Dev Beta)",
   "private": true,
   "scripts": {
     "start": "react-scripts start",
@@ -41,6 +41,8 @@
     "webpack-dev-server": "^5.2.1"
   },
   "dependencies": {
+    "@emoji-mart/data": "^1.2.1",
+    "@emoji-mart/react": "^1.1.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^7.0.2",

@@ -9,6 +9,13 @@ import SendIcon from '@mui/icons-material/Send';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 import { useSwipeable } from 'react-swipeable';
 import CloseIcon from '@mui/icons-material/Close';
+import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
+import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
+import Picker from '@emoji-mart/react';
+import Popover from '@mui/material/Popover';
+import data from '@emoji-mart/data';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   collection, addDoc, query, orderBy, onSnapshot,
@@ -17,6 +24,12 @@ import {
 import { db, auth } from '../firebase';
 import { onAuthStateChanged } from "firebase/auth";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import SaveIcon from '@mui/icons-material/Save';
+import { v4 as uuidv4 } from 'uuid'; // For notification message id
 
 function ChatRoom() {
   const { friendId } = useParams();
@@ -37,6 +50,12 @@ function ChatRoom() {
   const controls = useAnimation();
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
+  const [reactionAnchorEl, setReactionAnchorEl] = useState(null);
+  const [reactionMsg, setReactionMsg] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [nickname, setNickname] = useState('');
+  const [editNickname, setEditNickname] = useState(false);
+  const [sharedBudgets, setSharedBudgets] = useState([]);
 
   const scrollContainerRef = useRef(null);
   const chatId = currentUser && friendId ? [currentUser.uid, friendId].sort().join('_') : null;
@@ -52,7 +71,108 @@ function ChatRoom() {
     exit: { opacity: 0, y: 20, transition: { duration: 0.2 } },
   };
 
-  
+  const getGroupedReactions = (msg) => {
+  if (!msg.reactions) return {};
+  // reactions: [{emoji: '❤️', users: ['uid1', 'uid2']}]
+  const grouped = {};
+  msg.reactions.forEach(r => {
+    if (!grouped[r.emoji]) grouped[r.emoji] = [];
+    grouped[r.emoji].push(r.user);
+  });
+  return grouped;
+};
+
+useEffect(() => {
+  const fetchNickname = async () => {
+    if (!currentUser || !friendId) return;
+    const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+    if (userDoc.exists()) {
+      const nicknames = userDoc.data().nicknames || {};
+      setNickname(nicknames[friendId] || '');
+    }
+  };
+  fetchNickname();
+}, [currentUser, friendId]);
+
+// --- Fetch shared budgets ---
+useEffect(() => {
+  const fetchBudgets = async () => {
+    if (!currentUser || !friendId) return;
+    const q = query(collection(db, "budgets"), where("contributors", "array-contains", currentUser.uid));
+    const snapshot = await getDocs(q);
+    const shared = [];
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      if (data.contributors.includes(friendId)) {
+        shared.push({ ...data, id: docSnap.id });
+      }
+    });
+    setSharedBudgets(shared);
+  };
+  fetchBudgets();
+}, [currentUser, friendId]);
+
+// --- Remove user from friends ---
+const handleRemoveFriend = async () => {
+  if (!window.confirm("Are you sure you want to remove this user from your friends?")) return;
+  // Remove from current user's friends
+  const userRef = doc(db, "users", currentUser.uid);
+  const userDoc = await getDoc(userRef);
+  const friends = userDoc.exists() ? (userDoc.data().friends || []) : [];
+  await updateDoc(userRef, {
+    friends: friends.filter(uid => uid !== friendId)
+  });
+  // Remove from friend's friends
+  const friendRef = doc(db, "users", friendId);
+  const friendDoc = await getDoc(friendRef);
+  const friendFriends = friendDoc.exists() ? (friendDoc.data().friends || []) : [];
+  await updateDoc(friendRef, {
+    friends: friendFriends.filter(uid => uid !== currentUser.uid)
+  });
+  setNotification("Removed from friends.");
+  setOpenProfile(false);
+  // Optionally redirect to chats list
+  history('/chats');
+};
+
+// --- Clear chat history ---
+const handleClearChat = async () => {
+  if (!window.confirm("Clear all chat messages with this user?")) return;
+  const msgsQuery = query(collection(db, "chats", chatId, "messages"));
+  const msgsSnapshot = await getDocs(msgsQuery);
+  const batch = [];
+  msgsSnapshot.forEach(docSnap => {
+    batch.push(deleteDoc(doc(db, "chats", chatId, "messages", docSnap.id)));
+  });
+  await Promise.all(batch);
+  setNotification("Chat cleared.");
+};
+
+// --- Edit nickname ---
+const handleSaveNickname = async () => {
+  const userRef = doc(db, "users", currentUser.uid);
+  const userDoc = await getDoc(userRef);
+  const nicknames = userDoc.exists() ? (userDoc.data().nicknames || {}) : {};
+  nicknames[friendId] = nickname;
+  await updateDoc(userRef, { nicknames });
+  setEditNickname(false);
+
+  // Send a notification message in the chat (styled as a system/notification message)
+  await addDoc(collection(db, "chats", chatId, "messages"), {
+    text: `${currentUser.displayName || "A user"} set a nickname for you: "${nickname}"`,
+    senderId: currentUser.uid,
+    timestamp: serverTimestamp(),
+    isRead: false,
+    system: true, // Use this flag to style as a notification in your message rendering
+    notificationType: "nickname"
+  });
+};
+
+// --- Budget card click handler ---
+const handleBudgetClick = (budgetId) => {
+  history(`/budgets/${budgetId}`);
+};
+
   const Transition = React.forwardRef(function Transition(props, ref) {
     return <Slide direction="up" ref={ref} {...props} />;
   });
@@ -223,14 +343,27 @@ useEffect(() => {
     setSelectedMsg(null);
   };
 
-  const handleReaction = async (reaction) => {
-    if (selectedMsg) {
-      await updateDoc(doc(db, "chats", chatId, "messages", selectedMsg.id), {
-        reaction
-      });
-      handleMenuClose();
-    }
-  };
+// --- Update handleReaction to support multiple reactions per message ---
+const handleReaction = async (emoji, msg = reactionMsg || selectedMsg) => {
+  if (!msg) return;
+  const reactions = msg.reactions || [];
+  const userId = currentUser.uid;
+
+  // Remove any previous reaction by this user (regardless of emoji)
+  let updated = reactions.filter(r => r.user !== userId);
+
+  // Add the new reaction
+  updated.push({ emoji, user: userId });
+
+  await updateDoc(doc(db, "chats", chatId, "messages", msg.id), {
+    reactions: updated
+  });
+
+  setShowEmojiPicker(false);
+  setReactionAnchorEl(null);
+  setReactionMsg(null);
+  handleMenuClose();
+};
 
   const getMessageDate = (timestamp) => {
     const date = new Date(timestamp?.toDate());
@@ -266,7 +399,9 @@ useEffect(() => {
           </IconButton>
           <Avatar src={friendDetails.photoURL} alt={friendDetails.name} sx={{ mr: 2, height: '50px', width: '50px' }} />
           <Box onClick={() => setOpenProfile(true)}>
-            <Typography variant="h6" color="#fff" fontSize="18px">{friendDetails.name}</Typography>
+            <Typography variant="h6" color="#fff" fontSize="18px">
+              {nickname ? nickname : friendDetails.name}
+            </Typography>
             <Typography variant="h6" color="#d1d1d1" fontSize="13px">@{friendDetails.username}</Typography>
             <Typography variant="body2" sx={{ color: friendDetails.status === 'online' ? '#AEEA00' : '#BDBDBD' }}>
               {friendDetails.status}
@@ -315,6 +450,7 @@ useEffect(() => {
       transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       style={{ touchAction: 'pan-y' }}
     >
+      
       {showDate && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -327,6 +463,7 @@ useEffect(() => {
             marginTop: 15
           }}
         >
+  
           <Typography
             variant="caption"
             sx={{ color: '#BDBDBD', textAlign: 'center' }}
@@ -394,21 +531,44 @@ useEffect(() => {
             })}
           </Typography>
 
-          {msg.reaction && (
-            <Typography
-              variant="body2"
-              sx={{
-                position: 'absolute',
-                backgroundColor: '#272727',
-                width: '18px',
-                borderRadius: '40px',
-                bottom: -10,
-                right: 10,
-              }}
-            >
-              {msg.reaction}
-            </Typography>
-          )}
+          {msg.reactions && msg.reactions.length > 0 && (
+  <Box
+    sx={{
+      display: 'flex',
+      gap: 0.5,
+      alignItems: 'center',
+      position: 'absolute',
+      bottom: -18,
+      right: 5,
+      zIndex: 2,
+      bgcolor: '#222',
+      borderRadius: '12px',
+      px: 1,
+      py: 0.6,
+      boxShadow: '0 2px 8px #0004',
+    }}
+  >
+    {Object.entries(getGroupedReactions(msg)).map(([emoji, users]) => (
+      <Chip
+        key={emoji}
+        label={`${emoji}`}
+        size="small"
+        sx={{
+          bgcolor: '#333',
+          color: '#fff',
+          fontSize: '1.1em',
+          borderRadius: '18px',
+          cursor: 'pointer',
+          padding: '10px 1px',
+        }}
+        onClick={(e) => {
+          setReactionAnchorEl(e.currentTarget);
+          setReactionMsg(msg);
+        }}
+      />
+    ))}
+  </Box>
+)}
 
           {isOwn && (
             <Box sx={{ textAlign: 'right', mt: 0.5 }}>
@@ -524,13 +684,157 @@ useEffect(() => {
       </Box>
 
       {/* Context Menu */}
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={() => { setReplyingTo(selectedMsg); handleMenuClose();}}>Reply</MenuItem>
-        <MenuItem onClick={() => handleEdit(selectedMsg)}>Edit</MenuItem>
-        <MenuItem onClick={() => handleDelete(selectedMsg?.id)}>Delete</MenuItem>
-        <MenuItem onClick={() => handleReaction('❤️')}>❤️ React</MenuItem>
-        <MenuItem onClick={() => handleReaction('😂')}>😂 React</MenuItem>
-      </Menu>
+      <Menu
+  anchorEl={anchorEl}
+  open={Boolean(anchorEl)}
+  onClose={handleMenuClose}
+  PaperProps={{
+    sx: {
+      minWidth: 170,
+      borderRadius: 2,
+      bgcolor: "#181818",
+      color: "#fff",
+      boxShadow: "0 4px 24px #000a",
+      p: 0.5,
+    },
+  }}
+>
+  <MenuItem
+    onClick={() => {
+      setReplyingTo(selectedMsg);
+      handleMenuClose();
+    }}
+    sx={{ fontWeight: 500, fontSize: 15 }}
+  >
+    💬 Reply
+  </MenuItem>
+  {selectedMsg?.senderId === currentUser.uid && (
+    <>
+      <MenuItem
+        onClick={() => {
+          handleEdit(selectedMsg);
+          handleMenuClose();
+        }}
+        sx={{ fontWeight: 500, fontSize: 15 }}
+      >
+        ✏️ Edit
+      </MenuItem>
+      <MenuItem
+        onClick={() => {
+          handleDelete(selectedMsg?.id);
+          handleMenuClose();
+        }}
+        sx={{ color: "#ff4444", fontWeight: 500, fontSize: 15 }}
+      >
+        🗑️ Delete
+      </MenuItem>
+    </>
+  )}
+  <Divider sx={{ my: 0.5, bgcolor: "#333" }} />
+  <MenuItem
+    onClick={() => {
+      handleReaction('❤️');
+      handleMenuClose();
+    }}
+    sx={{ fontSize: 15 }}
+  >
+    ❤️ React
+  </MenuItem>
+  <MenuItem
+    onClick={() => {
+      handleReaction('😂');
+      handleMenuClose();
+    }}
+    sx={{ fontSize: 15 }}
+  >
+    😂 React
+  </MenuItem>
+  <MenuItem
+    onClick={() => {
+      navigator.clipboard.writeText(selectedMsg?.text || "");
+      setNotification("Message copied!");
+      handleMenuClose();
+    }}
+    sx={{ fontSize: 15 }}
+  >
+    📋 Copy Text
+  </MenuItem>
+  {selectedMsg?.text && selectedMsg.text.length > 10 && (
+    <MenuItem
+      onClick={() => {
+        window.open(`https://www.google.com/search?q=${encodeURIComponent(selectedMsg.text)}`, "_blank");
+        handleMenuClose();
+      }}
+      sx={{ fontSize: 15 }}
+    >
+      🔎 Search on Google
+    </MenuItem>
+  )}
+</Menu>
+<Menu
+  anchorEl={reactionAnchorEl}
+  open={Boolean(reactionAnchorEl) && !showEmojiPicker}
+  onClose={() => {
+    setReactionAnchorEl(null);
+    setReactionMsg(null);
+  }}
+  PaperProps={{
+    sx: {
+      minWidth: 120,
+      borderRadius: 2,
+      bgcolor: "#181818",
+      color: "#fff",
+      boxShadow: "0 4px 24px #000a",
+      p: 0.5,
+    },
+  }}
+>
+  {reactionMsg &&
+    Object.entries(getGroupedReactions(reactionMsg)).map(([emoji, users]) => (
+      <MenuItem key={emoji} disabled>
+        {emoji} {users.includes(currentUser.uid) ? "(You)" : ""}
+      </MenuItem>
+    ))}
+  <Divider sx={{ my: 0.5, bgcolor: "#333" }} />
+  <MenuItem
+    onClick={() => setShowEmojiPicker(true)}
+    sx={{ fontSize: 15, display: 'flex', alignItems: 'center' }}
+  >
+    <EmojiEmotionsIcon sx={{ mr: 1 }} /> Add Reaction
+  </MenuItem>
+</Menu>
+
+<Popover
+  open={showEmojiPicker}
+  anchorEl={reactionAnchorEl}
+  onClose={() => setShowEmojiPicker(false)}
+  anchorOrigin={{
+    vertical: 'top',
+    horizontal: 'center',
+  }}
+  transformOrigin={{
+    vertical: 'bottom',
+    horizontal: 'center',
+  }}
+  PaperProps={{
+    sx: {
+      bgcolor: '#222',
+      borderRadius: 3,
+      boxShadow: '0 4px 24px #000a',
+      p: 1,
+    }
+  }}
+>
+  <Picker
+    data={data}
+    theme="dark"
+    onEmojiSelect={(emoji) => {
+      handleReaction(emoji.native, reactionMsg);
+      setShowEmojiPicker(false);
+    }}
+  />
+</Popover>
+
 
       {/* Notification Snackbar */}
      <AnimatePresence>
@@ -564,7 +868,7 @@ useEffect(() => {
   exit={{ y: '100%' }}
   transition={{ type: 'spring', stiffness: 100 }}
 >
-      <SwipeableDrawer
+<SwipeableDrawer
   anchor="bottom"
   open={openProfile}
   onClose={() => setOpenProfile(false)}
@@ -598,12 +902,152 @@ useEffect(() => {
         src={friendDetails.photoURL}
         sx={{ width: 90, height: 90, mb: 2 }}
       />
-      <Typography variant="h6">{friendDetails.name}</Typography>
-      <Typography variant="subtitle1" sx={{ color: '#aaa' }}>@{friendDetails.username}</Typography>
-      <Typography variant="subtitle1" sx={{ color: '#aaa' }}>{friendDetails.bio}</Typography>
-      <Typography variant="body2" sx={{ color: friendDetails.status === 'online' ? '#00e676' : '#888' }}>
-        {friendDetails.status}
+      <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+        {friendDetails.name}
       </Typography>
+      <Typography variant="subtitle1" sx={{ color: '#aaa', mb: 0.5 }}>
+        @{friendDetails.username}
+      </Typography>
+      {friendDetails.email && (
+        <Typography variant="body2" sx={{ color: '#aaa', mb: 0.5 }}>
+          <strong>Email:</strong> {friendDetails.email}
+        </Typography>
+      )}
+      {friendDetails.phone && (
+        <Typography variant="body2" sx={{ color: '#aaa', mb: 0.5 }}>
+          <strong>Phone:</strong> {friendDetails.phone}
+        </Typography>
+      )}
+      {friendDetails.bio && (
+        <Typography variant="body2" sx={{ color: '#aaa', mb: 0.5 }}>
+          <strong>Bio:</strong> {friendDetails.bio}
+        </Typography>
+      )}
+      {/* Show common groups and trips if available */}
+      {commonGroups && commonGroups.length > 0 && (
+        <Box sx={{ width: '100%', mt: 1 }}>
+          <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>Common Groups:</Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            {commonGroups.map((group, i) => (
+              <Chip key={i} label={group} size="small" sx={{ bgcolor: '#222', color: '#fff' }} />
+            ))}
+          </Stack>
+        </Box>
+      )}
+      {commonTrips && commonTrips.length > 0 && (
+        <Box sx={{ width: '100%', mt: 1 }}>
+          <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>Common Trips:</Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            {commonTrips.map((trip, i) => (
+              <Chip key={i} label={trip} size="small" sx={{ bgcolor: '#222', color: '#fff' }} />
+            ))}
+          </Stack>
+        </Box>
+      )}
+      <Box sx={{ width: '100%', mt: 2, mb: 1 }}>
+        <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>Nickname:</Typography>
+        {editNickname ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TextField
+              value={nickname}
+              onChange={e => setNickname(e.target.value)}
+              size="small"
+              variant="outlined"
+              sx={{ bgcolor: '#222', borderRadius: 1, input: { color: '#fff' } }}
+            />
+            <IconButton onClick={handleSaveNickname} color="success">
+              <SaveIcon />
+            </IconButton>
+            <IconButton onClick={() => { setEditNickname(false); setNickname(nickname); }} color="error">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" sx={{ color: '#aaa' }}>
+              {nickname || <span style={{ color: '#555' }}>No nickname set</span>}
+            </Typography>
+            <IconButton onClick={() => setEditNickname(true)} color="primary" size="small">
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        )}
+      </Box>
+
+      {/* Shared Budgets */}
+      {sharedBudgets.length > 0 && (
+        <Box sx={{ width: '100%', mt: 2 }}>
+          <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>Shared Budgets:</Typography>
+          <Stack direction="column" spacing={1}>
+            {sharedBudgets.map(budget => (
+              <Paper
+                key={budget.id}
+                sx={{
+                  bgcolor: '#1a1a1a',
+                  color: '#fff',
+                  p: 2,
+                  borderRadius: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  '&:hover': { bgcolor: '#222' }
+                }}
+                onClick={() => handleBudgetClick(budget.id)}
+                elevation={2}
+              >
+                <CreditCardIcon sx={{ mr: 2, color: '#00f721' }} />
+                <Box>
+                  <Typography variant="subtitle1" sx={{ color: '#fff' }}>{budget.name}</Typography>
+                  <Typography variant="body2" sx={{ color: '#aaa' }}>
+                    Contributors: {budget.contributors.length}
+                  </Typography>
+                </Box>
+              </Paper>
+            ))}
+          </Stack>
+        </Box>
+      )}
+
+      {/* Action Buttons */}
+      <Stack direction="row" spacing={2} sx={{ mt: 3, mb: 2 }}>
+        <IconButton
+          color="primary"
+          sx={{ bgcolor: '#222', color: '#00e676', borderRadius: 2 }}
+          onClick={() => window.open(`mailto:${friendDetails.email}`, '_blank')}
+          disabled={!friendDetails.email}
+        >
+          <EmailOutlinedIcon />
+        </IconButton>
+        <IconButton
+          color="primary"
+          sx={{ bgcolor: '#222', color: '#00b0ff', borderRadius: 2 }}
+          onClick={() => window.open(`tel:${friendDetails.phone}`, '_blank')}
+          disabled={!friendDetails.phone}
+        >
+          <PhoneOutlinedIcon />
+        </IconButton>
+        <IconButton
+          color="primary"
+          sx={{ bgcolor: '#222', color: '#fff', borderRadius: 2 }}
+          onClick={() => setOpenProfile(false)}
+        >
+          <ChatOutlinedIcon />
+        </IconButton>
+        <IconButton
+          color="error"
+          sx={{ bgcolor: '#222', borderRadius: 2 }}
+          onClick={handleClearChat}
+        >
+          <DeleteOutlineIcon />
+        </IconButton>
+        <IconButton
+          color="error"
+          sx={{ bgcolor: '#222', borderRadius: 2 }}
+          onClick={handleRemoveFriend}
+        >
+          <RemoveCircleOutlineIcon />
+        </IconButton>
+      </Stack>
     </Box>
   </Box>
 </SwipeableDrawer>

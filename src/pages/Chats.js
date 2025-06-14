@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { auth, db } from '../firebase';
 import {
   collection,
@@ -187,9 +187,34 @@ function Chats() {
   const [groupName, setGroupName] = useState('');
   const [groupEmoji, setGroupEmoji] = useState('💬');
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chat: null });
-
+  const [friends, setFriends] = useState([]);
+  const [nicknames, setNicknames] = useState({});
   const navigate = useNavigate();
   const currentUser = auth.currentUser;
+
+  // Fetch friends list from Firestore (assuming you store friends as an array of user IDs in each user doc)
+useEffect(() => {
+  if (!currentUser) return;
+  const fetchFriends = async () => {
+    const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+    if (userDoc.exists()) {
+      setFriends(userDoc.data().friends || []);
+    }
+  };
+  fetchFriends();
+}, [currentUser]);
+
+useEffect(() => {
+    if (!currentUser) return;
+    const fetchNicknames = async () => {
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      if (userDoc.exists()) {
+        setNicknames(userDoc.data().nicknames || {});
+      }
+    };
+    fetchNicknames();
+  }, [currentUser]);
+
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -441,28 +466,76 @@ function Chats() {
     });
   };
 
-  const combinedChats = [
-    ...users.map((user) => ({
-      type: 'user',
-      id: user.id,
-      name: user.name || user.username,
-      photoURL: user.photoURL,
-      lastMessage: latestMessages[user.id],
-      timestamp: latestTimestamps[user.id] || new Date(0),
-      unreadCount: unreadCounts[user.id] || 0,
-    })),
-    ...userGroups.map((group) => ({
-      type: 'group',
-      id: group.id,
-      name: group.name,
-      emoji: group.emoji,
-      lastMessage: latestGroupMessages[group.id]?.text,
-      timestamp: latestGroupTimestamps[group.id] || new Date(0),
-      unreadCount: groupUnreadCounts[group.id] || 0,
-    })),
-  ]
-    .filter((chat) => chat.name?.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => b.timestamp - a.timestamp);
+  // Fetch all users for search (excluding current user and already-friends)
+useEffect(() => {
+  if (searchTerm.trim() === '') return setSearchResults([]);
+  const fetchUsers = async () => {
+    const usersSnapshot = await getDocs(collection(db, "users"));
+    const matches = [];
+    usersSnapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      if (
+        data.username?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        data.uid !== currentUser.uid &&
+        !friends.includes(data.uid)
+      ) {
+        matches.push({ ...data, uid: docSnap.id });
+      }
+    });
+    setSearchResults(matches);
+  };
+  fetchUsers();
+}, [searchTerm, currentUser, friends]);
+
+// Add friend logic
+const handleAddFriend = async (userToAdd) => {
+  if (!userToAdd || !userToAdd.uid) return;
+  // Add each other as friends
+  const userRef = doc(db, "users", currentUser.uid);
+  const friendRef = doc(db, "users", userToAdd.uid);
+
+  await updateDoc(userRef, {
+    friends: [...friends, userToAdd.uid]
+  });
+
+  // Also add current user to the other user's friends
+  const friendDoc = await getDoc(friendRef);
+  const friendFriends = friendDoc.exists() ? (friendDoc.data().friends || []) : [];
+  await updateDoc(friendRef, {
+    friends: [...friendFriends, currentUser.uid]
+  });
+
+  setFriends(prev => [...prev, userToAdd.uid]);
+  setAddUserDialog(false);
+  setSearchTerm('');
+};
+
+// Only show chats with friends
+const friendUsers = users.filter(u => friends.includes(u.id));
+
+
+const combinedChats = [
+  ...friendUsers.map((user) => ({
+    type: 'user',
+    id: user.id,
+    name: nicknames[user.id] || user.name || user.username,
+    photoURL: user.photoURL,
+    lastMessage: latestMessages[user.id],
+    timestamp: latestTimestamps[user.id] || new Date(0),
+    unreadCount: unreadCounts[user.id] || 0,
+  })),
+  ...userGroups.map((group) => ({
+    type: 'group',
+    id: group.id,
+    name: group.name,
+    emoji: group.emoji,
+    lastMessage: latestGroupMessages[group.id]?.text,
+    timestamp: latestGroupTimestamps[group.id] || new Date(0),
+    unreadCount: groupUnreadCounts[group.id] || 0,
+  })),
+]
+  .filter((chat) => chat.name?.toLowerCase().includes(searchTerm.toLowerCase()))
+  .sort((a, b) => b.timestamp - a.timestamp);
 
   return (
       <ThemeProvider theme={theme}>
@@ -683,6 +756,13 @@ function Chats() {
         <Avatar src={user.photoURL} sx={{ mr: 2 }} />
         <Typography color="#fff" sx={{ flex: 1 }}>{user.username}</Typography>
         <Button variant="outlined" sx={{ mr: 1, color: 'rgba(0, 255, 145, 0.86)', backgroundColor: 'rgba(0, 155, 89, 0.16)', borderColor: 'rgba(0, 255, 145, 0.86)', borderRadius: '10px' }} onClick={() => handleAddUser(user)}>Group</Button>
+        <Button
+          variant="outlined"
+          sx={{ mr: 1, color: 'rgba(0, 255, 145, 0.86)', backgroundColor: 'rgba(0, 155, 89, 0.16)', borderColor: 'rgba(0, 255, 145, 0.86)', borderRadius: '10px' }}
+          onClick={() => handleAddFriend(user)}
+        >
+          Add Friend
+        </Button>
       </Box>
     ))}
 

@@ -736,17 +736,51 @@ function GroupChat() {
       position: 'fixed',
       top: contextMenu.y,
       left: contextMenu.x,
-      bgcolor: '#2b2b2b',
+      bgcolor: '#232323',
       borderRadius: 2,
       boxShadow: 4,
       zIndex: 1300,
       p: 1,
+      minWidth: 140,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 1,
     }}
     onMouseLeave={() => setContextMenu({ ...contextMenu, visible: false })}
   >
-    <Button onClick={() => handleReply(contextMenu.message)}>Reply</Button>
-    <Button onClick={() => handleAddReaction(contextMenu.message, '❤️')}>❤️</Button>
-    <Button onClick={() => handleDelete(contextMenu.message.id)} color="error">Delete</Button>
+    <Button
+      sx={{ color: '#fff', justifyContent: 'flex-start', textTransform: 'none' }}
+      onClick={() => handleReply(contextMenu.message)}
+    >
+      💬 Reply
+    </Button>
+    <Button
+      sx={{ color: '#fff', justifyContent: 'flex-start', textTransform: 'none' }}
+      onClick={() => handleAddReaction(contextMenu.message, '❤️')}
+    >
+      ❤️ React
+    </Button>
+    <Button
+      sx={{ color: '#fff', justifyContent: 'flex-start', textTransform: 'none' }}
+      onClick={() => handleAddReaction(contextMenu.message, '😂')}
+    >
+      😂 React
+    </Button>
+    <Button
+      sx={{ color: '#fff', justifyContent: 'flex-start', textTransform: 'none' }}
+      onClick={() => {
+        navigator.clipboard.writeText(contextMenu.message.text || '');
+        setContextMenu({ ...contextMenu, visible: false });
+      }}
+    >
+      📋 Copy Text
+    </Button>
+    <Button
+      sx={{ color: '#ff4444', justifyContent: 'flex-start', textTransform: 'none' }}
+      onClick={() => handleDelete(contextMenu.message.id)}
+    >
+      🗑️ Delete
+    </Button>
   </Box>
 )}
           <div ref={bottomRef} />
