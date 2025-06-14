@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -20,18 +20,24 @@ import {
   ThemeProvider,
   useTheme,
   keyframes,
-  createTheme
+  createTheme,
+  InputAdornment,
+  MenuItem,
+  Menu
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import Card from "@mui/material/Card";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SearchIcon from '@mui/icons-material/Search';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 
 import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../firebase"; // Your Firebase config export
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { motion, AnimatePresence } from "framer-motion";
 
 import ProfilePic from "./Profile";
 
@@ -200,13 +206,19 @@ const BudgetManager = () => {
   const history = useNavigate();
   const muiTheme = useTheme();
 
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [menuIndex, setMenuIndex] = useState(null);
   const [editIndex, setEditIndex] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false); // Whether drawer is in edit mode
   const [editCategory, setEditCategory] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   // Drawer states
+  const [budgets, setBudgets] = useState([]); // Main state
+  const [editData, setEditData] = useState({ name: "", category: "", amount: 0 }); // initial empty
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [ExpdrawerOpen, setExpDrawerOpen] = useState(false);
@@ -445,6 +457,52 @@ const handleDeleteExpense = (index) => {
     history(-1);
   };
 
+  // Extract all unique categories for filter dropdown
+  const categories = useMemo(() => {
+    const all = budgetItems.map(item => item.category);
+    return [...new Set(all)];
+  }, [budgetItems]);
+
+  // Filtered budget list based on search and selected category
+  const filteredBudgets = budgetItems.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory ? item.category === selectedCategory : true;
+    return matchesSearch && matchesCategory;
+  });
+
+  const handleMenuOpen = (event, index) => {
+    event.stopPropagation();
+    setMenuAnchorEl(event.currentTarget);
+    setMenuIndex(index);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+    setMenuIndex(null);
+  };
+
+  const handleDelete = (indexToDelete) => {
+  const confirmDelete = window.confirm("Are you sure you want to delete this budget?");
+  if (confirmDelete) {
+    const updatedBudgets = budgets.filter((_, index) => index !== indexToDelete);
+    setBudgets(updatedBudgets);
+  }
+};
+
+const handleEdit = (index) => {
+  const item = budgetItems[index];
+  setFormData({
+    name: item.name,
+    category: item.category,
+    amount: item.amount.toString(),
+    contributor: "",
+    contributors: item.contributors || [],
+  });
+  setEditIndex(index); // Set current index
+  setDrawerOpen(true);
+};
+
+
 
 
   return (
@@ -468,17 +526,60 @@ const handleDeleteExpense = (index) => {
           gap: 3
         }}
       >
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          gap: 3,
+          justifyContent: "space-between"
+        }}
+      >
       <Button onClick={goBack} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
         <ArrowBackIcon />
       </Button>
 
-      <Typography variant="h3" sx={{ mb: 3, fontWeight: "bold" }}>
+      <ProfilePic />      
+      </Box>
+
+      <Typography variant="h4" sx={{ mb: 3, fontWeight: "bold" }}>
         Budget Manager
       </Typography>
-
-      <ProfilePic />
       
       </Box>
+      <Box display="flex" gap={2} flexWrap="wrap" mb={2}>
+        <TextField
+          size="small"
+          placeholder="Search by name..."
+          variant="outlined"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ flex: 1, minWidth: 200 }}
+        />
+
+        <TextField
+          select
+          size="small"
+          label="Filter by Category"
+          value={selectedCategory}
+          onChange={e => setSelectedCategory(e.target.value)}
+          sx={{ width: 200 }}
+        >
+          <MenuItem value="">All Categories</MenuItem>
+          {categories.map((cat, i) => (
+            <MenuItem key={i} value={cat}>
+              {cat}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Box>
+
 
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", mt: 10 }}>
@@ -491,67 +592,119 @@ const handleDeleteExpense = (index) => {
       ) : (
         <>
 
-          {budgetItems.length === 0 ? (
-            <Typography sx={{ fontStyle: "italic" }}>
-              No budget items added yet.
-            </Typography>
-          ) : (
-            <Grid container spacing={2}>
-  {budgetItems.map((item, index) => {
-    const balance = getCurrentBalance(item);
-    return (
-      <Grid item xs={10} sm={6} md={4} key={index}>
-        <Paper
-          elevation={3}
-          sx={{display: 'flex',
-            flexDirection: 'column',
-            margin: '0px',
-            backgroundColor: '#009b5922',
-            borderRadius: '20px',
-            alignItems: 'left',
-            textAlign: 'left',
-            padding: '25px',
-            border: '1.2px solid #009b59ad',
-            maxWidth: '100%',
-            color: "fff",
-            p: 2,
-            "&:hover": {
-              backgroundColor: "#009b5942",
-            },
-          }}
-          onClick={() => handleOpenExpDrawer(index)}
-        >
-          <Typography variant="title" fontWeight="bold" sx={{ color: "#fff" }}>
-            {item.name}
-          </Typography>
-          <Typography variant="body2" color="#999999">
-            {item.category}
-          </Typography>
-          <Typography variant="body2" sx={{ color: "#999999" }}>
-            ₹{item.amount}
-          </Typography>
-          <Typography variant="body2" sx={{ color: "#999999" }}>
-            Left: ₹{balance.toFixed(2)}
-          </Typography>
-          {item.contributors?.length > 0 && (
-            <Stack direction="row" spacing={1} mt={1} flexWrap="wrap">
-              {item.contributors.map((c, i) => (
-                <Chip
-                  key={i}
-                  label={c}
-                  size="small"
-                  sx={{ bgcolor: "#333", color: "#fff" }}
-                />
-              ))}
-            </Stack>
-          )}
-        </Paper>
-      </Grid>
-    );
-  })}
-</Grid>
+      {/* Grid Display */}
+      {filteredBudgets.length === 0 ? (
+        <Typography sx={{ fontStyle: "italic" }}>
+          No budget items match your search or filter.
+        </Typography>
+      ) : (
+        <Grid container spacing={1.8}>
+          {filteredBudgets.map((item, index) => {
+            const balance = getCurrentBalance(item);
+            return (
+              <Grid item xs={12} sm={6} md={4} key={index}>
+                <Paper
+                  onClick={() => handleOpenExpDrawer(index)}
+                  elevation={1}
+                  sx={{
+                    p: 2,
+                    borderRadius: '15px',
+                    bgcolor: 'background.paper',
+                    color: 'text.primary',
+                    boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.2s ease-in-out',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1.2,
+                    "&:hover": {
+                      boxShadow: '0 6px 16px rgba(0, 0, 0, 0.15)',
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                >
+                  {/* Header: Name + Balance + Menu */}
+                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Typography variant="titleMedium" fontWeight={600} pr={2}>
+                      {item.name}
+                    </Typography>
 
-          )}
+                    {/* Three-dot Menu */}
+                    <IconButton
+                      onClick={(e) => handleMenuOpen(e, index)}
+                      size="small"
+                      sx={{ ml: 1 }}
+                    >
+                      <MoreVertIcon />
+                    </IconButton>
+                  </Box>
+
+                  {/* Category */}
+                  <Typography variant="bodySmall" color="text.secondary">
+                    {item.category}
+                  </Typography>
+
+                  {/* Total Amount */}
+                  <Typography variant="bodyMedium">
+                    <Typography variant="bodyMedium" fontWeight={600} color="success.main">
+                      ₹{balance.toFixed(2)}
+                    </Typography><br />/ ₹{item.amount}
+                  </Typography>
+
+                  {/* Contributors */}
+                  {item.contributors?.length > 0 && (
+                    <Stack direction="row" spacing={1} mt={1} flexWrap="wrap">
+                      {item.contributors.map((c, i) => (
+                        <Chip
+                          key={i}
+                          label={c}
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            fontSize: "0.7rem",
+                            borderRadius: '10px',
+                            borderColor: 'divider',
+                            color: 'text.secondary',
+                          }}
+                        />
+                      ))}
+                    </Stack>
+                  )}
+                </Paper>
+              </Grid>
+            );
+          })}
+        </Grid>
+      )}
+
+      {/* Shared Menu Component */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        onClick={(e) => e.stopPropagation()} // Prevent triggering card click
+      >
+        <MenuItem
+          onClick={() => {
+            handleEdit(menuIndex);
+            handleMenuClose();
+          }}
+        >
+          Edit
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleDelete(menuIndex);
+            handleMenuClose();
+          }}
+        >
+          Delete
+        </MenuItem>
+      </Menu>
+  
+
 
           {/* Edit Dialog */}
           <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="xs" fullWidth>
@@ -591,7 +744,8 @@ const handleDeleteExpense = (index) => {
 
           {/* Expense Drawer */}
           {ExpdrawerOpen && selectedIndex !== null && (
-            <Box
+            <>
+                          <Box
               sx={{
                 position: "fixed",
                 top: 0,
@@ -617,7 +771,7 @@ const handleDeleteExpense = (index) => {
       </Button>
 
       <Typography variant="h4" sx={{ color: "#fff", fontWeight: "bold" }}>
-                Exp_Name
+                {selectedBudget?.name || "Unnamed Budget"}
       </Typography>
     </Box>
 
@@ -627,8 +781,8 @@ const handleDeleteExpense = (index) => {
 {selectedBudget ? (
   <Box sx={{ p: 2 }}>
     {/* Current Budget Left Section */}
-    <Card sx={{ mb: 2, p: 2, backgroundColor: "#b4ffa621", color: "#c2ffca", borderRadius: 3, border: "none", boxShadow: "none" }}>
-      <Typography variant="h6" fontWeight="bold">
+    <Card sx={{ mb: 2, p: 2, backgroundColor: "#b4ffa621", color: "#c2ffca", borderRadius: 2, border: "none", boxShadow: "none" }}>
+      <Typography variant="title" color="#a2cba7">
         Current Budget Left
       </Typography>
       <Typography variant="h4">
@@ -638,13 +792,13 @@ const handleDeleteExpense = (index) => {
 
     {/* Row: Total Expense & Total Budget */}
     <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-      <Card sx={{ flex: 1, p: 2, backgroundColor: "#ff000019", color: "#ffd2d2", borderRadius: 3, border: "none", boxShadow: "none" }}>
+      <Card sx={{ flex: 1, p: 2, backgroundColor: "#ff000019", color: "#ffd2d2", borderRadius: 2, border: "none", boxShadow: "none" }}>
         <Typography variant="title">Total Expenses</Typography>
         <Typography variant="h6">₹{totalExpense.toFixed(2)}</Typography>
       </Card>
       {selectedBudget && (
-  <Card sx={{ p: 2, backgroundColor: "#f1f1f111", color: "#fff", borderRadius: 3, border: "none", boxShadow: "none" }}>
-    <Typography variant="h6" fontWeight="bold">
+  <Card sx={{ p: 2, backgroundColor: "#f1f1f111", color: "#fff", borderRadius: 2, border: "none", boxShadow: "none" }}>
+    <Typography variant="title" color="#d1d1d1">
       Current Budget
     </Typography>
     <Typography variant="h4">
@@ -674,10 +828,14 @@ const handleDeleteExpense = (index) => {
         color: "#fff",
       }}
     >
-      <Box>
-        <Typography variant="body1" sx={{ color: "#fff" }}>{expense.name || "Unnamed"}</Typography>
+      <Box 
+      sx={{
+        pl: 2,
+        pr: 2
+      }}>
+        <Typography variant="body1" sx={{ color: "#fff" }}>₹{expense.amount}</Typography>
         <Typography variant="caption" sx={{ color: "#999" }}>
-          ₹{expense.amount} | {expense.category || "No Category"} <br />
+          <strong color="#fff">{expense.name || "Unnamed"}</strong> | {expense.category || "No Category"} <br />
           {new Date(expense.date).toLocaleDateString()}{" "}
           {new Date(expense.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </Typography>
@@ -716,7 +874,7 @@ const handleDeleteExpense = (index) => {
 </Box>
 
             </Box>
-          )}
+
 <Fab
   color="success"
   sx={{
@@ -737,34 +895,50 @@ const handleDeleteExpense = (index) => {
 >
   <AddIcon />
 </Fab>
+            </>
+            
+          )}
 
-{addDrawerOpen && (
-  <Box
-    sx={{
-      position: "fixed",
-      bottom: 0,
-      left: 0,
-      bgcolor: "transparent",
-      backdropFilter: "blur(180px)",
-      p: 3,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      zIndex: 1001,
-    }}
-  >
-    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-      <Typography variant="h6" sx={{ color: "#fff", fontWeight: "bold" }}>
-        Add New Expense
-      </Typography>
-      <ButtonBase
-        onClick={() => setAddDrawerOpen(false)}
-        sx={{ color: "#fff", backgroundColor: "f1f1f111", fontSize: 24, p: 1 }}
+          
+<AnimatePresence>
+  {addDrawerOpen && (
+    <motion.div
+      initial={{ y: "100%" }}
+      animate={{ y: 0 }}
+      exit={{ y: "100%" }}
+      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      style={{
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        width: "100%",
+        zIndex: 1100,
+      }}
+    >
+      <Box
+        sx={{
+          bgcolor: "#0c0c0c10",
+          backdropFilter: "blur(180px)",
+          p: 3,
+          mx: "auto",
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+        }}
       >
-        &times;
-      </ButtonBase>
-    </Box>
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
+          <Typography variant="h6" sx={{ color: "#fff", fontWeight: "bold" }}>
+            Add New Expense
+          </Typography>
+          <ButtonBase
+            onClick={() => setAddDrawerOpen(false)}
+            sx={{ color: "#fff", backgroundColor: "f1f1f111", fontSize: 24, p: 1 }}
+          >
+            &times;
+          </ButtonBase>
+        </Box>
 
-    <TextField
+        {/* Your Input Fields Here */}
+            <TextField
       label="Amount"
       type="number"
       fullWidth
@@ -836,28 +1010,27 @@ const handleDeleteExpense = (index) => {
       InputLabelProps={{ shrink: true, style: { color: "#fff" } }}
       InputProps={{ style: { color: "#00ff00" } }}
     />
+        
+        {addError && (
+          <Typography sx={{ color: "#ff4444", mb: 2 }}>{addError}</Typography>
+        )}
 
-    {addError && (
-      <Typography sx={{ color: "#ff4444", mb: 2 }}>{addError}</Typography>
-    )}
-
-
-    <Button
-      variant="contained"
-      color="success"
-      fullWidth
-      sx={{ color: "#000", backgroundColor: "#13bf1c", mb: 2, p: 1, borderRadius: 20 }}
-      onClick={() => {
-        handleAddExpense();
-        setAddDrawerOpen(false);
-      }}
-    >
-      Add Expense
-    </Button>
-
-  </Box>
-)}
-
+        <Button
+          variant="contained"
+          color="success"
+          fullWidth
+          sx={{ color: "#000", backgroundColor: "#13bf1c", mb: 2, p: 1, borderRadius: 20 }}
+          onClick={() => {
+            handleAddExpense();
+            setAddDrawerOpen(false);
+          }}
+        >
+          Add Expense
+        </Button>
+      </Box>
+    </motion.div>
+  )}
+</AnimatePresence>
 
 
         </>
@@ -870,9 +1043,9 @@ const handleDeleteExpense = (index) => {
             bottom: 16,
             right: 16,
             backgroundColor: "#004d00",
-            borderRadius: 2,
+            borderRadius: 4,
             px: 2,
-            py: 1,
+            py: 2,
             color: "#0f0",
             fontWeight: "bold",
             userSelect: "none",
@@ -914,6 +1087,7 @@ const handleDeleteExpense = (index) => {
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       backgroundColor: "#00000000",
+      backdropFilter: "blur(180px)",
       padding: 3,
     },
   }}
@@ -988,23 +1162,41 @@ const handleDeleteExpense = (index) => {
     <Button
       variant="contained"
       color="success"
-      onClick={() => {
-        const { name, category, amount, contributors } = formData;
-        if (!name || !category || isNaN(Number(amount))) return;
-
-        const newItem = {
-          name,
-          category,
-          amount: parseFloat(amount),
-          contributors,
-          expenses: [],
-        };
-
-        const updatedItems = [...budgetItems, newItem];
-        saveBudget(updatedItems);
-        setDrawerOpen(false);
-        setFormData({ name: "", category: "", amount: "", contributor: "", contributors: [] });
+      sx={{
+            backgroundColor: "#fff",
+            borderRadius: 4,
+            px: 2,
+            py: 2,
+            color: "#000",
+            fontWeight: "bold",
       }}
+  onClick={async () => {
+    const { name, category, amount, contributors } = formData;
+    if (!name || !category || isNaN(Number(amount))) return;
+
+    const updatedItem = {
+      name,
+      category,
+      amount: parseFloat(amount),
+      contributors,
+      expenses: editIndex !== null ? budgetItems[editIndex]?.expenses || [] : [],
+    };
+
+    let updatedItems = [...budgetItems];
+
+    if (editIndex !== null) {
+      // Edit mode: replace item at editIndex
+      updatedItems[editIndex] = updatedItem;
+    } else {
+      // Add mode: push new item
+      updatedItems.push({ ...updatedItem, expenses: [] });
+    }
+
+    await saveBudget(updatedItems);
+    setDrawerOpen(false);
+    setEditIndex(null); // reset edit mode
+    setFormData({ name: "", category: "", amount: "", contributor: "", contributors: [] });
+  }}
     >
       Save Budget
     </Button>

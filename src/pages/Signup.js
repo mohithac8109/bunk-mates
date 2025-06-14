@@ -41,6 +41,7 @@ const Signup = () => {
     username: "",
     mobile: "",
     email: "",
+    type: "Regular",
     password: "",
     confirmPassword: "",
   });
@@ -82,11 +83,12 @@ const Signup = () => {
         username: formData.username,
         mobile: formData.mobile,
         email: formData.email,
+        type: "Regular",
         photoURL: userCred.user.photoURL || "https://via.placeholder.com/150",
       });
 
       setSnackbar({ open: true, message: "Signup successful!", severity: "success" });
-      setTimeout(() => window.location.href = "/home", 1200);
+      setTimeout(() => window.location.href = "/", 1200);
     } catch (err) {
       setSnackbar({ open: true, message: err.message, severity: "error" });
     }
@@ -104,10 +106,11 @@ const Signup = () => {
           username: user.displayName,
           mobile: "",
           email: user.email,
+          type: "Regular",
           photoURL: user.photoURL || "https://via.placeholder.com/150",
         });
         setSnackbar({ open: true, message: "Signed up with Google!", severity: "success" });
-        setTimeout(() => window.location.href = "/home", 1200);
+        setTimeout(() => window.location.href = "/", 1200);
       } else {
         setErrorMessage("Username already taken. Try another.");
         setOpenDialog(true);
@@ -124,10 +127,11 @@ const Signup = () => {
       username: newUsername,
       mobile: "",
       email: user.email,
+      type: "Regular",
       photoURL: user.photoURL || "https://via.placeholder.com/150",
     });
     setOpenDialog(false);
-    window.location.href = "/home";
+    window.location.href = "/";
   };
 
   return (

@@ -224,10 +224,6 @@ const ProfilePic = () => {
     setUserData(prev => ({ ...prev, ...newData }));
   };
 
-  const gotoBudgetMngr = () => {
-    navigate("/budget-mngr");
-  }
-
   const [features] = useState([
     {
       name: "User Authentication",
@@ -445,19 +441,24 @@ const ProfilePic = () => {
     
 <>
   <Box
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      cursor: "pointer",
-      borderRadius: "12px",
-      p: 1,
-      backgroundColor: "#101010",
-      color: "#fff",
-      transition: "background-color 0.3s ease",
-      "&:hover": {
-        backgroundColor: "#2c2c2c",
-      },
-    }}
+sx={{
+  display: "flex",
+  alignItems: "center",
+  cursor: "pointer",
+  borderRadius: "12px",
+  p: 1,
+  color: "#fff",
+  transition: "background-color 0.3s ease",
+  mr: isSmallScreen ? 0 : 1,
+  ...(isSmallScreen
+    ? {}
+    : {
+        backgroundColor: "#101010",
+        "&:hover": {
+          backgroundColor: "#2c2c2c",
+        },
+      }),
+}}
     onClick={handleDrawerOpen}
   >
     <Avatar src={userData.photoURL || ""} sx={{ width: 40, height: 40, mr: isSmallScreen ? 0 : 1 }} />
