@@ -21,6 +21,36 @@ import {
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 import ProfilePic from "../components/Profile";
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import CloudIcon from '@mui/icons-material/Cloud';
+import ThunderstormIcon from '@mui/icons-material/Thunderstorm';
+import AcUnitIcon from '@mui/icons-material/AcUnit';
+import OpacityIcon from '@mui/icons-material/Opacity';
+
+const weatherGradients = {
+  Clear: "linear-gradient(360deg, #00000000 4%,  #232526 0%, #00f721 100%)",
+  Clouds: "linear-gradient(360deg, #00000000 4%, #232526 40%, #444444 100%)",
+  Rain: "linear-gradient(360deg, #00000000 4%, #232526 0%, #00b4d8 100%)",
+  Thunderstorm: "linear-gradient(360deg, #00000000 4%, #232526 0%, #6366f1 100%)",
+  Snow: "linear-gradient(360deg, #00000000 4%, #232526 0%, #b3c6ff 100%)",
+  Drizzle: "linear-gradient(360deg, #00000000 4%, #232526 0%, #48cae4 100%)",
+  Mist: "linear-gradient(360deg, #00000000 4%, #232526 0%, #bdbdbd 100%)",
+  Default: "linear-gradient(360deg, #00000000 4%, #232526 0%, #0c0c0c 100%)"
+};
+
+const weatherIcons = {
+  Clear: <WbSunnyIcon sx={{ color: "#ffe066" }} />,
+  Clouds: <CloudIcon sx={{ color: "#bdbdbd" }} />,
+  Rain: <OpacityIcon sx={{ color: "#00b4d8" }} />,
+  Thunderstorm: <ThunderstormIcon sx={{ color: "#6366f1" }} />,
+  Snow: <AcUnitIcon sx={{ color: "#b3c6ff" }} />,
+  Drizzle: <OpacityIcon sx={{ color: "#48cae4" }} />,
+  Mist: <CloudIcon sx={{ color: "#bdbdbd" }} />,
+  Default: <CloudIcon sx={{ color: "#bdbdbd" }} />
+};
+
+const WEATHER_API_KEY = "c5298240cb3e71775b479a32329803ab"; // <-- Replace with your API key
+
 
 // Fade-in animation keyframes
 const fadeIn = keyframes`
@@ -167,6 +197,8 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const muiTheme = useTheme();
   const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
+  const [weather, setWeather] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
 
   // User data states
   const [userData, setUserData] = useState({
@@ -183,6 +215,42 @@ const Home = () => {
   const gotoBudgetMngr = () => {
     navigate("/budget-mngr");
   };
+
+    useEffect(() => {
+    if (!navigator.geolocation) {
+      setWeatherLoading(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const res = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${WEATHER_API_KEY}&units=metric`
+          );
+          const data = await res.json();
+          setWeather({
+            main: data.weather?.[0]?.main || "Default",
+            desc: data.weather?.[0]?.description || "",
+            temp: Math.round(data.main?.temp),
+            city: data.name
+          });
+        } catch {
+          setWeather(null);
+        }
+        setWeatherLoading(false);
+      },
+      () => setWeatherLoading(false),
+      { timeout: 10000 }
+    );
+  }, []);
+
+  // Pick gradient based on weather
+  const weatherBg =
+    weather && weatherGradients[weather.main]
+      ? weatherGradients[weather.main]
+      : weatherGradients.Default;
+
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -238,36 +306,196 @@ const Home = () => {
         }}
       >
         {/* AppBar */}
-    <AppBar position="static" elevation={0}>
-      <Toolbar sx={{ justifyContent: 'space-between', px: 3, backgroundColor: 'transparent' }}>
-        <Typography variant="h6" sx={{ userSelect: 'none', display: 'flex', alignItems: 'center', gap: 1 }}>
-          BunkMate 🏖️
-          {userType && (
-            <Typography
-              variant="caption"
+        <AppBar position="fixed" elevation={0} backgroundColor="transparent">
+          <Toolbar sx={{ justifyContent: 'space-between', py: 1, px: 3, backgroundColor: 'transparent' }}>
+            <Typography variant="h6" sx={{ userSelect: 'none', display: 'flex', alignItems: 'center', gap: 1 }}>
+              BunkMate 🏖️
+              {userType && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    backgroundColor: '#f1f1f131',
+                    color: '#fff',
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: 0.5,
+                    fontWeight: 'bold',
+                    fontSize: '0.7rem',
+                  }}
+                >
+                  {userType}
+                </Typography>
+              )}
+            </Typography>
+            <ProfilePic />
+          </Toolbar>
+        </AppBar>
+<Box sx={{ height: { xs: 72, sm: 64 } }} />
+        {/* Weather Gradient Greetings Section */}
+        <Box
+          sx={{
+            width: "100%",
+            position: "relative",
+            zIndex: 1,
+            mb: 4,
+            borderTopLeftRadius: "2rem",
+            borderTopRightRadius: "2rem",
+            background: weatherBg,
+            transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
+          }}
+        >
+          <Container
+            maxWidth="lg"
+            sx={{
+              pt: 5,
+              pb: 2,
+              position: "relative",
+              zIndex: 3,
+              // Add blend/fade effect at the bottom of the container
+              "&:after": {
+                content: '""',
+                display: "block",
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: { xs: 60, md: 90 },
+                background: `linear-gradient(to bottom, rgba(0,0,0,0) 0%, ${theme.palette.background.default} 100%)`,
+                pointerEvents: "none",
+                zIndex: 2,
+              },
+            }}
+          >
+            <Box
               sx={{
-                backgroundColor: '#f1f1f131',
-                color: '#fff',
-                px: 1.5,
-                py: 0.5,
-                borderRadius: 0.5,
-                fontWeight: 'bold',
-                fontSize: '0.7rem',
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 2,
+                borderRadius: 3,
+                p: 3,
+                transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
+                animation: `${fadeIn} 0.7s`,
+                zIndex: 3,
+                position: "relative",
               }}
             >
-              {userType}
-            </Typography>
-          )}
-        </Typography>
+              <Typography variant="h5" sx={{ color: "text.primary" }}>
+                Welcome,<br /><strong>{userData.name}</strong>!
+              </Typography>
+              {/* Weather Widget */}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  px: 2,
+                  py: 1,
+                  borderRadius: 2,
+                  background: "#222c",
+                  minWidth: 170,
+                  minHeight: 56,
+                  animation: `${fadeIn} 0.7s`,
+                }}
+              >
+                {weatherLoading ? (
+                  <CircularProgress size={24} color="primary" />
+                ) : weather ? (
+                  <>
+                    {weatherIcons[weather.main] || weatherIcons.Default}
+                    <Box>
+                      <Typography variant="body1" sx={{ color: "#fff", fontWeight: 600 }}>
+                        {weather.temp}°C {weather.city && `in ${weather.city}`}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "#BDBDBD" }}>
+                        {weather.desc.charAt(0).toUpperCase() + weather.desc.slice(1)}
+                      </Typography>
+                    </Box>
+                  </>
+                ) : (
+                  <Typography variant="body2" sx={{ color: "#BDBDBD" }}>
+                    Weather unavailable
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          </Container>
+        </Box>
 
-        <ProfilePic />
-      </Toolbar>
-    </AppBar>
+        <Container maxWidth="lg" sx={{ mb: 3 }}>
+          <Grid
+            container
+            spacing={2}
+            justifyContent="center"
+            alignItems="stretch"
+          >
+            {[
+              {
+                label: "Add Notes",
+                icon: "📝",
+                onClick: () => navigate("/notes"),
+              },
+              {
+                label: "Reminder",
+                icon: "⏰",
+                onClick: () => navigate("/reminders"),
+              },
+              {
+                label: "Trip",
+                icon: "🌍",
+                onClick: () => navigate("/trips"),
+              },
+              {
+                label: "Budget",
+                icon: "💸",
+                onClick: () => navigate("/budget-mngr"),
+              },
+            ].map((tile) => (
+              <Grid
+                item
+                xs={12}
+                sm={6}
+                md={3}
+                key={tile.label}
+                sx={{ display: "flex" }}
+              >
+                <Card
+                  sx={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: 120,
+                    aspectRatio: "1 / 1",
+                    cursor: "pointer",
+                    background: "#181818",
+                    boxShadow: "0 2px 8px #0004",
+                    "&:hover": { background: "#232526" },
+                    transition: "background 0.2s",
+                  }}
+                  onClick={tile.onClick}
+                >
+                  <Box sx={{ mb: 1, fontSize: 32, color: "#00f721" }}>
+                    {tile.icon}
+                  </Box>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ color: "text.primary", fontWeight: 600 }}
+                  >
+                    {tile.label}
+                  </Typography>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
 
         {/* Main Content */}
         <Box sx={{ display: "flex", flexGrow: 1 }}>
-        {!isSmallScreen && <Sidebar />}
-          <Container maxWidth="lg" sx={{ flexGrow: 1, pt: 5, position: "relative" }}>
+          {!isSmallScreen && <Sidebar />}
+          <Container maxWidth="lg" sx={{ flexGrow: 1, pt: 2, position: "relative" }}>
             {loading ? (
               <Box
                 sx={{
@@ -281,9 +509,6 @@ const Home = () => {
               </Box>
             ) : (
               <>
-                <Typography variant="h5" gutterBottom sx={{ mb: 4, color: "text.primary" }}>
-                  Welcome,<br></br>{userData.name}!
-                </Typography>
 
                 <Grid container spacing={3}>
                   {/* Example Cards */}

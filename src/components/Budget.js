@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import {
+  Avatar,
   Box,
   Typography,
   TextField,
@@ -35,8 +36,23 @@ import SearchIcon from '@mui/icons-material/Search';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Tooltip from '@mui/material/Tooltip';
+import ViewModuleIcon from '@mui/icons-material/ViewModuleOutlined';
+import ViewListIcon from '@mui/icons-material/ViewListOutlined';
 
-import { useNavigate } from 'react-router-dom';
+import RestaurantOutlinedIcon from '@mui/icons-material/RestaurantOutlined';
+import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
+import LocalMallOutlinedIcon from '@mui/icons-material/LocalMallOutlined';
+import LocalHospitalOutlinedIcon from '@mui/icons-material/LocalHospitalOutlined';
+import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
+import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined';
+import LocalGasStationOutlinedIcon from '@mui/icons-material/LocalGasStationOutlined';
+import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined';
+import LocalAtmOutlinedIcon from '@mui/icons-material/LocalAtmOutlined';
+import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
+
+
+import { useNavigate, useLocation } from 'react-router-dom';
 import { doc, getDoc, setDoc, query, collection, where, getDocs } from "firebase/firestore";
 import { db } from "../firebase"; // Your Firebase config export
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -222,6 +238,121 @@ const EXP_PREDEFINED_CATEGORIES = [
   "Other"
 ];
 
+const CATEGORY_ICONS = {
+  Food: {
+    icon: <RestaurantOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#ff9c000f",   // orange[50]
+    bgcolor: "#ff9c0030",   // orange[50]
+    mcolor: "#ff98005e",    // orange[500]
+    fcolor: "#e3aa8b"     // orange[900]
+  },
+  Tour: {
+    icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#0093ff0f",   // blue[50]
+    bgcolor: "#0093ff30",   // blue[50]
+    mcolor: "#2196f35e",    // blue[500]
+    fcolor: "#92b6ef"     // blue[900]
+  },
+  Rent: {
+    icon: <HomeOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#88ff000f",   // lightGreen[50]
+    bgcolor: "#88ff0030",   // lightGreen[50]
+    mcolor: "#8bc34a5e",    // lightGreen[500]
+    fcolor: "#8dc378"     // lightGreen[900]
+  },
+  Utilities: {
+    icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#8ad0ff0f",   // blueGrey[50]
+    bgcolor: "#8ad0ff30",   // blueGrey[50]
+    mcolor: "#607d8b5e",    // blueGrey[500]
+    fcolor: "#8e9ba1"     // blueGrey[900]
+  },
+  Shopping: {
+    icon: <LocalMallOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#ff00550f",   // pink[50]
+    bgcolor: "#ff005530",   // pink[50]
+    mcolor: "#e91e635e",    // pink[500]
+    fcolor: "#ffbce0"     // pink[900]
+  },
+  Fun: {
+    icon: <EmojiEventsOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#f5e7480f",   // yellow[50]
+    bgcolor: "#f5e74830",   // yellow[50]
+    mcolor: "#c3b6415e",    // yellow[500]
+    fcolor: "#ddca15"     // yellow[900]
+  },
+  Hospital: {
+    icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#ff00260f",   // red[50]
+    bgcolor: "#ff002630",   // red[50]
+    mcolor: "#f443365e",    // red[500]
+    fcolor: "#efa4a4"     // red[900]
+  },
+  Education: {
+    icon: <SchoolOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#0093ff0f",   // blue[50]
+    bgcolor: "#0093ff30",   // blue[50]
+    mcolor: "#2196f35e",    // blue[500]
+    fcolor: "#92b6ef"      // indigo[900]
+  },
+  Fuel: {
+    icon: <LocalGasStationOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#fbe9e70f",   // deepOrange[50]
+    bgcolor: "#fbe9e730",   // deepOrange[50]
+    mcolor: "#ff5722",    // deepOrange[500]
+    fcolor: "#bf360c"     // deepOrange[900]
+  },
+  Entertainment: {
+    icon: <MovieOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#f3e5f50f",   // purple[50]
+    bgcolor: "#f3e5f530",   // purple[50]
+    mcolor: "#9c27b0",    // purple[500]
+    fcolor: "#4a148c"     // purple[900]
+  },
+  Bills: {
+    icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#e0f2f10f",   // teal[50]
+    bgcolor: "#e0f2f130",   // teal[50]
+    mcolor: "#009688",    // teal[500]
+    fcolor: "#004d40"     // teal[900]
+  },
+  Travel: {
+    icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#e1f5fe0f",   // lightBlue[50]
+    bgcolor: "#e1f5fe",   // lightBlue[50]
+    mcolor: "#03a9f4",    // lightBlue[500]
+    fcolor: "#01579b"     // lightBlue[900]
+  },
+  Medical: {
+    icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#fce4ec0f",   // pink[50]
+    bgcolor: "#fce4ec",   // pink[50]
+    mcolor: "#e91e63",    // pink[500]
+    fcolor: "#880e4f"     // pink[900]
+  },
+  Other: {
+    icon: <CategoryOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#f5f5f50f",   // grey[50]
+    bgcolor: "#f5f5f530",   // grey[100]
+    mcolor: "#bdbdbd5e",    // grey[400]
+    fcolor: "#a4a4a4"     // grey[900]
+  },
+};
+
+function setViewType(type) {
+  try {
+    localStorage.setItem("bunkmate_viewtype", type);
+    setCookie("bunkmate_viewtype", type, 30);
+  } catch {}
+}
+function getViewType() {
+  try {
+    return localStorage.getItem("bunkmate_viewtype") || getCookie("bunkmate_viewtype") || "grid";
+  } catch {
+    return "grid";
+  }
+}
+
 const BudgetManager = () => {
   const [userId, setUserId] = useState(null);
   const [budgetItems, setBudgetItems] = useState([]);
@@ -240,21 +371,36 @@ const BudgetManager = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [cardView, setCardViewState] = useState(getViewType());
   // Drawer states
   const [budgets, setBudgets] = useState([]); // Main state
   const [editData, setEditData] = useState({ name: "", category: "", amount: 0 }); // initial empty
   const [aboutDrawerOpen, setAboutDrawerOpen] = useState(false);
   const [selectedBudgetIndex, setSelectedBudgetIndex] = useState(null);
-  const selectedBudget = selectedBudgetIndex !== null ? budgetItems[selectedBudgetIndex] : null;
-  const isOwner = selectedBudget && userId && selectedBudget.contributors?.[0]?.uid === userId;
+  
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(null);
   const [ExpdrawerOpen, setExpDrawerOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  
+  const selectedIndex = parseInt(params.get("index"), 10);
+  
+const selectedBudget = selectedIndex !== null && !isNaN(selectedIndex)
+  ? budgetItems[selectedIndex]
+  : null;
+
+  const isOwner = selectedBudget && userId && selectedBudget.contributors?.[0]?.uid === userId;
+const expdrawerFlag = params.get("expdrawer") === "true";
 
   const getContributorRole = (c, idx) => {
     if (idx === 0) return "admin";
    return c.role || "editor";
+  };
+
+  const setCardView = (type) => {
+    setCardViewState(type);
+    setViewType(type); // Save to localStorage/cookie
   };
 
   const [formData, setFormData] = useState({
@@ -285,7 +431,11 @@ const totalExpense = selectedBudget?.expenses?.reduce(
 
 const currentBudget = totalBudget - totalExpense;
 
-
+useEffect(() => {
+  if (expdrawerFlag && selectedIndex !== null && !isNaN(selectedIndex)) {
+    setExpDrawerOpen(true);
+  }
+}, [expdrawerFlag, selectedIndex]);
 
   // On auth state change, save user info in localStorage & cookies as "bunkmateuser"
   useEffect(() => {
@@ -404,12 +554,15 @@ const currentBudget = totalBudget - totalExpense;
   };
 
 
-  const handleOpenExpDrawer = (index) => {
-    setSelectedBudgetIndex(index);
-    setSelectedIndex(index);
-    setAddDrawerOpen(false);      // Close Add Drawer
-    setExpDrawerOpen(true);       // Open Expense Drawer
-  };
+const handleOpenExpDrawer = (index) => {
+  setAddDrawerOpen(false);
+  setExpDrawerOpen(true);
+  // Update the URL query params for index and expdrawer
+  const params = new URLSearchParams(window.location.search);
+  params.set("index", index);
+  params.set("expdrawer", "true");
+  window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
+};
 
 
   // Calculate current balance for selected budget item
@@ -427,7 +580,7 @@ const handleAddExpense = async () => {
   }
 
   const updatedItems = [...budgetItems];
-  const selected = updatedItems[selectedBudgetIndex];
+  const selected = updatedItems[selectedIndex];
 
   const expenseData = {
     ...newExpense,
@@ -491,7 +644,7 @@ const handleAddExpense = async () => {
 
 
 const handleEditExpense = (index) => {
-  const exp = budgetItems[selectedBudgetIndex]?.expenses?.[index];
+  const exp = budgetItems[selectedIndex]?.expenses?.[index];
   if (!exp) return;
 
   setNewExpense({
@@ -512,12 +665,12 @@ const handleEditExpense = (index) => {
 
 const handleDeleteExpense = (index) => {
   const updatedItems = [...budgetItems];
-  updatedItems[selectedBudgetIndex].expenses.splice(index, 1);
+  updatedItems[selectedIndex].expenses.splice(index, 1);
   saveBudget(updatedItems);
 };
 
   const goBack = () => {
-    history(-1);
+    history("/");
   };
 
   // Extract all unique categories for filter dropdown
@@ -599,6 +752,7 @@ const canEditExpenses = (() => {
   return role === "admin" || role === "editor";
 })();
 
+
   return (
     <ThemeProvider theme={theme}>
       <Box
@@ -668,11 +822,35 @@ const canEditExpenses = (() => {
               </MenuItem>
             ))}
           </TextField>
-        </Box>
+
+                    {/* View Switcher */}
+
+<Box sx={{ display: "flex", alignItems: "center", ml: "auto", gap: 1 }}>
+  <IconButton
+    aria-label={cardView === "grid" ? "List view" : "Grid view"}
+    color="#f0f0f0"
+    onClick={() => setCardView(cardView === "grid" ? "list" : "grid")}
+    sx={{
+      borderRadius: 1,
+      boxShadow: "inset 0 2px 8px #222",
+      background: "#181818",
+      transition: "all 0.2s",
+      p: 1.2,
+      // Make it look sunken/submerged always
+    }}
+  >
+    {cardView === "grid" ? (
+      <ViewListIcon />
+    ) : (
+      <ViewModuleIcon />
+    )}
+  </IconButton>
+</Box>
+</Box>
 
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", mt: 10 }}>
-            <CircularProgress color="success" />
+            <CircularProgress color="#f0f0f0" />
           </Box>
         ) : error ? (
           <Typography color="error" sx={{ mb: 2 }}>
@@ -686,98 +864,133 @@ const canEditExpenses = (() => {
               <Typography sx={{ fontStyle: "italic" }}>
                 No budget items match your search or filter.
               </Typography>
-            ) : (
-              <Grid container spacing={1.8}>
-                {filteredBudgets.map((item, index) => {
-                  const balance = getCurrentBalance(item);
-                  return (
-                    <Grid item xs={12} sm={6} md={4} key={index}>
-                      <Paper
-                        onClick={() => handleOpenExpDrawer(index)}
-                        elevation={1}
-                        sx={{
-                          p: 1.9,
-                          borderRadius: '15px',
-                          bgcolor: 'background.paper',
-                          color: 'text.primary',
-                          boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.08)',
-                          transition: 'all 0.2s ease-in-out',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 1.2,
-                          "&:hover": {
-                            boxShadow: '0 6px 16px rgba(0, 0, 0, 0.15)',
-                            transform: 'translateY(-2px)',
-                          },
-                        }}
-                      >
-                      <Box>
-                          {/* Header: Name + Balance + Menu */}
-                        <Box display="flex" justifyContent="space-between" alignItems="center" marginBottom={1}>
-                          <Typography variant="h6" fontWeight={600} pr={2}>
-                            {item.name}
-                          </Typography>
-
-                          {/* Three-dot Menu */}
-                          <IconButton
-                            onClick={(e) => handleMenuOpen(e, index)}
-                            size="small"
-                            sx={{ ml: 1.2, p: 0 }}
-                          >
-                            <MoreVertIcon />
-                          </IconButton>
-                        </Box>
-                      </Box>
-                        
-                      <Box display={"flex"} flexDirection={"row"} alignItems="center" gap={1}>
-                        
-                        <Typography 
-                          sx={{ 
-                            backgroundColor: "#f1f1f111", 
-                            py: 0.4, 
-                            px: 1, 
-                            width: "auto", 
-                            borderRadius: 0.4, 
-                            mt: 0
-                          }}
-                          variant="bodySmall"
-                          color="text.secondary"
-                        >
-                          {item.category}
-                        </Typography>
-  {/* Contributors */}
-  {item.contributors?.length > 0 && (
-  <Box mt={0}>
-    <Stack direction="row" spacing={1} flexWrap="wrap">
-
-      {item.contributors.length > 3 && (
-        <Chip
-          label={`+${item.contributors.length - 3} more`}
-          size="small"
-          variant="outlined"
+            ) : cardView === "grid" ? (
+<Grid
+  container
+  spacing={2}
+  columns={2}
+  sx={{
+    width: "100%",
+    margin: 0,
+  }}
+>
+  {filteredBudgets.map((item, idx) => {
+    const itemIndex = budgetItems.findIndex(
+      b => b.name === item.name && b.category === item.category
+    );
+    const balance = getCurrentBalance(item);
+    const isOver = Number(balance) > Number(item.amount);
+    return (
+      <Grid
+        item
+        xs={1}
+        key={itemIndex}
+        sx={{
+          display: "flex",
+          flex: 1,
+          minWidth: "30vw", // allow shrinking
+        }}
+      >
+        <Paper
+          onClick={() => history(`/budget-mngr?index=${itemIndex}&expdrawer=true`)}
+          elevation={1}
           sx={{
-            fontSize: "0.7rem",
-            borderRadius: '10px',
-            borderColor: 'divider',
-            color: 'text.secondary',
-            mb: 0,
+            width: "100%", // <-- Make width always fill the grid cell
+            minWidth: 0,   // <-- Allow shrinking
+            display: "flex",
+            flexDirection: "column",
+            p: 1.9,
+            borderRadius: '15px',
+            bgcolor: isOver ? "#ff000033" : CATEGORY_ICONS[item.category]?.listbgcolor || 'background.paper',
+            color: isOver ? "#ff4444" : 'text.primary',  
+            boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.08)',
+            transition: 'all 0.2s ease-in-out',
+            cursor: 'pointer',
+            gap: 1.2,
+            "&:hover": {
+              boxShadow: '0 6px 16px rgba(0, 0, 0, 0.15)',
+              transform: 'translateY(-2px)',
+            },
           }}
-        />
-      )}
-    </Stack>
-    <Typography variant="caption" sx={{ backgroundColor: "#f1f1f111", color: "#aaa", py: 0.5, px: 1, borderRadius: 0.4, mt: 0, fontWeight: "bolder" }}>
-      {item.contributors.length}
-    </Typography>
-  </Box>
-)}
+        >
+                        <Box>
+                          {/* Header: Name + Balance + Menu */}
+                          <Box display="flex" justifyContent="space-between" alignItems="center" marginBottom={1}>
+                            <Typography variant="h6" fontWeight={600} pr={2}>
+                              {item.name}
+                            </Typography>
+                            {/* Three-dot Menu */}
+                            <IconButton
+                              onClick={(e) => handleMenuOpen(e, itemIndex)}
+                              size="small"
+                              sx={{ ml: 1.2, p: 0 }}
+                            >
+                              <MoreVertIcon />
+                            </IconButton>
+                          </Box>
                         </Box>
-
-
-
+                        <Box display={"flex"} flexDirection={"row"} alignItems="center" gap={1}>
+                          <Typography
+                            sx={{
+                              backgroundColor: CATEGORY_ICONS[item.category]?.bgcolor || "#f1f1f111",
+                              py: 0.4,
+                              px: 1,
+                              width: "auto",
+                              borderRadius: 0.4,
+                              fontWeight: "bolder",
+                              mt: 0,
+                              color: CATEGORY_ICONS[item.category]?.fcolor || "#000",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5
+                            }}
+                            variant="bodySmall"
+                            color="text.secondary"
+                          >
+                            <Avatar
+                              sx={{
+                                bgcolor: CATEGORY_ICONS[item.category]?.mcolor || "#333",
+                                color: CATEGORY_ICONS[item.category]?.fcolor || "#000",
+                                width: "auto",
+                                height: "auto",
+                                fontSize: 1,
+                                ml: "-6px",
+                                alignSelf: "center"
+                              }}
+                              variant="bodySmall"
+                            >
+                              {CATEGORY_ICONS[item.category]?.icon || <CategoryOutlinedIcon />}
+                            </Avatar>
+                            {item.category}
+                          </Typography>
+                          {/* Contributors */}
+                          {item.contributors?.length > 0 && (
+                            <Box mt={0}>
+                              <Stack direction="row" spacing={1} flexWrap="wrap">
+                                {item.contributors.length > 3 && (
+                                  <Chip
+                                    label={`+${item.contributors.length - 3} more`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{
+                                      fontSize: "0.7rem",
+                                      borderRadius: '10px',
+                                      borderColor: 'divider',
+                                      color: 'text.secondary',
+                                      mb: 0,
+                                    }}
+                                  />
+                                )}
+                              </Stack>
+                              <Typography variant="caption" sx={{ backgroundColor: "#f1f1f111", color: "#aaa", py: 0.5, px: 1, borderRadius: 0.4, mt: 0, fontWeight: "bolder" }}>
+                                {item.contributors.length}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
                         {/* Total Amount */}
                         <Typography variant="bodyMedium">
-                          <Typography variant="bodyMedium" fontWeight={600} color="success.main">
+                          <Typography variant="bodyMedium" fontWeight={600} color={isOver ? "#ff4444" : "success.main"}>
                             ₹{balance.toFixed(2)}
                           </Typography><br />/ ₹{item.amount}
                         </Typography>
@@ -785,7 +998,128 @@ const canEditExpenses = (() => {
                     </Grid>
                   );
                 })}
+                {/* If odd number of cards, add an empty card to complete the row */}
+  {filteredBudgets.length % 2 === 1 && (
+    <Grid item xs={1} sx={{ display: "flex", flex: 1, minWidth: 0 }}>
+      <Box sx={{ width: "100%", minWidth: 0, background: "transparent" }} />
+    </Grid>
+  )}
               </Grid>
+              ) : (
+              // List View
+              <Stack spacing={2} width={"77vw"} sx={{ mt: 2 }}>
+                {filteredBudgets.map((item, idx) => {
+                  const itemIndex = budgetItems.findIndex(
+                    b => b.name === item.name && b.category === item.category
+                  );
+                  const balance = getCurrentBalance(item);
+                  const isOver = balance.toFixed(2) > item.amount;
+                  return (
+                    <Paper
+                      key={itemIndex}
+                      onClick={() => history(`/budget-mngr?index=${itemIndex}&expdrawer=true`)}
+                      elevation={1}
+                      sx={{
+                        width: "100%",
+                        minWidth: 0,
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        p: 2,
+                        borderRadius: '30px',
+                        bgcolor: isOver ? "#ff000033" : CATEGORY_ICONS[item.category]?.listbgcolor || 'background.paper', // <-- red if over
+                        color: isOver ? "#ff4444" : 'text.primary', // <-- red text if over
+                        boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.08)',
+                        transition: 'all 0.2s ease-in-out',
+                        cursor: 'pointer',
+                        gap: 0.3,
+                        "&:hover": {
+                          boxShadow: '0 6px 16px rgba(0, 0, 0, 0.15)',
+                          transform: 'translateY(-2px)',
+                        },
+                      }}
+                    >
+                      <Avatar
+                        sx={{
+                          bgcolor: CATEGORY_ICONS[item.category]?.mcolor || "#333",
+                          color: CATEGORY_ICONS[item.category]?.fcolor || "#000",
+                          width: 48,
+                          height: 48,
+                          fontSize: 48,
+                          mr: 2,
+                          borderRadius: '40%',
+                        }}
+                      >
+                        {CATEGORY_ICONS[item.category]?.icon || <CategoryOutlinedIcon />}
+                      </Avatar>
+                      <Box sx={{ flex: 1, m: 0 }}>
+                        <Box display={"flex"} flexDirection={"row"} justifyContent="space-between" alignItems="center" gap={1}>
+                          <Typography variant="h6" fontWeight={100}>
+                            {item.name}
+                          </Typography>
+                          <Box display={"flex"} flexDirection={"row"} alignItems="center" gap={1}>
+                            <Typography
+                            sx={{
+                              backgroundColor: CATEGORY_ICONS[item.category]?.bgcolor || "#f1f1f111",
+                              py: 0.4,
+                              px: 1,
+                              width: "auto",
+                              borderRadius: 0.4,
+                              fontWeight: "bolder",
+                              mt: 0,
+                              color: CATEGORY_ICONS[item.category]?.fcolor || "#000",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5
+                            }}
+                            variant="bodySmall"
+                            color="text.secondary"
+                          >
+                            {item.category}
+                          </Typography>
+                          {/* Contributors */}
+                          {item.contributors?.length > 0 && (
+                            <Box mt={0}>
+                              <Stack direction="row" spacing={1} flexWrap="wrap">
+                                {item.contributors.length > 3 && (
+                                  <Chip
+                                    label={`+${item.contributors.length - 3} more`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{
+                                      fontSize: "0.7rem",
+                                      borderRadius: '10px',
+                                      borderColor: 'divider',
+                                      color: 'text.secondary',
+                                      mb: 0,
+                                    }}
+                                  />
+                                )}
+                              </Stack>
+                              <Typography variant="caption" sx={{ backgroundColor: "#f1f1f111", color: "#aaa", py: 0.5, px: 1, borderRadius: 0.4, mt: 0, fontWeight: "bolder" }}>
+                                {item.contributors.length}
+                              </Typography>
+                            </Box>
+                          )}
+                          </Box>
+                        </Box>
+                        <Typography variant="bodyMedium" sx={{ mt: 0.5 }}>
+                          <Typography variant="bodyMedium" fontWeight={"bolder"} color={isOver ? "#ff4444" : "success.main"}>
+                            ₹{balance.toFixed(2)}
+                          </Typography>{" "} / ₹{item.amount}
+                        </Typography>
+                      </Box>
+                      <IconButton
+                        onClick={(e) => { e.stopPropagation(); handleMenuOpen(e, itemIndex); }}
+                        size="small"
+                        sx={{ ml: 1.2, p: 0 }}
+                      >
+                        <MoreVertIcon />
+                      </IconButton>
+                    </Paper>
+                  );
+                })}
+              </Stack>
             )}
 
             {/* Shared Menu Component */}
@@ -883,7 +1217,13 @@ const canEditExpenses = (() => {
                   aria-labelledby="expense-drawer-title"
                 >
                   <Box sx={{ display: "flex", flexDirection: "column", mb: 2, ml: 4, gap: 3 }}>
-                    <Button onClick={() => setExpDrawerOpen(false)} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
+                    <Button onClick={() => {
+                      setExpDrawerOpen(false);
+                      // Remove expdrawer from URL
+                      const params = new URLSearchParams(window.location.search);
+                      params.delete("expdrawer");
+                      window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
+                    }} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
                       <ArrowBackIcon />
                     </Button>
 
@@ -1139,7 +1479,7 @@ const canEditExpenses = (() => {
                 }
                 // Update local state
                 const updatedItems = [...budgetItems];
-                updatedItems[selectedBudgetIndex].contributors = updated;
+                updatedItems[selectedIndex].contributors = updated;
                 setBudgetItems(updatedItems);
               }}
               sx={{ minWidth: 90, ml: 1, background: "#111", borderRadius: 1, position: "absolute", right: 40 }}
@@ -1247,10 +1587,12 @@ const canEditExpenses = (() => {
 >
   {EXP_PREDEFINED_CATEGORIES.map((cat) => (
     <MenuItem key={cat} value={cat}>
+      <span style={{ marginRight: 8, display: "inline-flex", alignItems: "center" }}>
+        {CATEGORY_ICONS[cat]?.icon || <CategoryOutlinedIcon />}
+      </span>
       {cat}
     </MenuItem>
   ))}
-
 </TextField>
                     <TextField
                       label="Date"
@@ -1306,7 +1648,7 @@ const canEditExpenses = (() => {
           <Box
             sx={{
               position: "fixed",
-              bottom: 16,
+              top: 16,
               right: 16,
               backgroundColor: "#004d00",
               borderRadius: 4,
@@ -1391,6 +1733,9 @@ const canEditExpenses = (() => {
 >
   {PREDEFINED_CATEGORIES.map((cat) => (
     <MenuItem key={cat} value={cat}>
+      <span style={{ marginRight: 8, display: "inline-flex", alignItems: "center" }}>
+        {CATEGORY_ICONS[cat]?.icon || <CategoryOutlinedIcon />}
+      </span>
       {cat}
     </MenuItem>
   ))}
@@ -1481,12 +1826,16 @@ const canEditExpenses = (() => {
     if (user && !allContributors.some(c => c.uid === user.uid)) {
       allContributors.push({ uid: user.uid, username: user.email });
     }
+    const now = new Date();
     const updatedItem = {
       name,
       category,
       amount: parseFloat(amount),
       contributors: allContributors,
       expenses: editIndex !== null ? budgetItems[editIndex]?.expenses || [] : [],
+      createdAt: editIndex !== null
+        ? (budgetItems[editIndex]?.createdAt || now)
+        : now, // <-- Add createdAt field
     };
     let updatedItems = [...budgetItems];
     if (editIndex !== null) {
