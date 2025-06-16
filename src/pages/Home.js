@@ -40,6 +40,11 @@ import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined';
 import LocalGasStationOutlinedIcon from '@mui/icons-material/LocalGasStationOutlined';
 import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined';
 import LocalAtmOutlinedIcon from '@mui/icons-material/LocalAtmOutlined';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
+import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
+import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
+import AlarmOutlinedIcon from '@mui/icons-material/AlarmOutlined';
 
 const CATEGORY_ICONS = {
   Food: {
@@ -143,14 +148,36 @@ const CATEGORY_ICONS = {
 };
 
 const weatherGradients = {
-  Clear: "linear-gradient(360deg, #00000000 4%,  #232526 40%, #00f721 100%)",
-  Clouds: "linear-gradient(360deg, #00000000 4%, #232526 40%, #444444 100%)",
-  Rain: "linear-gradient(360deg, #00000000 4%, #232526 40%, #00b4d8 100%)",
-  Thunderstorm: "linear-gradient(360deg, #00000000 4%, #232526 40%, #6366f1 100%)",
-  Snow: "linear-gradient(360deg, #00000000 4%, #232526 40%, #b3c6ff 100%)",
-  Drizzle: "linear-gradient(360deg, #00000000 4%, #232526 40%, #48cae4 100%)",
-  Mist: "linear-gradient(360deg, #00000000 4%, #232526 40%, #bdbdbd 100%)",
-  Default: "linear-gradient(360deg, #00000000 4%, #232526 40%,#2c2c2c 100%)"
+  Clear: "linear-gradient(360deg, #00000000 4%, #00c2cf30 40%, #00c1cf 100%)",
+  Clouds: "linear-gradient(360deg, #00000000 4%, #232526 40%, #fffbfb85 100%)",
+  Rain: "linear-gradient(360deg, #00000000 4%, #232526 40%, #6e9ca5 100%)",
+  Thunderstorm: "linear-gradient(360deg, #00000000 4%, #232526 40%, #8b7c66 100%)",
+  Snow: "linear-gradient(360deg, #00000000 4%, #232526 40%, #dae3ff 100%)",
+  Drizzle: "linear-gradient(360deg, #00000000 4%, #232526 40%, #859699 100%)",
+  Mist: "linear-gradient(360deg, #00000000 4%, #232526 40%, #c7c7c7 100%)",
+  Default: "linear-gradient(360deg, #00000000 4%, #232526 40%, #2c2c2c 100%)"
+};
+
+const weatherColors = {
+  Clear: " #00c2cf",
+  Clouds: " #fffbfb",
+  Rain: " #6e9ca5",
+  Thunderstorm: " #8b7c66",
+  Snow: " #dae3ff",
+  Drizzle: " #859699",
+  Mist: " #c7c7c7",
+  Default: " #23fc07"
+};
+
+const weatherbgColors = {
+  Clear: " #00c2cf20",
+  Clouds: " #fffbfb20",
+  Rain: " #6e9ca520",
+  Thunderstorm: " #8b7c6620",
+  Snow: " #dae3ff20",
+  Drizzle: " #85969920",
+  Mist: " #c7c7c720",
+  Default: " #23fc0720"
 };
 
 const weatherIcons = {
@@ -448,6 +475,63 @@ const Home = () => {
     }
   }, [userData]);
 
+    const buttonWeatherBg =
+    weather && weatherColors[weather.main]
+      ? weatherColors[weather.main]
+      : weatherColors.Default;
+
+        useEffect(() => {
+    const session = localStorage.getItem(SESSION_KEY) || document.cookie.split('; ').find(row => row.startsWith(SESSION_KEY + '='))?.split('=')[1];
+    if (!session) {
+      setLoading(true);
+      // No session, check for user in localStorage
+      const storedUser = localStorage.getItem("bunkmateuser");
+      if (!storedUser) {
+        navigate("/login");
+        return;
+      }
+    } else {
+      setLoading(false);
+    }
+  }, [navigate]);
+
+  // Save session on successful login/fetch
+  useEffect(() => {
+    if (userData && userData.email) {
+      localStorage.setItem(SESSION_KEY, "active");
+      document.cookie = `${SESSION_KEY}=active; path=/; max-age=604800`; // 7 days
+    }
+  }, [userData]);
+
+  
+    const WeatherBgdrop =
+    weather && weatherbgColors[weather.main]
+      ? weatherbgColors[weather.main]
+      : weatherbgColors.Default;
+
+        useEffect(() => {
+    const session = localStorage.getItem(SESSION_KEY) || document.cookie.split('; ').find(row => row.startsWith(SESSION_KEY + '='))?.split('=')[1];
+    if (!session) {
+      setLoading(true);
+      // No session, check for user in localStorage
+      const storedUser = localStorage.getItem("bunkmateuser");
+      if (!storedUser) {
+        navigate("/login");
+        return;
+      }
+    } else {
+      setLoading(false);
+    }
+  }, [navigate]);
+
+  // Save session on successful login/fetch
+  useEffect(() => {
+    if (userData && userData.email) {
+      localStorage.setItem(SESSION_KEY, "active");
+      document.cookie = `${SESSION_KEY}=active; path=/; max-age=604800`; // 7 days
+    }
+  }, [userData]);
+
 useEffect(() => {
   const fetchUserData = async () => {
     let user = auth.currentUser;
@@ -545,8 +629,8 @@ useEffect(() => {
             position: "relative",
             zIndex: 1,
             mb: 4,
-            borderTopLeftRadius: "2rem",
-            borderTopRightRadius: "2rem",
+            borderTopLeftRadius: "2.5rem",
+            borderTopRightRadius: "2.5rem",
             background: weatherBg,
             transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
           }}
@@ -628,9 +712,8 @@ useEffect(() => {
               </Box>
             </Box>
           </Container>
-        </Box>
 
-        <Container maxWidth="lg" sx={{ mb: 3 }}>
+        <Container maxWidth="lg" sx={{ mb: 3, padding: 0 }}>
           <Grid
             container
             spacing={2}
@@ -640,22 +723,22 @@ useEffect(() => {
             {[
               {
                 label: "Add Notes",
-                icon: "📝",
+                icon: <StickyNote2OutlinedIcon />,
                 onClick: () => navigate("/notes"),
               },
               {
                 label: "Reminder",
-                icon: "⏰",
+                icon: <AlarmOutlinedIcon />,
                 onClick: () => navigate("/reminders"),
               },
               {
                 label: "Trip",
-                icon: "🌍",
+                icon: <ExploreOutlinedIcon />,
                 onClick: () => navigate("/trips"),
               },
               {
                 label: "Budget",
-                icon: "💸",
+                icon: <AccountBalanceWalletOutlinedIcon />,
                 onClick: () => navigate("/budget-mngr"),
               },
             ].map((tile) => (
@@ -676,21 +759,23 @@ useEffect(() => {
                     alignItems: "center",
                     justifyContent: "center",
                     minHeight: 120,
+                    width: "85px",
                     aspectRatio: "1 / 1",
                     cursor: "pointer",
-                    background: "#181818",
-                    boxShadow: "0 2px 8px #0004",
+                    background: "#f1f1f111",
+                    backdropFilter: "blur(80px)",
+                    boxShadow: "none",
                     "&:hover": { background: "#232526" },
                     transition: "background 0.2s",
                   }}
                   onClick={tile.onClick}
                 >
-                  <Box sx={{ mb: 1, fontSize: 32, color: "#00f721" }}>
+                  <Box sx={{ mb: 1, fontSize: 38, px: 2, py: 0.5, borderRadius: 4, backgroundColor: WeatherBgdrop, color: buttonWeatherBg }}>
                     {tile.icon}
                   </Box>
                   <Typography
-                    variant="subtitle1"
-                    sx={{ color: "text.primary", fontWeight: 600 }}
+                    variant="subtitle6"
+                    sx={{ color: "text.primary", fontSize: "12px" }}
                   >
                     {tile.label}
                   </Typography>
@@ -699,6 +784,8 @@ useEffect(() => {
             ))}
           </Grid>
         </Container>
+        </Box>
+
 
         {/* Main Content */}
         <Box sx={{ display: "flex", flexGrow: 1 }}>
@@ -730,9 +817,11 @@ useEffect(() => {
             component="button"
             onClick={() => navigate("/budget-mngr")}
             sx={{
+              display: "flex",
+              alignItems: "center",
               background: "none",
               border: "none",
-              color: "#00f721",
+              color: buttonWeatherBg,
               fontWeight: 600,
               fontSize: 14,
               cursor: "pointer",
@@ -742,11 +831,10 @@ useEffect(() => {
               transition: "background 0.2s",
               "&:hover": {
                 background: "#232526",
-                textDecoration: "underline",
               },
             }}
           >
-            View More
+            View More <ChevronRightIcon />
           </Box>
         )}
       </Box>
@@ -862,7 +950,7 @@ useEffect(() => {
                 : "0"}
             </Typography>
           </Box>
-          <div style={{ color: "#00f721", fontWeight: 600 }}>
+          <div style={{ color: cat.fcolor, fontWeight: 600 }}>
             ₹{balance.toFixed(2)}
             {totalBudget > 0 && (
               <span style={{ color: "#BDBDBD", fontWeight: 400, fontSize: 12, marginLeft: 4 }}>
@@ -937,10 +1025,10 @@ useEffect(() => {
             width: '70px',
             height: '70px',
             borderRadius: 1.5,
-            backgroundColor: "#00f721",
+            background: buttonWeatherBg,
             color: "#000",
             "&:hover": {
-              backgroundColor: "#00cc1a",
+              background: buttonWeatherBg,
             },
           }}
           onClick={() => navigate("/chats")} // Or your chat route
