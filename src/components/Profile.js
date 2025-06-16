@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db, firestore } from "../firebase";
 import packageJson from '../../package.json'; 
@@ -35,6 +35,7 @@ import {
   Button,
   Backdrop,
   Skeleton,
+  FormControlLabel,
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -43,12 +44,14 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';   
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 
 import { signOut, updateProfile } from "firebase/auth";
 import { doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
+import { useSettings } from "../contexts/SettingsContext";
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -223,6 +226,16 @@ const ProfilePic = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [firestoreDataLoaded, setFirestoreDataLoaded] = useState(false);
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
+  const { settings, setSettings } = useSettings();
+
+  const themeOptions = ["dark", "light"];
+  const accentOptions = ["default", "blue", "green", "red", "purple"];
+
+  const handleThemeChange = (theme) => setSettings(s => ({ ...s, theme }));
+  const handleAccentChange = (accent) => setSettings(s => ({ ...s, accent, autoAccent: false }));
+  const handleAutoAccentChange = (e) => setSettings(s => ({ ...s, autoAccent: e.target.checked }));
+  const handleLocationModeChange = (e) => setSettings(s => ({ ...s, locationMode: e.target.checked ? "auto" : "manual" }));
+  const handleManualLocationChange = (e) => setSettings(s => ({ ...s, manualLocation: e.target.value }));
 
 
   const buttonWeatherBg =
@@ -555,6 +568,19 @@ sx={{
             </ListItemButton>
           </ListItem>
 
+          <ListItem>
+            <ListItemButton
+              onClick={() => setDrawerPage("generalSettings")}
+              sx={{ backgroundColor: "#f1f1f111", borderRadius: 1.7, py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}
+            >
+              <ListItemIcon>
+                <SettingsOutlinedIcon sx={{ color: "#fff" }} />
+              </ListItemIcon>
+              <ListItemText primary="General Settings" />
+            </ListItemButton>
+          </ListItem>
+
+
           {/* New: App Version & About */}
           <ListItem>
             <ListItemButton onClick={() => setDrawerPage("about")} sx={{ backgroundColor: "#f1f1f111", borderRadius: 1.7, py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}>
@@ -602,6 +628,75 @@ sx={{
         {/* ... */}
       </Container>
     )}
+
+    {drawerPage === "generalSettings" && (
+<Container sx={{ mt: 1, mb: 2 }}>
+  <Button
+    startIcon={<ArrowBackIcon />}
+    onClick={() => setDrawerPage("main")}
+    sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}
+  />
+  <Typography variant="h5" gutterBottom>
+    <h2>General Settings</h2>
+  </Typography>
+
+  {/* Theme Section */}
+  <Box sx={{ mb: 3 }}>
+    <Typography variant="subtitle1" sx={{ mb: 1 }}>Theme</Typography>
+    {themeOptions.map(opt => (
+      <Button
+        key={opt}
+        variant={settings.theme === opt ? "contained" : "outlined"}
+        sx={{ mr: 2, mb: 1 }}
+        onClick={() => handleThemeChange(opt)}
+      >
+        {opt.charAt(0).toUpperCase() + opt.slice(1)}
+      </Button>
+    ))}
+    <Typography variant="subtitle2" sx={{ mt: 2 }}>Accent Color</Typography>
+    <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+      {accentOptions.map(opt => (
+        <Button
+          key={opt}
+          variant={settings.accent === opt && !settings.autoAccent ? "contained" : "outlined"}
+          sx={{ backgroundColor: opt !== "default" ? opt : undefined, color: "#fff" }}
+          onClick={() => handleAccentChange(opt)}
+        >
+          {opt.charAt(0).toUpperCase() + opt.slice(1)}
+        </Button>
+      ))}
+    </Box>
+    <FormControlLabel
+      control={<Switch checked={settings.autoAccent} onChange={handleAutoAccentChange} />}
+      label="Auto-change accent with weather"
+      sx={{ mt: 1 }}
+    />
+  </Box>
+
+  {/* Location Section */}
+  <Box sx={{ mb: 3 }}>
+    <Typography variant="subtitle1" sx={{ mb: 1 }}>Location</Typography>
+    <FormControlLabel
+      control={
+        <Switch
+          checked={settings.locationMode === "auto"}
+          onChange={handleLocationModeChange}
+        />
+      }
+      label="Use my current location automatically"
+    />
+    {settings.locationMode !== "auto" && (
+      <TextField
+        label="Set Location Manually"
+        value={settings.manualLocation}
+        onChange={handleManualLocationChange}
+        fullWidth
+        sx={{ mt: 1 }}
+      />
+    )}
+  </Box>
+</Container>
+)}
 
 {drawerPage === "about" && (
   <Container sx={{ mt: 1, mb: 2 }}>

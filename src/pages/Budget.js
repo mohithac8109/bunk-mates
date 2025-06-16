@@ -59,6 +59,7 @@ import { doc, getDoc, setDoc, query, collection, where, getDocs } from "firebase
 import { db } from "../firebase"; // Your Firebase config export
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSettings } from "../contexts/SettingsContext";
 
 import ProfilePic from "../components/Profile";
 
@@ -139,19 +140,19 @@ const theme = createTheme({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          backgroundColor: "#0c0c0c", // dark grey/black for app bar background
+          backgroundColor: "#0c0c0c40",
+          backdropFilter: "blur(40px)", // dark grey/black for app bar background
           boxShadow: "none",
-          borderBottom: "1px solid rgb(24, 24, 24)",
+          borderBottom: "1px solid rgb(24, 24, 24, 0.5)",
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          backgroundColor: "#2c2c2c", // dark grey card background
+          backgroundColor: "#2c2c2c00", // dark grey card background
           color: "#FFFFFF",
-          boxShadow:
-            "0 4px 12px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6)",
+          boxShadow: "none",
           borderRadius: 16,
           transition: "box-shadow 0.3s ease, transform 0.3s ease",
           cursor: "pointer",
@@ -190,9 +191,10 @@ const theme = createTheme({
     MuiMenu: {
       styleOverrides: {
         paper: {
-          backgroundColor: "#0c0c0c", // deep black menu background
+          backgroundColor: "#0c0c0c40", // deep black menu background
           color: "#FFFFFF",
-          borderRadius: 8,
+          backdropFilter: "blur(40px)",
+          borderRadius: 10,
           border: "1px solid rgb(24, 24, 24)",
         },
       },
@@ -302,42 +304,42 @@ const CATEGORY_ICONS = {
     listbgcolor: "#fbe9e70f",   // deepOrange[50]
     bgcolor: "#fbe9e730",   // deepOrange[50]
     mcolor: "#ff5722",    // deepOrange[500]
-    fcolor: "#bf360c"     // deepOrange[900]
+    fcolor: " #bf360c"     // deepOrange[900]
   },
   Entertainment: {
     icon: <MovieOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#f3e5f50f",   // purple[50]
     bgcolor: "#f3e5f530",   // purple[50]
     mcolor: "#9c27b0",    // purple[500]
-    fcolor: "#4a148c"     // purple[900]
+    fcolor: " #4a148c"     // purple[900]
   },
   Bills: {
     icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#e0f2f10f",   // teal[50]
     bgcolor: "#e0f2f130",   // teal[50]
     mcolor: "#009688",    // teal[500]
-    fcolor: "#004d40"     // teal[900]
+    fcolor: " #004d40"     // teal[900]
   },
   Travel: {
     icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#e1f5fe0f",   // lightBlue[50]
     bgcolor: "#e1f5fe",   // lightBlue[50]
     mcolor: "#03a9f4",    // lightBlue[500]
-    fcolor: "#01579b"     // lightBlue[900]
+    fcolor: " #01579b"     // lightBlue[900]
   },
   Medical: {
     icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#fce4ec0f",   // pink[50]
     bgcolor: "#fce4ec",   // pink[50]
     mcolor: "#e91e63",    // pink[500]
-    fcolor: "#880e4f"     // pink[900]
+    fcolor: " #880e4f"     // pink[900]
   },
   Other: {
     icon: <CategoryOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#f5f5f50f",   // grey[50]
     bgcolor: "#f5f5f530",   // grey[100]
     mcolor: "#bdbdbd5e",    // grey[400]
-    fcolor: "#a4a4a4"     // grey[900]
+    fcolor: " #a4a4a4"     // grey[900]
   },
 };
 
@@ -381,7 +383,8 @@ const BudgetManager = () => {
   const [editData, setEditData] = useState({ name: "", category: "", amount: 0 }); // initial empty
   const [aboutDrawerOpen, setAboutDrawerOpen] = useState(false);
   const [selectedBudgetIndex, setSelectedBudgetIndex] = useState(null);
-  
+  const { settings } = useSettings();
+
   const location = useLocation();
   const params = new URLSearchParams(location.search);
 
@@ -399,6 +402,21 @@ const expdrawerFlag = params.get("expdrawer") === "true";
 
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
 
+  const accentColor = settings.autoAccent && weather
+  ? (weatherColors[weather.main] || weatherColors.Default)
+  : (settings.accent === "default" ? "#00f721" : settings.accent);
+
+const dynamicTheme = createTheme({
+  palette: {
+    mode: settings.theme,
+    primary: {
+      main: accentColor,
+      contrastText: "#000",
+    },
+    // ...rest of your palette
+  },
+  // ...rest of your theme
+});
 
   const buttonWeatherBg =
   weather && weatherColors[weather.main]

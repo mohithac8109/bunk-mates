@@ -14,6 +14,7 @@ import Chatroom from "./components/Chatroom";
 import GroupChat from "./components/GroupChat";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { WeatherProvider } from "./contexts/WeatherContext";
+import { SettingsProvider } from "./contexts/SettingsContext";
 
 const vapidKey = 'BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs'; // From Firebase console
 
@@ -39,16 +40,17 @@ onMessage(messaging, (payload) => {
 
 function App() {
   return (
-    <WeatherProvider>
-      <Router>
-        <Routes>
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/chats" element={<Chats />} />
-          <Route path="/chat/:friendId" element={<Chatroom />} />
-          <Route path="/group/:groupName" element={<GroupChat />}/>
-          <Route path="/budget-mngr" element={<Budgetmngr />}/>
+    <SettingsProvider>
+      <WeatherProvider>
+        <Router>
+          <Routes>
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/chats" element={<Chats />} />
+            <Route path="/chat/:friendId" element={<Chatroom />} />
+            <Route path="/group/:groupName" element={<GroupChat />}/>
+            <Route path="/budget-mngr" element={<Budgetmngr />}/>
           <Route path="/" element={
           <ProtectedRoute>
             <Home />
@@ -57,6 +59,7 @@ function App() {
       </Routes>
     </Router>
     </WeatherProvider>
+    </SettingsProvider>
   );
 }
 

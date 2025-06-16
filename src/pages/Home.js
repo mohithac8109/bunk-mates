@@ -211,19 +211,19 @@ const theme = createTheme({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          backgroundColor: "#0c0c0c", // dark grey/black for app bar background
+          backgroundColor: "#0c0c0c40",
+          backdropFilter: "blur(40px)", // dark grey/black for app bar background
           boxShadow: "none",
-          borderBottom: "1px solid rgb(24, 24, 24)",
+          borderBottom: "1px solid rgb(24, 24, 24, 0.5)",
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          backgroundColor: "#2c2c2c", // dark grey card background
+          backgroundColor: "#2c2c2c00", // dark grey card background
           color: "#FFFFFF",
-          boxShadow:
-            "0 4px 12px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6)",
+          boxShadow: "none",
           borderRadius: 16,
           transition: "box-shadow 0.3s ease, transform 0.3s ease",
           cursor: "pointer",
@@ -262,9 +262,10 @@ const theme = createTheme({
     MuiMenu: {
       styleOverrides: {
         paper: {
-          backgroundColor: "#0c0c0c", // deep black menu background
+          backgroundColor: "#0c0c0c40", // deep black menu background
           color: "#FFFFFF",
-          borderRadius: 8,
+          backdropFilter: "blur(40px)",
+          borderRadius: 10,
           border: "1px solid rgb(24, 24, 24)",
         },
       },
