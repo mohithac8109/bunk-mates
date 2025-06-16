@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../components/Sidebar";
 import { auth, db, firestore } from "../firebase";
 import packageJson from '../../package.json'; 
 import {
@@ -41,15 +40,18 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LogoutIcon from "@mui/icons-material/Logout";
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline'; 
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';   
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
+
 import { signOut, updateProfile } from "firebase/auth";
 import { doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
+import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
+import { useWeather } from "../contexts/WeatherContext";
 
 const SESSION_KEY = "bunkmate_session";
+const WEATHER_STORAGE_KEY = "bunkmate_weather";
 
 // Fade-in animation keyframes
 const fadeIn = keyframes`
@@ -220,7 +222,14 @@ const ProfilePic = () => {
   const [photoFile, setPhotoFile] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [firestoreDataLoaded, setFirestoreDataLoaded] = useState(false);
+  const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
 
+
+  const buttonWeatherBg =
+  weather && weatherColors[weather.main]
+    ? weatherColors[weather.main]
+    : weatherColors.Default;
+    
   const updateUserData = (newData) => {
     // update userData state with newData
     setUserData(prev => ({ ...prev, ...newData }));
@@ -812,7 +821,7 @@ sx={{
         <Container sx={{ mt: 1, mb: 2 }}>
 
           {loading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 5 }}>
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 5, color: buttonWeatherBg }}>
               <CircularProgress />
             </Box>
           ) : (
@@ -866,6 +875,8 @@ sx={{
                 value={userData.bio}
                 onChange={(e) => setUserData({ ...userData, bio: e.target.value })}
                 margin="normal"
+                multiline
+                rows={4}
                 disabled={isSaving}
               />
 
@@ -892,7 +903,7 @@ sx={{
                   variant="contained"
                   onClick={handleSave}
                   disabled={isSaving || !firestoreDataLoaded}
-                  sx={{ backgroundColor: '#00f721ba' }}
+                  sx={{ backgroundColor: buttonWeatherBg }}
                 >
                   {isSaving ? <CircularProgress size={24} /> : "Save Changes"}
                 </Button>

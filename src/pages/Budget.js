@@ -60,7 +60,7 @@ import { db } from "../firebase"; // Your Firebase config export
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { motion, AnimatePresence } from "framer-motion";
 
-import ProfilePic from "./Profile";
+import ProfilePic from "../components/Profile";
 
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -1382,7 +1382,12 @@ const canEditExpenses = (() => {
         <IconButton
           size="small"
           onClick={() => canEditExpenses && handleEditExpense(expIndex)}
-          sx={{ color: "#fff", backgroundColor: "#f1f1f111", p: 1.2 }}
+          sx={{ 
+            color: "#fff", 
+            backgroundColor: "#f1f1f111", 
+            p: 1.2,
+            display: canEditExpenses ? "flex" : "none"
+          }}
           disabled={!canEditExpenses}
         >
           <EditIcon />
@@ -1390,7 +1395,12 @@ const canEditExpenses = (() => {
         <IconButton
           size="small"
           onClick={() => canEditExpenses && handleDeleteExpense(expIndex)}
-          sx={{ color: "#ff0000", backgroundColor: "#ff000011", p: 1.2 }}
+          sx={{ 
+            color: "#ff0000", 
+            backgroundColor: "#ff000011", 
+            p: 1.2,
+            display: canEditExpenses ? "flex" : "none"
+          }}
           disabled={!canEditExpenses}
         >
           <DeleteOutlineIcon />
