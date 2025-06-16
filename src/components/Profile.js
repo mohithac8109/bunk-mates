@@ -49,6 +49,8 @@ import { signOut, updateProfile } from "firebase/auth";
 import { doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 
+const SESSION_KEY = "bunkmate_session";
+
 // Fade-in animation keyframes
 const fadeIn = keyframes`
   from {
@@ -422,15 +424,17 @@ const ProfilePic = () => {
     setAnchorEl(null);
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      localStorage.removeItem("bunkmateuser");
-      navigate("/login");
-    } catch (error) {
-      console.error("Error logging out:", error);
-    }
-  };
+const handleLogout = async () => {
+  try {
+    await signOut(auth);
+    localStorage.removeItem("bunkmateuser");
+    localStorage.removeItem(SESSION_KEY);
+    document.cookie = `${SESSION_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;`;
+    navigate("/login");
+  } catch (error) {
+    console.error("Error logging out:", error);
+  }
+};
 
   const handleProfileClick = () => {
     navigate("/profile");

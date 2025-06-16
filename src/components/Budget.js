@@ -680,13 +680,24 @@ const handleDeleteExpense = (index) => {
   }, [budgetItems]);
 
 // Filtered budget list based on search and selected category
-const filteredBudgets = budgetItems.filter(item => {
+const filteredBudgets = useMemo(() => {
   // Ensure item.name is a string before calling toLowerCase
-  const name = typeof item.name === "string" ? item.name : "";
-  const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase());
-  const matchesCategory = selectedCategory ? item.category === selectedCategory : true;
-  return matchesSearch && matchesCategory;
-});
+  const nameMatches = (item) =>
+    typeof item.name === "string" &&
+    item.name.toLowerCase().includes(searchTerm.toLowerCase());
+  const categoryMatches = (item) =>
+    selectedCategory ? item.category === selectedCategory : true;
+
+  // Sort by createdAt (newest first)
+  return budgetItems
+    .filter(item => nameMatches(item) && categoryMatches(item))
+    .sort((a, b) => {
+      // If createdAt is missing, treat as oldest
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+}, [budgetItems, searchTerm, selectedCategory]);
 
   const handleMenuOpen = (event, index) => {
     event.stopPropagation();
