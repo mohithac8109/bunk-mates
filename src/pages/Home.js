@@ -289,6 +289,7 @@ const theme = createTheme({
 });
 
 const SESSION_KEY = "bunkmate_session";
+const WEATHER_STORAGE_KEY = "bunkmate_weather";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -321,6 +322,57 @@ const Home = () => {
   const gotoBudgetMngr = () => {
     navigate("/budget-mngr");
   };
+
+  useEffect(() => {
+  // Try to load weather from localStorage/cookie first
+  let cachedWeather = null;
+  try {
+    const local = localStorage.getItem(WEATHER_STORAGE_KEY);
+    if (local) cachedWeather = JSON.parse(local);
+    if (!cachedWeather) {
+      const cookieWeather = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith(WEATHER_STORAGE_KEY + "="))
+        ?.split("=")[1];
+      if (cookieWeather) cachedWeather = JSON.parse(decodeURIComponent(cookieWeather));
+    }
+  } catch {}
+  if (cachedWeather) {
+    setWeather(cachedWeather);
+    setWeatherLoading(false);
+  }
+
+  if (!navigator.geolocation) {
+    setWeatherLoading(false);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      try {
+        const { latitude, longitude } = position.coords;
+        const res = await fetch(
+          `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${WEATHER_API_KEY}&units=metric`
+        );
+        const data = await res.json();
+        const weatherObj = {
+          main: data.weather?.[0]?.main || "Default",
+          desc: data.weather?.[0]?.description || "",
+          temp: Math.round(data.main?.temp),
+          city: data.name
+        };
+        setWeather(weatherObj);
+        // Save to localStorage and cookie for sync/offline
+        localStorage.setItem(WEATHER_STORAGE_KEY, JSON.stringify(weatherObj));
+        document.cookie = `${WEATHER_STORAGE_KEY}=${encodeURIComponent(JSON.stringify(weatherObj))}; path=/; max-age=1800`; // 30 min
+      } catch {
+        setWeather(null);
+      }
+      setWeatherLoading(false);
+    },
+    () => setWeatherLoading(false),
+    { timeout: 10000 }
+  );
+}, [setWeather, setWeatherLoading]);
 
   useEffect(() => {
     // Try to get userId from localStorage/cookie (like Budget.js)

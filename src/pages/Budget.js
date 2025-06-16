@@ -341,6 +341,8 @@ const CATEGORY_ICONS = {
   },
 };
 
+const WEATHER_STORAGE_KEY = "bunkmate_weather";
+
 function setViewType(type) {
   try {
     localStorage.setItem("bunkmate_viewtype", type);
@@ -407,6 +409,26 @@ const expdrawerFlag = params.get("expdrawer") === "true";
   weather && weatherbgColors[weather.main]
     ? weatherbgColors[weather.main]
     : weatherbgColors.Default;
+
+  useEffect(() => {
+  if (!weather) {
+    let cachedWeather = null;
+    try {
+      const local = localStorage.getItem(WEATHER_STORAGE_KEY);
+      if (local) cachedWeather = JSON.parse(local);
+      if (!cachedWeather) {
+        const cookieWeather = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith(WEATHER_STORAGE_KEY + "="))
+          ?.split("=")[1];
+        if (cookieWeather) cachedWeather = JSON.parse(decodeURIComponent(cookieWeather));
+      }
+    } catch {}
+    if (cachedWeather) {
+      setWeather(cachedWeather);
+    }
+  }
+}, [weather, setWeather]);
 
   const getContributorRole = (c, idx) => {
     if (idx === 0) return "admin";

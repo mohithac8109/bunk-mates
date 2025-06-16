@@ -167,6 +167,10 @@ const theme = createTheme({
   },
 });
 
+const SESSION_KEY = "bunkmate_session";
+const USER_STORAGE_KEY = "bunkmateuser";
+const WEATHER_STORAGE_KEY = "bunkmate_weather";
+
 function Chats() {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -196,7 +200,6 @@ function Chats() {
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   const [dynamicTheme, setDynamicTheme] = useState(theme);
 
-
   const weatherBg =
   weather && weatherGradients[weather.main]
   ? weatherGradients[weather.main]
@@ -212,6 +215,70 @@ function Chats() {
   weather && weatherbgColors[weather.main]
     ? weatherbgColors[weather.main]
     : weatherbgColors.Default;
+
+
+    const [userData, setUserData] = useState({
+  name: "",
+  username: "",
+  email: "",
+  mobile: "",
+  photoURL: "",
+  bio: "",
+  uid: "",
+});
+
+// Fetch user details from localStorage/cookie (reference: Home.js)
+useEffect(() => {
+  let user = auth.currentUser;
+  if (!user) {
+    // Try localStorage
+    const storedUser = localStorage.getItem(USER_STORAGE_KEY);
+    if (storedUser) {
+      setUserData(JSON.parse(storedUser));
+      return;
+    }
+    // Try cookie
+    const cookieUser = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith(USER_STORAGE_KEY + "="))
+      ?.split("=")[1];
+    if (cookieUser) {
+      setUserData(JSON.parse(decodeURIComponent(cookieUser)));
+      return;
+    }
+  } else {
+    // If user is authenticated, use Firebase user object
+    const { displayName, email, photoURL, phoneNumber, userBio, uid } = user;
+    setUserData({
+      name: displayName || "User",
+      email: email || "",
+      mobile: phoneNumber || "Not provided",
+      photoURL: photoURL || "",
+      bio: userBio || "",
+      uid: uid || "",
+    });
+  }
+}, []);
+
+  useEffect(() => {
+  if (!weather) {
+    let cachedWeather = null;
+    try {
+      const local = localStorage.getItem(WEATHER_STORAGE_KEY);
+      if (local) cachedWeather = JSON.parse(local);
+      if (!cachedWeather) {
+        const cookieWeather = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith(WEATHER_STORAGE_KEY + "="))
+          ?.split("=")[1];
+        if (cookieWeather) cachedWeather = JSON.parse(decodeURIComponent(cookieWeather));
+      }
+    } catch {}
+    if (cachedWeather) {
+      setWeather(cachedWeather);
+    }
+  }
+}, [weather, setWeather]);
 
   // Fetch friends list from Firestore (assuming you store friends as an array of user IDs in each user doc)
 useEffect(() => {
@@ -582,8 +649,11 @@ const combinedChats = [
           marginBottom: '20px',
           borderRadius: '12px',
           backgroundColor: '#101010',
+          color: '#fff',
           border: '1px solid rgb(24, 24, 24)',
         }}
+        LabelInputProps={{ style: { color: '#fff' } }}
+        InputProps={{ style: { color: '#fff' } }}
       />
 
       {notification && (

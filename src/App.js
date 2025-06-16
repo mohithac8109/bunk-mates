@@ -8,10 +8,10 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import Chats from "./pages/Chats";
+import Budgetmngr from "./pages/Budget"
 import { UserProvider } from './contexts/UserContext';
 import Chatroom from "./components/Chatroom";
 import GroupChat from "./components/GroupChat";
-import Budgetmngr from "./components/Budget"
 import ProtectedRoute from "./components/ProtectedRoute";
 import { WeatherProvider } from "./contexts/WeatherContext";
 
