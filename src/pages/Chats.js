@@ -23,78 +23,9 @@ import AddIcon from '@mui/icons-material/Add';
 import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
 import CloseIcon from '@mui/icons-material/Close';
 import ProfilePic from '../components/Profile';
-
+import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
-
-// Add this helper function above the Home component:
-function getWeatherTheme(weatherMain) {
-  // You can expand these colors as you wish for more moods
-  switch (weatherMain) {
-    case "Clear":
-      return createTheme({
-        palette: {
-          mode: "light",
-          background: { default: "#e0f7fa", paper: "#fffde7" },
-          primary: { main: "#00bcd4", contrastText: "#fff" },
-          secondary: { main: "#ffe082" },
-          text: { primary: "#222", secondary: "#00796b" },
-        },
-      });
-    case "Clouds":
-      return createTheme({
-        palette: {
-          mode: "light",
-          background: { default: "#eceff1", paper: "#f5f5f5" },
-          primary: { main: "#90a4ae", contrastText: "#222" },
-          secondary: { main: "#b0bec5" },
-          text: { primary: "#263238", secondary: "#607d8b" },
-        },
-      });
-    case "Rain":
-    case "Drizzle":
-      return createTheme({
-        palette: {
-          mode: "dark",
-          background: { default: "#232526", paper: "#263238" },
-          primary: { main: "#00b4d8", contrastText: "#fff" },
-          secondary: { main: "#90caf9" },
-          text: { primary: "#fff", secondary: "#b3e5fc" },
-        },
-      });
-    case "Thunderstorm":
-      return createTheme({
-        palette: {
-          mode: "dark",
-          background: { default: "#232526", paper: "#212121" },
-          primary: { main: "#8b7c66", contrastText: "#fff" },
-          secondary: { main: "#ffd600" },
-          text: { primary: "#fff", secondary: "#ffd600" },
-        },
-      });
-    case "Snow":
-      return createTheme({
-        palette: {
-          mode: "light",
-          background: { default: "#e3f2fd", paper: "#fff" },
-          primary: { main: "#b3c6ff", contrastText: "#263238" },
-          secondary: { main: "#fff" },
-          text: { primary: "#263238", secondary: "#607d8b" },
-        },
-      });
-    case "Mist":
-      return createTheme({
-        palette: {
-          mode: "light",
-          background: { default: "#f5f5f5", paper: "#e0e0e0" },
-          primary: { main: "#bdbdbd", contrastText: "#222" },
-          secondary: { main: "#cfd8dc" },
-          text: { primary: "#222", secondary: "#607d8b" },
-        },
-      });
-    default:
-      return theme; // fallback to your default dark theme
-  }
-}
+import { Theme } from 'emoji-picker-react';
 
 // Fade-in animation keyframes
 const fadeIn = keyframes`
@@ -262,16 +193,25 @@ function Chats() {
   const [nicknames, setNicknames] = useState({});
   const navigate = useNavigate();
   const currentUser = auth.currentUser;
-  const { weather } = useWeather();
+  const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   const [dynamicTheme, setDynamicTheme] = useState(theme);
 
-  useEffect(() => {
-  if (weather && weather.main) {
-    setDynamicTheme(getWeatherTheme(weather.main));
-  } else {
-    setDynamicTheme(theme);
-  }
-}, [weather]);
+
+  const weatherBg =
+  weather && weatherGradients[weather.main]
+  ? weatherGradients[weather.main]
+  : weatherGradients.Default;
+  
+  const buttonWeatherBg =
+  weather && weatherColors[weather.main]
+    ? weatherColors[weather.main]
+    : weatherColors.Default;
+  
+    
+  const WeatherBgdrop =
+  weather && weatherbgColors[weather.main]
+    ? weatherbgColors[weather.main]
+    : weatherbgColors.Default;
 
   // Fetch friends list from Firestore (assuming you store friends as an array of user IDs in each user doc)
 useEffect(() => {
@@ -619,7 +559,7 @@ const combinedChats = [
   .sort((a, b) => b.timestamp - a.timestamp);
 
   return (
-      <ThemeProvider theme={dynamicTheme}>
+      <ThemeProvider theme={theme}>
           <div style={{ padding: '10px', backgroundColor: '#02020200' }}>
       <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
       <IconButton onClick={goBack} sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
@@ -682,7 +622,7 @@ const combinedChats = [
               borderRadius: '18px',
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: chat.unreadCount > 0 ? '#009b5929' : '#00000000',
+              backgroundColor: chat.unreadCount > 0 ? WeatherBgdrop : '#00000000',
               cursor: 'pointer',
               transition: 'background-color 0.3s',
             }}
@@ -728,7 +668,7 @@ const combinedChats = [
             {chat.unreadCount > 0 && (
               <span
                 style={{
-                  backgroundColor: '#00ff92e8',
+                  backgroundColor: buttonWeatherBg,
                   color: '#212121',
                   padding: '4px 8px',
                   borderRadius: '50%',
@@ -750,11 +690,12 @@ const combinedChats = [
     right: 20,
     width: '70px',
     height: '70px',
-    bgcolor: '#00f721ba',
+    background: buttonWeatherBg,
     borderRadius: '15px',
     fontSize: '38px',
-    color: '#000',
-    '&:hover': { bgcolor: '#00f721' }
+    color: "#000",
+    boxShadow: 4,
+    '&:hover': { background: buttonWeatherBg }
   }}
 >
   +
@@ -797,7 +738,7 @@ const combinedChats = [
     <Button
       variant="contained"
       fullWidth
-      sx={{ mt: 3, bgcolor: '#AEEA00', color: '#000' }}
+      sx={{ mt: 3, bgcolor: buttonWeatherBg, color: '#000' }}
       onClick={handleCreateGroup}
     >
       Confirm & Create Group
@@ -836,10 +777,10 @@ const combinedChats = [
       <Box key={user.uid} sx={{ display: 'flex', alignItems: 'center', mb: 1, bgcolor: '#131313', padding: '10px', borderRadius: '20px' }}>
         <Avatar src={user.photoURL} sx={{ mr: 2 }} />
         <Typography color="#fff" sx={{ flex: 1 }}>{user.username}</Typography>
-        <Button variant="outlined" sx={{ mr: 1, color: 'rgba(0, 255, 145, 0.86)', backgroundColor: 'rgba(0, 155, 89, 0.16)', borderColor: 'rgba(0, 255, 145, 0.86)', borderRadius: '10px' }} onClick={() => handleAddUser(user)}>Group</Button>
+        <Button variant="outlined" sx={{ mr: 1, color: buttonWeatherBg, backgroundColor: WeatherBgdrop, borderColor: buttonWeatherBg, borderRadius: '10px' }} onClick={() => handleAddUser(user)}>Group</Button>
         <Button
           variant="outlined"
-          sx={{ mr: 1, color: 'rgba(0, 255, 145, 0.86)', backgroundColor: 'rgba(0, 155, 89, 0.16)', borderColor: 'rgba(0, 255, 145, 0.86)', borderRadius: '10px' }}
+          sx={{ mr: 1, color: buttonWeatherBg, backgroundColor: WeatherBgdrop, borderColor: buttonWeatherBg, borderRadius: '10px' }}
           onClick={() => handleAddFriend(user)}
         >
           Add Friend
@@ -853,14 +794,14 @@ const combinedChats = [
         <Box key={user.uid} sx={{ display: 'flex', alignItems: 'center', my: 1, bgcolor: '#131313', padding: '10px', borderRadius: '20px' }}>
           <Avatar src={user.photoURL} sx={{ mr: 1 }} />
           <Typography color="#fff" sx={{ flex: 1 }}>{user.username}</Typography>
-          <IconButton onClick={() => handleRemoveUser(user.uid)}><CloseIcon sx={{ color: 'rgba(0, 255, 145, 0.86)', backgroundColor: 'rgba(0, 155, 89, 0.16)', borderColor: 'rgba(0, 255, 145, 0.86)', borderRadius: '10px' }} /></IconButton>
+          <IconButton onClick={() => handleRemoveUser(user.uid)}><CloseIcon sx={{ color: buttonWeatherBg, backgroundColor: WeatherBgdrop, borderColor: buttonWeatherBg, borderRadius: '10px' }} /></IconButton>
         </Box>
       ))}
     </Box>
 
     <Button
       variant="contained"
-      sx={{ mt: 4, bgcolor: '#00f721', color: '#000' }}
+      sx={{ mt: 4, bgcolor: buttonWeatherBg, color: '#000' }}
       onClick={() => setGroupDialog(true)}
       disabled={selectedUsers.length === 0}
     >

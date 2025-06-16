@@ -4,6 +4,7 @@ import Sidebar from "../components/Sidebar";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getAuth } from "firebase/auth";
+import { useWeather } from "../contexts/WeatherContext";
 
 import {
   AppBar,
@@ -22,12 +23,9 @@ import {
 } from "@mui/material"; 
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
+import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import ProfilePic from "../components/Profile";
-import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import CloudIcon from '@mui/icons-material/Cloud';
-import ThunderstormIcon from '@mui/icons-material/Thunderstorm';
-import AcUnitIcon from '@mui/icons-material/AcUnit';
-import OpacityIcon from '@mui/icons-material/Opacity';
+
 
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import RestaurantOutlinedIcon from '@mui/icons-material/RestaurantOutlined';
@@ -145,50 +143,6 @@ const CATEGORY_ICONS = {
     mcolor: "#bdbdbd5e",    // grey[400]
     fcolor: "#a4a4a4"     // grey[900]
   },
-};
-
-const weatherGradients = {
-  Clear: "linear-gradient(360deg, #00000000 4%, #00c2cf30 40%, #00c1cf 100%)",
-  Clouds: "linear-gradient(360deg, #00000000 4%, #232526 40%, #fffbfb85 100%)",
-  Rain: "linear-gradient(360deg, #00000000 4%, #232526 40%, #6e9ca5 100%)",
-  Thunderstorm: "linear-gradient(360deg, #00000000 4%, #232526 40%, #8b7c66 100%)",
-  Snow: "linear-gradient(360deg, #00000000 4%, #232526 40%, #dae3ff 100%)",
-  Drizzle: "linear-gradient(360deg, #00000000 4%, #232526 40%, #859699 100%)",
-  Mist: "linear-gradient(360deg, #00000000 4%, #232526 40%, #c7c7c7 100%)",
-  Default: "linear-gradient(360deg, #00000000 4%, #232526 40%, #2c2c2c 100%)"
-};
-
-const weatherColors = {
-  Clear: " #00c2cf",
-  Clouds: " #fffbfb",
-  Rain: " #6e9ca5",
-  Thunderstorm: " #8b7c66",
-  Snow: " #dae3ff",
-  Drizzle: " #859699",
-  Mist: " #c7c7c7",
-  Default: " #23fc07"
-};
-
-const weatherbgColors = {
-  Clear: " #00c2cf20",
-  Clouds: " #fffbfb20",
-  Rain: " #6e9ca520",
-  Thunderstorm: " #8b7c6620",
-  Snow: " #dae3ff20",
-  Drizzle: " #85969920",
-  Mist: " #c7c7c720",
-  Default: " #23fc0720"
-};
-
-const weatherIcons = {
-  Clear: <WbSunnyIcon sx={{ color: "#ffe066" }} />,
-  Clouds: <CloudIcon sx={{ color: "#bdbdbd" }} />,
-  Rain: <OpacityIcon sx={{ color: "#00b4d8" }} />,
-  Thunderstorm: <ThunderstormIcon sx={{ color: "#6366f1" }} />,
-  Snow: <AcUnitIcon sx={{ color: "#b3c6ff" }} />,
-  Drizzle: <OpacityIcon sx={{ color: "#48cae4" }} />,
-  Mist: <CloudIcon sx={{ color: "#bdbdbd" }} />,
-  Default: <CloudIcon sx={{ color: "#bdbdbd" }} />
 };
 
 const WEATHER_API_KEY = "c5298240cb3e71775b479a32329803ab"; // <-- Replace with your API key
@@ -349,8 +303,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const muiTheme = useTheme();
   const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
-  const [weather, setWeather] = useState(null);
-  const [weatherLoading, setWeatherLoading] = useState(true);
+  const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   const [budgets, setBudgets] = useState([]);
 
   // User data states
@@ -448,67 +401,21 @@ const Home = () => {
 
   // Pick gradient based on weather
   const weatherBg =
-    weather && weatherGradients[weather.main]
-      ? weatherGradients[weather.main]
-      : weatherGradients.Default;
-
-        useEffect(() => {
-    const session = localStorage.getItem(SESSION_KEY) || document.cookie.split('; ').find(row => row.startsWith(SESSION_KEY + '='))?.split('=')[1];
-    if (!session) {
-      setLoading(true);
-      // No session, check for user in localStorage
-      const storedUser = localStorage.getItem("bunkmateuser");
-      if (!storedUser) {
-        navigate("/login");
-        return;
-      }
-    } else {
-      setLoading(false);
-    }
-  }, [navigate]);
-
-  // Save session on successful login/fetch
-  useEffect(() => {
-    if (userData && userData.email) {
-      localStorage.setItem(SESSION_KEY, "active");
-      document.cookie = `${SESSION_KEY}=active; path=/; max-age=604800`; // 7 days
-    }
-  }, [userData]);
-
-    const buttonWeatherBg =
-    weather && weatherColors[weather.main]
-      ? weatherColors[weather.main]
-      : weatherColors.Default;
-
-        useEffect(() => {
-    const session = localStorage.getItem(SESSION_KEY) || document.cookie.split('; ').find(row => row.startsWith(SESSION_KEY + '='))?.split('=')[1];
-    if (!session) {
-      setLoading(true);
-      // No session, check for user in localStorage
-      const storedUser = localStorage.getItem("bunkmateuser");
-      if (!storedUser) {
-        navigate("/login");
-        return;
-      }
-    } else {
-      setLoading(false);
-    }
-  }, [navigate]);
-
-  // Save session on successful login/fetch
-  useEffect(() => {
-    if (userData && userData.email) {
-      localStorage.setItem(SESSION_KEY, "active");
-      document.cookie = `${SESSION_KEY}=active; path=/; max-age=604800`; // 7 days
-    }
-  }, [userData]);
-
+  weather && weatherGradients[weather.main]
+  ? weatherGradients[weather.main]
+  : weatherGradients.Default;
   
-    const WeatherBgdrop =
-    weather && weatherbgColors[weather.main]
-      ? weatherbgColors[weather.main]
-      : weatherbgColors.Default;
-
+  const buttonWeatherBg =
+  weather && weatherColors[weather.main]
+    ? weatherColors[weather.main]
+    : weatherColors.Default;
+  
+    
+  const WeatherBgdrop =
+  weather && weatherbgColors[weather.main]
+    ? weatherbgColors[weather.main]
+    : weatherbgColors.Default;
+  
         useEffect(() => {
     const session = localStorage.getItem(SESSION_KEY) || document.cookie.split('; ').find(row => row.startsWith(SESSION_KEY + '='))?.split('=')[1];
     if (!session) {
@@ -531,6 +438,7 @@ const Home = () => {
       document.cookie = `${SESSION_KEY}=active; path=/; max-age=604800`; // 7 days
     }
   }, [userData]);
+
 
 useEffect(() => {
   const fetchUserData = async () => {

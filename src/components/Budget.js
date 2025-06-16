@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
+import { useWeather } from "../contexts/WeatherContext";
 import {
   Avatar,
   Box,
@@ -392,6 +394,19 @@ const selectedBudget = selectedIndex !== null && !isNaN(selectedIndex)
 
   const isOwner = selectedBudget && userId && selectedBudget.contributors?.[0]?.uid === userId;
 const expdrawerFlag = params.get("expdrawer") === "true";
+
+  const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
+
+
+  const buttonWeatherBg =
+  weather && weatherColors[weather.main]
+    ? weatherColors[weather.main]
+    : weatherColors.Default;
+
+  const WeatherBgdrop =
+  weather && weatherbgColors[weather.main]
+    ? weatherbgColors[weather.main]
+    : weatherbgColors.Default;
 
   const getContributorRole = (c, idx) => {
     if (idx === 0) return "admin";
@@ -861,7 +876,7 @@ const canEditExpenses = (() => {
 
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", mt: 10 }}>
-            <CircularProgress color="#f0f0f0" />
+            <CircularProgress color={buttonWeatherBg} />
           </Box>
         ) : error ? (
           <Typography color="error" sx={{ mb: 2 }}>
@@ -986,7 +1001,7 @@ const canEditExpenses = (() => {
                                     sx={{
                                       fontSize: "0.7rem",
                                       borderRadius: '10px',
-                                      borderColor: 'divider',
+                                      borderColor: buttonWeatherBg,
                                       color: 'text.secondary',
                                       mb: 0,
                                     }}
@@ -1100,7 +1115,7 @@ const canEditExpenses = (() => {
                                     sx={{
                                       fontSize: "0.7rem",
                                       borderRadius: '10px',
-                                      borderColor: 'divider',
+                                      borderColor: buttonWeatherBg,
                                       color: 'text.secondary',
                                       mb: 0,
                                     }}
@@ -1301,7 +1316,7 @@ const canEditExpenses = (() => {
             sx={{
               fontSize: "0.8rem",
               borderRadius: '10px',
-              borderColor: 'divider',
+              borderColor: buttonWeatherBg,
               color: 'text.secondary',
               mb: 0.5,
               backgroundColor: "#222",
@@ -1382,13 +1397,14 @@ const canEditExpenses = (() => {
     right: 20,
     width: '70px',
     height: '70px',
-    bgcolor: '#00f721ba',
+    bgcolor: buttonWeatherBg,
     borderRadius: '15px',
     fontSize: '38px',
     color: '#000',
     zIndex: 1000,
-    '&:hover': { bgcolor: '#00f721' },
+    '&:hover': { bgcolor: buttonWeatherBg },
     opacity: canEditExpenses ? 1 : 0.5,
+    display: canEditExpenses ? 'flex' : 'none',
     pointerEvents: canEditExpenses ? "auto" : "none"
   }}
   onClick={() => canEditExpenses && setAddDrawerOpen(true)}
@@ -1640,7 +1656,7 @@ const canEditExpenses = (() => {
                       variant="contained"
                       color="success"
                       fullWidth
-                      sx={{ color: "#000", backgroundColor: "#13bf1c", mb: 2, p: 1, borderRadius: 20 }}
+                      sx={{ color: "#000", backgroundColor: buttonWeatherBg, mb: 2, p: 1, borderRadius: 20 }}
                       onClick={() => {
                         handleAddExpense();
                         setAddDrawerOpen(false);
@@ -1661,11 +1677,11 @@ const canEditExpenses = (() => {
               position: "fixed",
               top: 16,
               right: 16,
-              backgroundColor: "#004d00",
+              backgroundColor: WeatherBgdrop,
               borderRadius: 4,
               px: 2,
               py: 2,
-              color: "#0f0",
+              color: buttonWeatherBg,
               fontWeight: "bold",
               userSelect: "none",
             }}
@@ -1683,7 +1699,7 @@ const canEditExpenses = (() => {
             right: 20,
             width: '70px',
             height: '70px',
-            bgcolor: '#00f721ba',
+            bgcolor: buttonWeatherBg,
             borderRadius: '15px',
             fontSize: '38px',
             color: '#000',
@@ -1802,7 +1818,7 @@ const canEditExpenses = (() => {
       sx={{
         fontSize: "0.7rem",
         borderRadius: '10px',
-        borderColor: 'divider',
+        borderColor: buttonWeatherBg,
         color: 'text.secondary',
       }}
       onDelete={() => {
@@ -1820,7 +1836,7 @@ const canEditExpenses = (() => {
   variant="contained"
   color="success"
   sx={{
-    backgroundColor: "#fff",
+    backgroundColor: buttonWeatherBg,
     borderRadius: 4,
     px: 2,
     py: 2,
