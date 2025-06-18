@@ -511,6 +511,8 @@ sx={{
     PaperProps={{
       sx: {
         height: '90vh',
+        mx: "auto",
+        maxWidth: 450,
         borderTopLeftRadius: 16,
         borderTopRightRadius: 16,
         backgroundColor: "#00000000",

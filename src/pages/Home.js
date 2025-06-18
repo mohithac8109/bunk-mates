@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getAuth } from "firebase/auth";
 import { useWeather } from "../contexts/WeatherContext";
+import { Chats } from "./Chats"
 
 import {
   AppBar,
@@ -20,12 +21,13 @@ import {
   ThemeProvider,
   createTheme,
   keyframes,
+  Button,
 } from "@mui/material"; 
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import ProfilePic from "../components/Profile";
-
+import Reminders from "./Reminders";
 
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import RestaurantOutlinedIcon from '@mui/icons-material/RestaurantOutlined';
@@ -43,6 +45,8 @@ import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalance
 import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
 import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
 import AlarmOutlinedIcon from '@mui/icons-material/AlarmOutlined';
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 
 const CATEGORY_ICONS = {
   Food: {
@@ -300,6 +304,27 @@ function getGreeting() {
   return "Good Night";
 }
 
+function getUserFromStorage() {
+  // Try localStorage first
+  try {
+    const storedUser = localStorage.getItem("bunkmateuser");
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      if (parsed?.uid) return parsed;
+    }
+    // Try cookies
+    const cookieUser = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("bunkmateuser="))
+      ?.split("=")[1];
+    if (cookieUser) {
+      const parsed = JSON.parse(decodeURIComponent(cookieUser));
+      if (parsed?.uid) return parsed;
+    }
+  } catch {}
+  return null;
+}
+
 const Home = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -307,7 +332,10 @@ const Home = () => {
   const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   const [budgets, setBudgets] = useState([]);
-
+  const [reminders, setReminders] = useState([]);
+  const [remindersLoading, setRemindersLoading] = useState(true);
+  const [remindersDrawerOpen, setRemindersDrawerOpen] = useState(false);
+  const remindersRef = useRef();
   // User data states
   const [userData, setUserData] = useState({
     name: "",
@@ -320,9 +348,76 @@ const Home = () => {
 
   const [userType, setUserType] = useState(""); // BETA or DEV BETA label
 
+  
   const gotoBudgetMngr = () => {
     navigate("/budget-mngr");
   };
+
+    useEffect(() => {
+    const fetchReminders = async () => {
+      setRemindersLoading(true);
+      try {
+        const user = getUserFromStorage();
+        if (!user || !user.uid) {
+          setReminders([]);
+          setRemindersLoading(false);
+          return;
+        }
+        const q = query(
+          collection(db, "reminders"),
+          where("uid", "==", user.uid),
+          orderBy("createdAt", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        const data = [];
+        querySnapshot.forEach((doc) => {
+          const reminder = { id: doc.id, ...doc.data() };
+          // Extra check for uid match
+          if (reminder.uid === user.uid) {
+            data.push(reminder);
+          }
+        });
+        setReminders(data);
+      } catch (err) {
+        setReminders([]);
+      }
+      setRemindersLoading(false);
+    };
+    fetchReminders();
+  }, []);
+
+   // Fetch reminders for Home page glimpse
+  useEffect(() => {
+    const fetchReminders = async () => {
+      setRemindersLoading(true);
+      try {
+        const user = getUserFromStorage();
+        if (!user || !user.uid) {
+          setReminders([]);
+          setRemindersLoading(false);
+          return;
+        }
+        // Fetch ALL reminders, then filter by uid (for full safety)
+        const q = query(
+          collection(db, "reminders"),
+          orderBy("createdAt", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        const data = [];
+        querySnapshot.forEach((doc) => {
+          const reminder = { id: doc.id, ...doc.data() };
+          if (reminder.uid && reminder.uid === user.uid) {
+            data.push(reminder);
+          }
+        });
+        setReminders(data);
+      } catch (err) {
+        setReminders([]);
+      }
+      setRemindersLoading(false);
+    };
+    fetchReminders();
+  }, []);
 
   useEffect(() => {
   // Try to load weather from localStorage/cookie first
@@ -690,7 +785,7 @@ useEffect(() => {
               {
                 label: "Reminder",
                 icon: <AlarmOutlinedIcon />,
-                onClick: () => navigate("/reminders"),
+                onClick: () => setRemindersDrawerOpen(true),
               },
               {
                 label: "Trip",
@@ -949,6 +1044,84 @@ useEffect(() => {
     </CardContent>
   </Box>
 </Grid>
+
+        {/* Reminders Glimpse Card */}
+        <Container maxWidth="lg" sx={{ mt: 2, mb: 2 }}>
+          <Box sx={{ mb: 2, background: "#f1f1f111", color: "#fff", boxShadow: "none", borderRadius: 2 }}>
+            <CardContent>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" , mb: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <AlarmOutlinedIcon sx={{ mr: 1 }} />
+                  <Typography variant="h6">Reminders</Typography>
+                </Box>
+
+                <Button
+                  size="small"
+                  sx={{ height: 30, minWidth: 30, borderRadius: "80px", backgroundColor: WeatherBgdrop, color: buttonWeatherBg, fontSize: 24, padding: "4px 6px", boxShadow: "none" }}
+                  onClick={() => {
+                      remindersRef.current?.openAddReminderDrawer();
+                  }}
+                >
+                  +
+                </Button>
+              </Box>
+              {remindersLoading ? (
+                <Typography color="text.secondary" fontSize={14}>
+                  Loading...
+                </Typography>
+              ) : reminders.length === 0 ? (
+                <Typography color="text.secondary" fontSize={14}>
+                  No reminders yet.
+                </Typography>
+              ) : (
+                <ul style={{ margin: 0, paddingLeft: 0 }}>
+                  {reminders
+                    .filter(rem => !rem.completed)
+                    .slice(0, 3)
+                    .map((rem) => (
+                      <li
+                        key={rem.id}
+                        style={{
+                          fontSize: 16,
+                          backgroundColor: "#f1f1f111",
+                          borderRadius: 28,
+                          padding: 9,
+                          listStyle: "none",
+                          marginBottom: 7,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 9,
+                        }}
+                      >
+                        <span
+                          style={{ cursor: "pointer", marginRight: 8, marginLeft: 8, display: "flex", alignItems: "center" }}
+                          title="Mark as completed"
+                          onClick={() => remindersRef.current?.markReminderComplete(rem.id)}
+                        >
+                          <NotificationsActiveIcon style={{ color: "#aaa", fontSize: 22 }} />
+                        </span>
+                        <span>{rem.text}</span>
+                      </li>
+                    ))}
+                </ul>
+              )}
+              <Button
+                size="small"
+                sx={{ mt: 1, background: WeatherBgdrop, color: buttonWeatherBg, fontSize: 14, padding: "4px 8px", boxShadow: "none" }}
+                onClick={() => setRemindersDrawerOpen(true)}
+              >
+                View All
+              </Button>
+            </CardContent>
+          </Box>
+        </Container>
+
+        <Reminders
+          ref={remindersRef}
+          open={remindersDrawerOpen}
+          onClose={() => setRemindersDrawerOpen(false)}
+          asDrawer
+        />
 
       {/* Example Card */}
       <Grid item xs={12} md={6} lg={4}>

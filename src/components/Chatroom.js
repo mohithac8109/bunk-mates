@@ -29,6 +29,22 @@ import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import SaveIcon from '@mui/icons-material/Save';
 import { v4 as uuidv4 } from 'uuid'; // For notification message id
+import { messaging } from "../firebase";
+import { getToken, onMessage } from "firebase/messaging";
+
+function showLocalNotification(title, options) {
+  if (Notification.permission === "granted") {
+    if (document.hasFocus()) {
+      // Show notification in foreground
+      new Notification(title, options);
+    } else if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      // Show notification via Service Worker in background
+      navigator.serviceWorker.ready.then(registration => {
+        registration.showNotification(title, options);
+      });
+    }
+  }
+}
 
 function ChatRoom() {
   const { friendId } = useParams();
@@ -69,6 +85,98 @@ function ChatRoom() {
     visible: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: 20, transition: { duration: 0.2 } },
   };
+
+  useEffect(() => {
+  // Request notification permission and FCM token
+  async function requestPermission() {
+    if (Notification.permission !== "granted") {
+      await Notification.requestPermission();
+    }
+    if (Notification.permission === "granted") {
+      await getToken(messaging, { vapidKey: "BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs" });
+    }
+  }
+  requestPermission();
+
+  // Listen for foreground FCM messages
+  const unsubscribe = onMessage(messaging, (payload) => {
+    if (payload?.notification) {
+      showLocalNotification(payload.notification.title, {
+        body: payload.notification.body,
+        icon: "/logo192.png",
+      });
+    }
+  });
+
+  return () => {
+    // No unsubscribe needed for onMessage in v9 modular
+  };
+}, []);
+
+// --- In your onSnapshot for messages, show notification for new messages, reactions, or nickname edits ---
+useEffect(() => {
+  if (!chatId || !currentUser) return;
+
+  const q = query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "asc"));
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const msgs = [];
+    querySnapshot.forEach((doc) => {
+      const msg = doc.data();
+      msg.id = doc.id;
+      msgs.push(msg);
+    });
+    setMessages(msgs);
+
+    // Notification for new message from friend
+    const lastMessage = msgs[msgs.length - 1];
+    if (
+      lastMessage &&
+      lastMessage.senderId !== currentUser.uid &&
+      !lastMessage.isRead &&
+      !lastMessage.system
+    ) {
+      showLocalNotification("New Message", {
+        body: lastMessage.text,
+        icon: "/logo192.png",
+      });
+    }
+
+    // Notification for system messages (nickname edits, etc)
+    if (
+      lastMessage &&
+      lastMessage.system &&
+      lastMessage.senderId !== currentUser.uid &&
+      lastMessage.notificationType === "nickname"
+    ) {
+      showLocalNotification("Nickname Changed", {
+        body: lastMessage.text,
+        icon: "/logo192.png",
+      });
+    }
+
+    // Notification for reactions
+    if (
+      lastMessage &&
+      lastMessage.reactions &&
+      Array.isArray(lastMessage.reactions) &&
+      lastMessage.reactions.some(r => r.user !== currentUser.uid)
+    ) {
+      showLocalNotification("New Reaction", {
+        body: "Someone reacted to a message!",
+        icon: "/logo192.png",
+      });
+    }
+
+    const lastMsg = msgs[msgs.length - 1];
+    if (lastMsg && lastMsg.senderId !== currentUser?.uid && !lastMsg.isRead) {
+      updateDoc(doc(db, "chats", chatId, "messages", lastMsg.id), {
+        isRead: true
+      });
+    }
+  });
+
+  return () => unsubscribe();
+}, [chatId, currentUser]);
 
   const getGroupedReactions = (msg) => {
     if (!msg.reactions) return {};

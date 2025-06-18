@@ -27,6 +27,8 @@ import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "
 import { useWeather } from "../contexts/WeatherContext";
 import { Theme } from 'emoji-picker-react';
 import { useSettings } from "../contexts/SettingsContext";
+import { messaging } from "../firebase";
+import { getToken, onMessage } from "firebase/messaging";
 
 // Fade-in animation keyframes
 const fadeIn = keyframes`
@@ -173,7 +175,14 @@ const SESSION_KEY = "bunkmate_session";
 const USER_STORAGE_KEY = "bunkmateuser";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
 
-function Chats() {
+function showLocalNotification(title, options) {
+  if (Notification.permission === "granted") {
+    new Notification(title, options);
+  }
+}
+
+
+function Chats({ onlyList }) {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [unreadCounts, setUnreadCounts] = useState({});
@@ -202,6 +211,35 @@ function Chats() {
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   const { settings, setTheme, setAccent, setAutoAccent } = useSettings();
   const [dynamicTheme, setDynamicTheme] = useState(theme);
+
+  useEffect(() => {
+  // Request notification permission and FCM token
+  async function requestPermission() {
+    if (Notification.permission !== "granted") {
+      await Notification.requestPermission();
+    }
+    if (Notification.permission === "granted") {
+      await getToken(messaging, { vapidKey: "BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs" });
+    }
+  }
+  requestPermission();
+
+  // Listen for foreground FCM messages
+  const unsubscribe = onMessage(messaging, (payload) => {
+    if (payload?.notification) {
+      showLocalNotification(payload.notification.title, {
+        body: payload.notification.body,
+        icon: "/logo192.png",
+      });
+    }
+  });
+
+  return () => {
+    // No unsubscribe needed for onMessage in v9 modular
+  };
+}, []);
+
+
 
   const weatherBg =
   weather && weatherGradients[weather.main]
@@ -627,6 +665,80 @@ const combinedChats = [
 ]
   .filter((chat) => chat.name?.toLowerCase().includes(searchTerm.toLowerCase()))
   .sort((a, b) => b.timestamp - a.timestamp);
+
+
+    if (onlyList) {
+    // Only render the combined chats/groups list (no dialogs, no search, no floating button, etc)
+    return (
+      <div>
+        {combinedChats.map((chat) => (
+          <div
+            key={chat.id}
+            onClick={() => chat.type === 'user' ? handleSelect(chat.id) : handleGroupClick(chat.id)}
+            style={{
+              padding: '12px',
+              marginBottom: '10px',
+              borderRadius: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: chat.unreadCount > 0 ? "#232526" : '#00000000',
+              cursor: 'pointer',
+              transition: 'background-color 0.3s',
+            }}
+          >
+            {chat.type === 'group' ? (
+              <Avatar
+                sx={{
+                  bgcolor: '#f0f0f0',
+                  color: '#000',
+                  fontSize: 28,
+                  width: 48,
+                  height: 48,
+                  marginRight: 2,
+                }}
+              >
+                {chat.emoji || chat.name?.[0]?.toUpperCase() || ''}
+              </Avatar>
+            ) : (
+              <Avatar
+                src={chat.photoURL || 'https://via.placeholder.com/50'}
+                alt={chat.name}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  marginRight: '20px',
+                }}
+              />
+            )}
+
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontWeight: 'bold', color: '#FFFFFF' }}>
+                {chat.name}
+              </p>
+              <p style={{ margin: 0, color: '#BDBDBD' }}>
+                {chat.lastMessage || 'No messages yet'}
+              </p>
+            </div>
+
+            {chat.unreadCount > 0 && (
+              <span
+                style={{
+                  backgroundColor: "#00f721",
+                  color: '#212121',
+                  padding: '4px 8px',
+                  borderRadius: '50%',
+                }}
+              >
+                {chat.unreadCount}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
 
   return (
       <ThemeProvider theme={theme}>
