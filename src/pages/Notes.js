@@ -31,6 +31,13 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ShareIcon from "@mui/icons-material/Share";
 import SearchIcon from "@mui/icons-material/Search";
 import ExpandMore from "@mui/icons-material/ExpandMore";
+import FormatBoldIcon from "@mui/icons-material/FormatBold";
+import FormatItalicIcon from "@mui/icons-material/FormatItalic";
+import FormatUnderlinedIcon from "@mui/icons-material/FormatUnderlined";
+import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
+import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
+import CodeIcon from "@mui/icons-material/Code";
+
 import { db } from "../firebase";
 import {
   collection,
@@ -154,6 +161,7 @@ const Notes = () => {
   const [shareUsername, setShareUsername] = useState("");
   const [sharedWith, setSharedWith] = useState([]);
   const [expanded, setExpanded] = useState(false);
+  const noteContentRef = useRef(null);
 
 useEffect(() => {
   const u = getUserFromStorage();
@@ -171,7 +179,7 @@ const fetchNotes = async (currentUser) => {
     }
     const q = query(
       collection(db, "notes"),
-      where("owners", "array-contains", currentUser.uid),
+      where("owners", "array-contains", currentUser.uid)
     );
     const querySnapshot = await getDocs(q);
     const data = [];
@@ -179,7 +187,13 @@ const fetchNotes = async (currentUser) => {
       const note = { id: doc.id, ...doc.data() };
       data.push(note);
     });
-    console.log("Fetched notes:", data); // Debug
+    // Sort notes by createdAt descending (most recent first)
+    data.sort((a, b) => {
+      // Handle Firestore Timestamp or JS Date or string
+      const aTime = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+      const bTime = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+      return bTime - aTime;
+    });
     setNotes(data);
   } catch (err) {
     setNotes([]);
@@ -276,6 +290,61 @@ const fetchNotes = async (currentUser) => {
         note.content?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const applyFormat = (format) => {
+  const textarea = noteContentRef.current;
+  if (!textarea) return;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  let selected = noteContent.slice(start, end);
+  let before = noteContent.slice(0, start);
+  let after = noteContent.slice(end);
+
+  let formatted = selected;
+  switch (format) {
+    case "bold":
+      formatted = `**${selected || "bold text"}**`;
+      break;
+    case "italic":
+      formatted = `*${selected || "italic text"}*`;
+      break;
+    case "underline":
+      formatted = `<u>${selected || "underlined text"}</u>`;
+      break;
+    case "ul":
+      formatted = selected
+        ? selected
+            .split("\n")
+            .map((line) => (line.startsWith("- ") ? line : `- ${line}`))
+            .join("\n")
+        : "- List item";
+      break;
+    case "ol":
+      formatted = selected
+        ? selected
+            .split("\n")
+            .map((line, i) =>
+              /^\d+\.\s/.test(line) ? line : `${i + 1}. ${line}`
+            )
+            .join("\n")
+        : "1. List item";
+      break;
+    case "code":
+      formatted = `\`\`\`\n${selected || "code"}\n\`\`\``;
+      break;
+    default:
+      break;
+  }
+  const newValue = before + formatted + after;
+  setNoteContent(newValue);
+
+  // Set cursor after the formatted text
+  setTimeout(() => {
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd =
+      before.length + formatted.length;
+  }, 0);
+};
+
   return (
     <ThemeProvider theme={theme}>
       <Box
@@ -323,7 +392,7 @@ const fetchNotes = async (currentUser) => {
             }}
           />
         </Box>
-        <Card sx={{ mb: 2, backgroundColor: "transparent" }}>
+        <Box sx={{ mb: 2, backgroundColor: "transparent" }}>
           <CardContent sx={{ mb: 2, backgroundColor: "transparent" }}>
             {loading ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
@@ -341,7 +410,7 @@ const fetchNotes = async (currentUser) => {
                       key={note.id}
                       sx={{
                         background: "#232526",
-                        borderRadius: 3,
+                        borderRadius: 2,
                         boxShadow: "0 1px 4px #0003",
                         color: "#fff",
                         cursor: "pointer",
@@ -403,6 +472,15 @@ const fetchNotes = async (currentUser) => {
                               </MenuItem>
                               <MenuItem
                                 onClick={() => {
+                                  handleShareNote(note);
+                                  handleMenuClose();
+                                }}
+                              >
+                                <ShareIcon fontSize="small" sx={{ mr: 1 }} />
+                                Share
+                              </MenuItem>
+                              <MenuItem
+                                onClick={() => {
                                   handleDeleteNote(note.id);
                                   handleMenuClose();
                                 }}
@@ -410,15 +488,6 @@ const fetchNotes = async (currentUser) => {
                               >
                                 <DeleteOutlineIcon fontSize="small" sx={{ mr: 1 }} />
                                 Delete
-                              </MenuItem>
-                              <MenuItem
-                                onClick={() => {
-                                  handleShareNote(note);
-                                  handleMenuClose();
-                                }}
-                              >
-                                <ShareIcon fontSize="small" sx={{ mr: 1 }} />
-                                Share
                               </MenuItem>
                             </Menu>
                           </Box>
@@ -442,6 +511,21 @@ const fetchNotes = async (currentUser) => {
                               ))}
                             </Stack>
                           )}
+                          {/* Show "Shared with you" if you are not the creator */}
+                          {note.owners && note.owners[0] !== user?.uid && (
+                            <Chip
+                              label="Shared with you"
+                              size="small"
+                              sx={{
+                                ml: 1,
+                                background: "#00f721",
+                                color: "#000",
+                                fontWeight: 600,
+                                fontSize: "0.7rem",
+                                borderRadius: "10px",
+                              }}
+                            />
+                          )}
                         </Box>
                       </CardContent>
                     </Card>
@@ -450,139 +534,215 @@ const fetchNotes = async (currentUser) => {
               </Box>
             )}
           </CardContent>
-        </Card>
+        </Box>
 
         {/* Add Note Drawer */}
-        <SwipeableDrawer
-          anchor="bottom"
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          onOpen={() => {}}
-          disableSwipeToOpen={true}
-          disableDiscovery={true}
-          PaperProps={{
-            sx: {
-              borderTopLeftRadius: 16,
-              borderTopRightRadius: 16,
-              backgroundColor: "#232526",
-              p: 3,
-              maxWidth: 480,
-              mx: "auto",
-            },
-          }}
-        >
-          <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-            Add New Note
-          </Typography>
-          <Stack spacing={2}>
-            <TextField
-              label="Title"
-              value={noteTitle}
-              onChange={e => setNoteTitle(e.target.value)}
-              fullWidth
-              variant="outlined"
-              InputProps={{ style: { color: "#fff" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
-            />
-            <TextField
-              label="Content"
-              value={noteContent}
-              onChange={e => setNoteContent(e.target.value)}
-              fullWidth
-              multiline
-              minRows={4}
-              variant="outlined"
-              InputProps={{ style: { color: "#fff" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
-            />
-            {error && (
-              <Typography color="error" sx={{ mt: 1 }}>
-                {error}
-              </Typography>
-            )}
-            <Button
-              variant="contained"
-              color="primary"
-              sx={{
-                borderRadius: 4,
-                px: 2,
-                py: 1,
-                color: "#000",
-                fontWeight: "bold",
-              }}
-              onClick={handleAddNote}
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Add Note"}
-            </Button>
-          </Stack>
-        </SwipeableDrawer>
+<SwipeableDrawer
+  anchor="bottom"
+  open={drawerOpen}
+  onClose={() => setDrawerOpen(false)}
+  onOpen={() => {}}
+  disableSwipeToOpen={true}
+  disableDiscovery={true}
+  PaperProps={{
+    sx: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      backgroundColor: "#232526",
+      p: 3,
+      maxWidth: 480,
+      height: "95vh",
+      mx: "auto",
+    },
+  }}
+>
+  <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+    Add New Note
+  </Typography>
+  <Stack spacing={2}>
+    <TextField
+      label="Title"
+      value={noteTitle}
+      onChange={e => setNoteTitle(e.target.value)}
+      fullWidth
+      variant="outlined"
+      InputProps={{ style: { color: "#fff" } }}
+      InputLabelProps={{ style: { color: "#aaa" } }}
+    />
+    {/* Formatting Toolbar */}
+    <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+      <Tooltip title="Bold">
+        <IconButton onClick={() => applyFormat("bold")} size="small">
+          <FormatBoldIcon sx={{ color: "#fff" }} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Italic">
+        <IconButton onClick={() => applyFormat("italic")} size="small">
+          <FormatItalicIcon sx={{ color: "#fff" }} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Underline">
+        <IconButton onClick={() => applyFormat("underline")} size="small">
+          <FormatUnderlinedIcon sx={{ color: "#fff" }} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Bulleted List">
+        <IconButton onClick={() => applyFormat("ul")} size="small">
+          <FormatListBulletedIcon sx={{ color: "#fff" }} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Numbered List">
+        <IconButton onClick={() => applyFormat("ol")} size="small">
+          <FormatListNumberedIcon sx={{ color: "#fff" }} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Code Block">
+        <IconButton onClick={() => applyFormat("code")} size="small">
+          <CodeIcon sx={{ color: "#fff" }} />
+        </IconButton>
+      </Tooltip>
+    </Box>
+    <TextField
+      label="Content"
+      value={noteContent}
+      onChange={e => setNoteContent(e.target.value)}
+      fullWidth
+      multiline
+      minRows={12}
+      variant="outlined"
+      inputRef={noteContentRef}
+      InputProps={{ style: { color: "#fff", fontFamily: "inherit" } }}
+      InputLabelProps={{ style: { color: "#aaa" } }}
+      sx={{ flex: 1 }}
+    />
+    {error && (
+      <Typography color="error" sx={{ mt: 1 }}>
+        {error}
+      </Typography>
+    )}
+    <Button
+      variant="contained"
+      color="primary"
+      sx={{
+        borderRadius: 4,
+        px: 2,
+        py: 1,
+        color: "#000",
+        fontWeight: "bold",
+      }}
+      onClick={handleAddNote}
+      disabled={saving}
+    >
+      {saving ? "Saving..." : "Add Note"}
+    </Button>
+  </Stack>
+</SwipeableDrawer>
 
         {/* Edit Note Drawer */}
-        <SwipeableDrawer
-          anchor="bottom"
-          open={editDrawerOpen}
-          onClose={() => setEditDrawerOpen(false)}
-          onOpen={() => {}}
-          disableSwipeToOpen={true}
-          disableDiscovery={true}
-          PaperProps={{
-            sx: {
-              borderTopLeftRadius: 16,
-              borderTopRightRadius: 16,
-              backgroundColor: "#232526",
-              p: 3,
-              maxWidth: 480,
-              mx: "auto",
-            },
-          }}
-        >
-          <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-            Edit Note
-          </Typography>
-          <Stack spacing={2}>
-            <TextField
-              label="Title"
-              value={noteTitle}
-              onChange={e => setNoteTitle(e.target.value)}
-              fullWidth
-              variant="outlined"
-              InputProps={{ style: { color: "#fff" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
-            />
-            <TextField
-              label="Content"
-              value={noteContent}
-              onChange={e => setNoteContent(e.target.value)}
-              fullWidth
-              multiline
-              minRows={4}
-              variant="outlined"
-              InputProps={{ style: { color: "#fff" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
-            />
-            {error && (
-              <Typography color="error" sx={{ mt: 1 }}>
-                {error}
-              </Typography>
-            )}
-            <Button
-              variant="contained"
-              color="primary"
-              sx={{
-                borderRadius: 4,
-                px: 2,
-                py: 1,
-                color: "#000",
-                fontWeight: "bold",
-              }}
-              onClick={handleEditNote}
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-          </Stack>
-        </SwipeableDrawer>
+<SwipeableDrawer
+  anchor="bottom"
+  open={editDrawerOpen}
+  onClose={() => setEditDrawerOpen(false)}
+  onOpen={() => {}}
+  disableSwipeToOpen={true}
+  disableDiscovery={true}
+  PaperProps={{
+    sx: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      backgroundColor: "#232526",
+      p: 3,
+      maxWidth: 480,
+      height: "100vh",
+      mx: "auto",
+    },
+  }}
+>
+  <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+    Edit Note
+  </Typography>
+  <Stack spacing={2}>
+    <TextField
+      label="Title"
+      value={noteTitle}
+      onChange={e => setNoteTitle(e.target.value)}
+      fullWidth
+      variant="outlined"
+      InputProps={{ style: { color: "#fff" } }}
+      InputLabelProps={{ style: { color: "#aaa" } }}
+    />
+    {/* Formatting Toolbar */}
+    <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+      <Tooltip title="Bold">
+        <IconButton onClick={() => applyFormat("bold")} size="small">
+          <FormatBoldIcon sx={{ color: "#fff" }} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Italic">
+        <IconButton onClick={() => applyFormat("italic")} size="small">
+          <FormatItalicIcon sx={{ color: "#fff" }} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Underline">
+        <IconButton onClick={() => applyFormat("underline")} size="small">
+          <FormatUnderlinedIcon sx={{ color: "#fff" }} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Bulleted List">
+        <IconButton onClick={() => applyFormat("ul")} size="small">
+          <FormatListBulletedIcon sx={{ color: "#fff" }} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Numbered List">
+        <IconButton onClick={() => applyFormat("ol")} size="small">
+          <FormatListNumberedIcon sx={{ color: "#fff" }} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Code Block">
+        <IconButton onClick={() => applyFormat("code")} size="small">
+          <CodeIcon sx={{ color: "#fff" }} />
+        </IconButton>
+      </Tooltip>
+    </Box>
+    <TextField
+      label="Content"
+      value={noteContent}
+      onChange={e => setNoteContent(e.target.value)}
+      fullWidth
+      multiline
+      minRows={12}
+      variant="outlined"
+      inputRef={noteContentRef}
+      InputProps={{ style: { color: "#fff", fontFamily: "inherit" } }}
+      InputLabelProps={{ style: { color: "#aaa" } }}
+      sx={{ flex: 1 }}
+    />
+    {error && (
+      <Typography color="error" sx={{ mt: 1 }}>
+        {error}
+      </Typography>
+    )}
+    <Button
+      variant="contained"
+      color="primary"
+      sx={{
+        borderRadius: 4,
+        px: 2,
+        py: 1,
+        color: "#000",
+        fontWeight: "bold",
+      }}
+      onClick={handleEditNote}
+      disabled={saving}
+    >
+      {saving ? "Saving..." : "Save Changes"}
+    </Button>
+  </Stack>
+</SwipeableDrawer>
 
         {/* View Note Drawer */}
         <SwipeableDrawer
