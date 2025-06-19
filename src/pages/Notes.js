@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -28,6 +29,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Icon,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -66,6 +68,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { Navigate } from "react-router-dom";
 
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(20px);}
@@ -203,6 +206,7 @@ const Notes = () => {
   const [viewMode, setViewMode] = useState("list"); // or 'grid'
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState(null);
+  const history = useNavigate();
 
 
 useEffect(() => {
@@ -556,7 +560,9 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
   // eslint-disable-next-line
 }, [notes]);
 
-
+ const goBack = () => {
+    history(-1);
+ };
 
   return (
     <ThemeProvider theme={theme}>
@@ -570,18 +576,14 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           mx: "auto",
         }}
       >
+      <IconButton onClick={goBack} sx={{ mr: 2, mb: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
+        <ArrowBackIcon />
+      </IconButton>
+
         <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
           <Typography variant="h4" fontWeight="bold" sx={{ flex: 1 }}>
             Notes Dashboard
           </Typography>
-          <Fab
-            size="medium"
-            color="primary"
-            sx={{ ml: 2, boxShadow: "none" }}
-            onClick={() => setDrawerOpen(true)}
-          >
-            <AddIcon />
-          </Fab>
         </Box>
         <Box sx={{ mb: 2 }}>
           <TextField
@@ -1736,6 +1738,14 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             </Stack>
           )}
         </SwipeableDrawer>
+        
+          <IconButton
+            size="medium"
+            sx={{ ml: 2, backgroundColor: "#fff", width: "70px", height: "70px", color: "#000", borderRadius: 1.5, boxShadow: "none", position: "fixed", bottom: 16, right: 16, zIndex: 999 }}
+            onClick={() => setDrawerOpen(true)}
+          >
+            <AddIcon />
+          </IconButton>
       </Box>
     </ThemeProvider>
   );
