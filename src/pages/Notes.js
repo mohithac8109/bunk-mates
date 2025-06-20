@@ -1040,7 +1040,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                               size="small"
                               sx={{
                                 ml: 0,
-                                background: "#00f721",
+                                background: buttonWeatherBg,
                                 color: "#000",
                                 fontWeight: 600,
                                 fontSize: "0.7rem",
