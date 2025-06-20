@@ -29,9 +29,9 @@ const weatherGradientsAlt = {
 };
 
 const weatherColors = {
-  Clear: "#00c2cf",
+  Clear: "#b3faff",
   Clouds: "#fffbfb",
-  Rain: "#6e9ca5",
+  Rain: "#82b3bc",
   Thunderstorm: "#8b7c66",
   Snow: "#dae3ff",
   Drizzle: "#859699",

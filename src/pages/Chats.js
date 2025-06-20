@@ -681,7 +681,7 @@ const combinedChats = [
               borderRadius: '18px',
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: chat.unreadCount > 0 ? "#232526" : '#00000000',
+              backgroundColor: chat.unreadCount > 0 ? WeatherBgdrop : '#00000000',
               cursor: 'pointer',
               transition: 'background-color 0.3s',
             }}
@@ -724,7 +724,7 @@ const combinedChats = [
             {chat.unreadCount > 0 && (
               <span
                 style={{
-                  backgroundColor: "#00f721",
+                  backgroundColor: buttonWeatherBg,
                   color: '#212121',
                   padding: '4px 8px',
                   borderRadius: '50%',

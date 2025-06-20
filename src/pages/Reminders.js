@@ -574,13 +574,13 @@ useImperativeHandle(ref, () => ({
                 Your Reminders
               </Typography>
               <Tooltip title="Add Reminder">
-                <Fab
+                <Button
                   size="medium"
-                  sx={{ ml: 2, boxShadow: "none", background: buttonWeatherBg }}
+                  sx={{ ml: 2, boxShadow: "none", background: buttonWeatherBg, color: "#000", borderRadius: 4, width: "40px" }}
                   onClick={() => setDrawerOpen(true)}
                 >
                   <AddIcon />
-                </Fab>
+                </Button>
               </Tooltip>
             </Box>
 
@@ -614,11 +614,11 @@ useImperativeHandle(ref, () => ({
                   Active Reminders ({filteredReminders.length})
                 </Typography>
                 {loading ? (
-                  <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                  <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
                     <CircularProgress color="inherit" />
                   </Box>
                 ) : filteredReminders.length === 0 ? (
-                  <Typography color="text.secondary" fontSize={16}>
+                  <Typography color="text.secondary" display={"flex"} alignItems={"center"} justifyContent={"center"} fontSize={16}>
                     No reminders yet.
                   </Typography>
                 ) : (

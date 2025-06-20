@@ -69,6 +69,23 @@ import {
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { Navigate } from "react-router-dom";
+import ProfilePic from "../components/Profile";
+import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
+import { useWeather } from "../contexts/WeatherContext";
+
+
+function setCookie(name, value, days = 7) {
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie =
+    name + "=" + encodeURIComponent(value) + "; expires=" + expires + "; path=/";
+}
+
+function getCookie(name) {
+  return document.cookie.split("; ").reduce((r, v) => {
+    const parts = v.split("=");
+    return parts[0] === name ? decodeURIComponent(parts[1]) : r;
+  }, "");
+}
 
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(20px);}
@@ -170,6 +187,8 @@ const fetchUserInfo = async (uid) => {
   return null;
 };
 
+const WEATHER_STORAGE_KEY = "bunkmate_weather";
+
 const Notes = () => {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -201,12 +220,66 @@ const Notes = () => {
   const [addLabelDrawerOpen, setAddLabelDrawerOpen] = useState(false);
   const [newCollaboratorUsername, setNewCollaboratorUsername] = useState("");
   const [newLabel, setNewLabel] = useState("");
-  const [selectedLabelFilter, setSelectedLabelFilter] = useState("All");
-  const [sortOption, setSortOption] = useState("newest");
-  const [viewMode, setViewMode] = useState("list"); // or 'grid'
+  const [sortOption, setSortOption] = useState(() => localStorage.getItem("noteSortOption") || "newest");
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem("noteViewMode") || "list");
+  const [selectedLabelFilter, setSelectedLabelFilter] = useState(() => localStorage.getItem("noteLabelFilter") || "All");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState(null);
   const history = useNavigate();
+  const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
+  
+  const buttonWeatherBg =
+  weather && weatherColors[weather.main]
+    ? weatherColors[weather.main]
+    : weatherColors.Default;
+
+  const WeatherBgdrop =
+  weather && weatherbgColors[weather.main]
+    ? weatherbgColors[weather.main]
+    : weatherbgColors.Default;
+
+    useEffect(() => {
+      if (!weather) {
+        let cachedWeather = null;
+        try {
+          const local = localStorage.getItem(WEATHER_STORAGE_KEY);
+          if (local) cachedWeather = JSON.parse(local);
+          if (!cachedWeather) {
+            const cookieWeather = document.cookie
+              .split("; ")
+              .find((row) => row.startsWith(WEATHER_STORAGE_KEY + "="))
+              ?.split("=")[1];
+            if (cookieWeather) cachedWeather = JSON.parse(decodeURIComponent(cookieWeather));
+          }
+        } catch {}
+        if (cachedWeather) {
+          setWeather(cachedWeather);
+        }
+      }
+    }, [weather, setWeather]);
+
+useEffect(() => {
+  const savedSort = localStorage.getItem("noteSortOption");
+  const savedView = localStorage.getItem("noteViewMode");
+  const savedLabel = localStorage.getItem("noteLabelFilter");
+
+  if (savedSort) setSortOption(savedSort);
+  if (savedView) setViewMode(savedView);
+  if (savedLabel) setSelectedLabelFilter(savedLabel);
+}, []);
+
+useEffect(() => {
+  localStorage.setItem("noteSortOption", sortOption);
+}, [sortOption]);
+
+useEffect(() => {
+  localStorage.setItem("noteViewMode", viewMode);
+}, [viewMode]);
+
+useEffect(() => {
+  localStorage.setItem("noteLabelFilter", selectedLabelFilter);
+}, [selectedLabelFilter]);
+
 
 
 useEffect(() => {
@@ -257,10 +330,17 @@ const fetchNotes = async (currentUser) => {
     // eslint-disable-next-line
   }, [user]);
 
-    useEffect(() => {
-    // Example: hardcoded labels
-    setLabels([]);
-  }, []);
+useEffect(() => {
+  const labelSet = new Set();
+  notes.forEach((note) => {
+    (note.labels || []).forEach((label) => {
+      labelSet.add(label);
+    });
+  });
+  const sortedLabels = Array.from(labelSet).sort((a, b) => a.localeCompare(b));
+  setLabels(sortedLabels);
+}, [notes]);
+
 
   // When opening edit drawer, set collaborators and labels
   useEffect(() => {
@@ -428,11 +508,14 @@ const filteredNotes = notes.filter((note) => {
     note.content?.toLowerCase().includes(searchTerm.toLowerCase());
 
   const matchesLabel =
-    selectedLabelFilter === "All" || (note.labels || []).includes(selectedLabelFilter);
+    selectedLabelFilter === "All"
+      ? true
+      : selectedLabelFilter === "Pinned"
+      ? note.pinned === true
+      : (note.labels || []).includes(selectedLabelFilter);
 
   return matchesSearch && matchesLabel;
 });
-
 
   const applyFormat = (format) => {
   const textarea = noteContentRef.current;
@@ -506,6 +589,10 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
   }
 });
 
+
+  const pinnedNotes = sortedNotes.filter(note => note.pinned);
+  const unpinnedNotes = sortedNotes.filter(note => !note.pinned);
+
   useEffect(() => {
     const fetchSharedUsers = async () => {
       let uids = [];
@@ -564,6 +651,22 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
     history(-1);
  };
 
+ useEffect(() => {
+  if (editDrawerOpen && selectedNote) {
+    setNoteTitle(selectedNote.title || "");
+    setNoteContent(selectedNote.content || "");
+    setCollaborators(selectedNote.sharedWith || []);
+    setNoteLabels(selectedNote.labels || []);
+  }
+  if (!editDrawerOpen) {
+    setNoteTitle("");
+    setNoteContent("");
+    setCollaborators([]);
+    setNoteLabels([]);
+  }
+}, [editDrawerOpen, selectedNote]);
+
+
   return (
     <ThemeProvider theme={theme}>
       <Box
@@ -576,13 +679,24 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           mx: "auto",
         }}
       >
-      <IconButton onClick={goBack} sx={{ mr: 2, mb: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
-        <ArrowBackIcon />
-      </IconButton>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "row",
+              gap: 3,
+              justifyContent: "space-between",
+              mb: 2
+            }}
+          >
+            <Button onClick={goBack} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
+              <ArrowBackIcon />
+            </Button>
+            <ProfilePic />
+          </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-          <Typography variant="h4" fontWeight="bold" sx={{ flex: 1 }}>
-            Notes Dashboard
+          <Typography variant="h4" fontWeight="bold" sx={{ flex: 1, color: "#fff" }}>
+            Notes
           </Typography>
         </Box>
         <Box sx={{ mb: 2 }}>
@@ -596,13 +710,13 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               startAdornment: (
                 <SearchIcon sx={{ color: "#aaa", mr: 1 }} />
               ),
-              style: { color: "#fff" },
+              style: { color: buttonWeatherBg },
             }}
             sx={{
               width: "100%",
               mb: 2,
               borderRadius: 2,
-              input: { color: "#fff" },
+              input: { color: buttonWeatherBg, borderColor: buttonWeatherBg },
             }}
           />
 
@@ -613,7 +727,9 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
   value={sortOption}
   onChange={(e) => setSortOption(e.target.value)}
   size="small"
-  sx={{ minWidth: 150 }}
+  sx={{ minWidth: 150, color: buttonWeatherBg }}
+  InputLabelProps={{ color: buttonWeatherBg }}
+  InputProps={{ color: buttonWeatherBg }}
 >
   <MenuItem value="newest">Newest First</MenuItem>
   <MenuItem value="oldest">Oldest First</MenuItem>
@@ -628,10 +744,10 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
   size="small"
 >
   <ToggleButton value="list">
-    <ViewListIcon />
+    <ViewListIcon sx={{ color: buttonWeatherBg }} />
   </ToggleButton>
   <ToggleButton value="grid">
-    <ViewModuleIcon />
+    <ViewModuleIcon sx={{ color: buttonWeatherBg }} />
   </ToggleButton>
 </ToggleButtonGroup>
 </Box>
@@ -640,38 +756,56 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
   <Chip
     label="All"
     onClick={() => setSelectedLabelFilter("All")}
-    color={selectedLabelFilter === "All" ? "primary" : "default"}
-    variant="outlined"
+    sx={{ 
+      color: selectedLabelFilter === "All" ? buttonWeatherBg : "default",
+      backgroundColor: selectedLabelFilter === "All" ? WeatherBgdrop : "default",
+    }}
   />
+
+  <Chip
+    label="📌 Pinned"
+    onClick={() => setSelectedLabelFilter("Pinned")}
+    sx={{ 
+      color: selectedLabelFilter === "Pinned" ? buttonWeatherBg : "default",
+      backgroundColor: selectedLabelFilter === "Pinned" ? WeatherBgdrop : "default",
+    }}
+  />
+
   {labels.map((label) => (
     <Chip
       key={label}
       label={label}
       onClick={() => setSelectedLabelFilter(label)}
-      color={selectedLabelFilter === label ? "primary" : "default"}
-      variant="outlined"
+    sx={{ 
+      color: selectedLabelFilter === label ? buttonWeatherBg : "default",
+      backgroundColor: selectedLabelFilter === label ? WeatherBgdrop : "default",
+    }}
     />
   ))}
 </Stack>
 
 
+
         </Box>
-        <Box sx={{ mb: 2, backgroundColor: "transparent", height: "auto" }}>
+          <Box sx={{ mb: 2, backgroundColor: "transparent", height: "auto" }}>
           <CardContent sx={{ mb: 2, padding: 0, backgroundColor: "transparent" }}>
             {loading ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
                 <CircularProgress color="inherit" />
               </Box>
             ) : sortedNotes.length === 0 ? (
-              <Typography color="text.secondary" fontSize={16}>
-                No notes yet.
-              </Typography>
+              <Box sx={{ display: "flex", height: "70vh", alignItems: "center", justifyContent: "center" }}>
+                <Typography color="text.secondary" fontSize={16}>
+                  No notes yet.
+                </Typography>
+              </Box>
             ) : (
 <Box>
   {viewMode === "list" ? (
     <Stack spacing={2}>
-      {sortedNotes.map((note, idx) => (
-        <Card
+      {[...pinnedNotes, ...unpinnedNotes].map((note, idx) => (
+        <>
+                  <Card
           key={note.id}
           sx={{
             background: "#232526",
@@ -690,7 +824,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           }}
         >
           <CardContent>
-                                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <Box>
                             <Typography variant="h6" sx={{ mb: 0.5 }}>
                               {note.title || "Untitled"}
@@ -713,6 +847,49 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                             >
                               <MoreVertIcon />
                             </IconButton>
+                          </Box>
+                        </Box>
+                        {/* Labels */}
+                        {note.labels && note.labels.length > 0 && (
+                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                            {note.labels.map(label => (
+                              <Chip
+                                key={label}
+                                icon={<LabelIcon sx={{ color: buttonWeatherBg }} />}
+                                label={label}
+                                size="small"
+                                sx={{
+                                  fontSize: "0.7rem",
+                                  borderRadius: '10px',
+                                  color: buttonWeatherBg,
+                                  background: WeatherBgdrop,
+                                }}
+                              />
+                            ))}
+                          </Stack>
+                        )}
+                        {/* Shared users */}
+                        <Box sx={{ mt: 1 }}>
+                          {/* Show "Shared with you" if you are not the creator */}
+                          {note.owners && note.owners[0] !== user?.uid && (
+                            <Chip
+                              label="Shared with you"
+                              size="small"
+                              sx={{
+                                ml: 0,
+                                background: "#00f721",
+                                color: "#000",
+                                fontWeight: 600,
+                                fontSize: "0.7rem",
+                                borderRadius: "10px",
+                              }}
+                            />
+                          )}
+                        </Box>
+          </CardContent>
+        </Card>
+
+
                             <Menu
                               anchorEl={menuAnchorEl}
                               open={menuIndex === idx}
@@ -729,10 +906,12 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                               <MenuItem
                                 onClick={() => {
                                   setSelectedNote(note);
-                                  setNoteTitle(note.title);
-                                  setNoteContent(note.content);
+                                  setNoteTitle(note.title || "");
+                                  setNoteContent(note.content || "");
                                   setEditDrawerOpen(true);
-                                  handleMenuClose();
+                                  setDrawerOpen(true);
+                                  setViewDrawerOpen(false);
+                                  handleMenuClose();    
                                 }}
                               >
                                 <EditIcon fontSize="small" sx={{ mr: 1 }} />
@@ -741,6 +920,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                               <MenuItem
                                 onClick={() => {
                                   handleShareNote(note);
+                                  setAddCollaboratorDrawerOpen(true);
                                   handleMenuClose();
                                 }}
                               >
@@ -770,60 +950,21 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                               </MenuItem>
 
                             </Menu>
-                          </Box>
-                        </Box>
-                        {/* Labels */}
-                        {note.labels && note.labels.length > 0 && (
-                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                            {note.labels.map(label => (
-                              <Chip
-                                key={label}
-                                icon={<LabelIcon sx={{ color: "#00f721" }} />}
-                                label={label}
-                                size="small"
-                                sx={{
-                                  fontSize: "0.7rem",
-                                  borderRadius: '10px',
-                                  color: '#BDBDBD',
-                                  background: "#232526",
-                                  border: "1px solid #00f721",
-                                }}
-                              />
-                            ))}
-                          </Stack>
-                        )}
-                        {/* Shared users */}
-                        <Box sx={{ mt: 1 }}>
-                          {/* Show "Shared with you" if you are not the creator */}
-                          {note.owners && note.owners[0] !== user?.uid && (
-                            <Chip
-                              label="Shared with you"
-                              size="small"
-                              sx={{
-                                ml: 1,
-                                background: "#00f721",
-                                color: "#000",
-                                fontWeight: 600,
-                                fontSize: "0.7rem",
-                                borderRadius: "10px",
-                              }}
-                            />
-                          )}
-                        </Box>
-          </CardContent>
-        </Card>
+        </>
+        
       ))}
     </Stack>
   ) : (
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fill, minmax(40vw, 1fr))",
         gap: 2,
       }}
     >
-      {sortedNotes.map((note, idx) => (
-        <Card
+      {[...pinnedNotes, ...unpinnedNotes].map((note, idx) => (
+        <>
+                  <Card
           key={note.id}
           sx={{
             background: "#232526",
@@ -843,7 +984,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           }}
         >
           <CardContent>
-                                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <Box>
                             <Box display={"flex"}>
                               <Typography variant="h6" sx={{ mb: 0.5 }}>
@@ -864,6 +1005,54 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                             >
                               <MoreVertIcon />
                             </IconButton>
+                          </Box>
+                            </Box>
+                            <Typography variant="body2" sx={{ color: "#BDBDBD" }}>
+                              {note.content?.slice(0, 60) || ""}
+                              {note.content?.length > 60 ? "..." : ""}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        {/* Labels */}
+                        {note.labels && note.labels.length > 0 && (
+                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                            {note.labels.map(label => (
+                              <Chip
+                                key={label}
+                                icon={<LabelIcon sx={{ color: "#00f721" }} />}
+                                label={label}
+                                size="small"
+                                sx={{
+                                  fontSize: "0.7rem",
+                                  borderRadius: '10px',
+                                  color: '#fff',
+                                  background: "#f4f4f436",
+                                }}
+                              />
+                            ))}
+                          </Stack>
+                        )}
+                        {/* Shared users */}
+                        <Box sx={{ mt: 1 }}>
+                          {note.owners && note.owners[0] !== user?.uid && (
+                            <Chip
+                              label="Shared with you"
+                              size="small"
+                              sx={{
+                                ml: 0,
+                                background: "#00f721",
+                                color: "#000",
+                                fontWeight: 600,
+                                fontSize: "0.7rem",
+                                borderRadius: "10px",
+                              }}
+                            />
+                          )}
+                        </Box>
+          </CardContent>
+        </Card>
+
+        
                             <Menu
                               anchorEl={menuAnchorEl}
                               open={menuIndex === idx}
@@ -880,10 +1069,12 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                               <MenuItem
                                 onClick={() => {
                                   setSelectedNote(note);
-                                  setNoteTitle(note.title);
-                                  setNoteContent(note.content);
+                                  setNoteTitle(note.title || "");
+                                  setNoteContent(note.content || "");
                                   setEditDrawerOpen(true);
-                                  handleMenuClose();
+                                  setDrawerOpen(true);
+                                  setViewDrawerOpen(false);
+                                  handleMenuClose();    
                                 }}
                               >
                                 <EditIcon fontSize="small" sx={{ mr: 1 }} />
@@ -892,6 +1083,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                               <MenuItem
                                 onClick={() => {
                                   handleShareNote(note);
+                                  setAddCollaboratorDrawerOpen(true);
                                   handleMenuClose();
                                 }}
                               >
@@ -920,61 +1112,18 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                                 Delete
                               </MenuItem>
                             </Menu>
-                          </Box>
-                            </Box>
-                            <Typography variant="body2" sx={{ color: "#BDBDBD" }}>
-                              {note.content?.slice(0, 60) || ""}
-                              {note.content?.length > 60 ? "..." : ""}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        {/* Labels */}
-                        {note.labels && note.labels.length > 0 && (
-                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                            {note.labels.map(label => (
-                              <Chip
-                                key={label}
-                                icon={<LabelIcon sx={{ color: "#00f721" }} />}
-                                label={label}
-                                size="small"
-                                sx={{
-                                  fontSize: "0.7rem",
-                                  borderRadius: '10px',
-                                  color: '#BDBDBD',
-                                  background: "#232526",
-                                  border: "1px solid #00f721",
-                                }}
-                              />
-                            ))}
-                          </Stack>
-                        )}
-                        {/* Shared users */}
-                        <Box sx={{ mt: 1 }}>
-                          {note.owners && note.owners[0] !== user?.uid && (
-                            <Chip
-                              label="Shared with you"
-                              size="small"
-                              sx={{
-                                ml: 1,
-                                background: "#00f721",
-                                color: "#000",
-                                fontWeight: 600,
-                                fontSize: "0.7rem",
-                                borderRadius: "10px",
-                              }}
-                            />
-                          )}
-                        </Box>
-          </CardContent>
-        </Card>
+        </>
       ))}
     </Box>
   )}
 </Box>
 
+
             )}
           </CardContent>
-        </Box>
+          </Box>
+
+        
 
         {/* Add Note Drawer */}
         <SwipeableDrawer
@@ -990,7 +1139,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               borderTopRightRadius: 0,
               borderBottomLeftRadius: 0,
               borderBottomRightRadius: 0,
-              backgroundColor: "#232526",
+              backgroundColor: "#00000000",
+              backdropFilter: "blur(80px)",
               p: 3,
               maxWidth: 480,
               height: "95vh",
@@ -998,341 +1148,152 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             },
           }}
         >
-          <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-            Add New Note
-          </Typography>
-          <Stack spacing={2}>
-            <TextField
-              label="Title"
-              value={noteTitle}
-              onChange={e => setNoteTitle(e.target.value)}
-              fullWidth
-              variant="outlined"
-              InputProps={{ style: { color: "#fff" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
-            />
-            {/* Formatting Toolbar */}
-            <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
-              <Tooltip title="Bold">
-                <IconButton onClick={() => applyFormat("bold")} size="small">
-                  <FormatBoldIcon sx={{ color: "#fff" }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Italic">
-                <IconButton onClick={() => applyFormat("italic")} size="small">
-                  <FormatItalicIcon sx={{ color: "#fff" }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Underline">
-                <IconButton onClick={() => applyFormat("underline")} size="small">
-                  <FormatUnderlinedIcon sx={{ color: "#fff" }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Bulleted List">
-                <IconButton onClick={() => applyFormat("ul")} size="small">
-                  <FormatListBulletedIcon sx={{ color: "#fff" }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Numbered List">
-                <IconButton onClick={() => applyFormat("ol")} size="small">
-                  <FormatListNumberedIcon sx={{ color: "#fff" }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Code Block">
-                <IconButton onClick={() => applyFormat("code")} size="small">
-                  <CodeIcon sx={{ color: "#fff" }} />
-                </IconButton>
-              </Tooltip>
-            </Box>
-            {/* Collaborators */}
-            <Box>
-              <Typography variant="subtitle2" sx={{ color: "#BDBDBD", mb: 1 }}>
-                Collaborators:
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                {collaborators.map(uid => {
-                  const user = sharedUsersInfo[uid];
-                  return (
-                    <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: "#232526", borderRadius: 2, px: 1, py: 0.5 }}>
-                      <Avatar
-                        src={user?.photoURL || ""}
-                        alt={user?.username || "User"}
-                        sx={{ width: 24, height: 24, fontSize: 14, bgcolor: "#00f721", color: "#000" }}
-                      >
-                        {user?.username ? user.username[0].toUpperCase() : "U"}
-                      </Avatar>
-                      <Typography variant="body2" sx={{ color: "#BDBDBD", fontSize: 14 }}>
-                        {user?.username || uid.slice(0, 6) + "..."}
-                      </Typography>
-                      <IconButton size="small" onClick={() => handleRemoveCollaborator(uid)}>
-                        <DeleteOutlineIcon fontSize="small" sx={{ color: "#f44336" }} />
-                      </IconButton>
-                    </Box>
-                  );
-                })}
-                <Tooltip title="Add Collaborator">
-                  <IconButton
-                    onClick={() => setAddCollaboratorDrawerOpen(true)}
-                    size="small"
-                    sx={{ color: "#00f721", border: "1px solid #00f721", ml: 1 }}
-                  >
-                    <PersonAddIcon />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-            </Box>
-            {/* Labels */}
-            <Box>
-              <Typography variant="subtitle2" sx={{ color: "#BDBDBD", mb: 1 }}>
-                Labels:
-              </Typography>
-              <Stack direction="row" spacing={1}>
-                {labels.map(label => (
-                  <Chip
-                    key={label}
-                    icon={<LabelIcon sx={{ color: "#00f721" }} />}
-                    label={label}
-                    size="small"
-                    onClick={() => handleToggleLabel(label)}
-                    sx={{
-                      fontSize: "0.7rem",
-                      borderRadius: '10px',
-                      color: noteLabels.includes(label) ? "#00f721" : "#BDBDBD",
-                      background: noteLabels.includes(label) ? "#232526" : "#232526",
-                      border: noteLabels.includes(label) ? "1px solid #00f721" : "1px solid #444",
-                      cursor: "pointer",
-                    }}
-                    variant={noteLabels.includes(label) ? "filled" : "outlined"}
-                  />
-                ))}
-                <Tooltip title="Add Custom Label">
-                  <IconButton
-                    onClick={() => setAddLabelDrawerOpen(true)}
-                    size="small"
-                    sx={{ color: "#00f721", border: "1px solid #00f721", ml: 1 }}
-                  >
-                    <LabelOutlinedIcon />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-            </Box>
-            <TextField
-              label="Content"
-              value={noteContent}
-              onChange={e => setNoteContent(e.target.value)}
-              fullWidth
-              multiline
-              minRows={12}
-              variant="outlined"
-              inputRef={noteContentRef}
-              InputProps={{ style: { color: "#fff", fontFamily: "inherit" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
-              sx={{ flex: 1 }}
-            />
-            {error && (
-              <Typography color="error" sx={{ mt: 1 }}>
-                {error}
-              </Typography>
-            )}
-            <Button
-              variant="contained"
-              color="primary"
-              sx={{
-                borderRadius: 4,
-                px: 2,
-                py: 1,
-                color: "#000",
-                fontWeight: "bold",
-                mt: 2,
-              }}
-              onClick={handleAddNote}
-              disabled={saving}
-              fullWidth
-            >
-              {saving ? "Saving..." : "Add Note"}
-            </Button>
-          </Stack>
-        </SwipeableDrawer>
+            <Box
+    sx={{
+      display: "flex",
+      flexDirection: "column",
+      pb: 9, // space for floating button
+    }}
+  >
+    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+    <Typography variant="h6" fontWeight="bold">
+      {editDrawerOpen ? "Edit Note" : ""}
+    </Typography>
+    <Button
+      variant="contained"
+      onClick={editDrawerOpen ? handleEditNote : handleAddNote}
+      disabled={saving}
+      fullWidth
+      sx={{ borderRadius: 2, color: "#000", backgroundColor: buttonWeatherBg, fontWeight: "bold", width: "110px", boxShadow: "none" }}
+    >
+      {saving ? "Saving..." : editDrawerOpen ? "Save" : "Add Note"}
+    </Button>
+    </Box>
 
-        {/* Edit Note Drawer */}
+    {/* Title Input */}
+    <TextField
+      placeholder="Enter title..."
+      value={noteTitle}
+      onChange={(e) => setNoteTitle(e.target.value)}
+      fullWidth
+      variant="standard"
+      InputProps={{
+        disableUnderline: true,
+        sx: {
+          fontSize: 22,
+          fontWeight: 600,
+          color: "#fff",
+          mb: 1,
+        },
+      }}
+    />
+        {/* Labels Display */}
+    <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mt: 1, mb: 1 }}>
+      {labels.map((label) => (
+        <Chip
+          key={label}
+          label={label}
+          onClick={() => handleToggleLabel(label)}
+          variant={noteLabels.includes(label) ? "filled" : "outlined"}
+          size="small"
+          sx={{
+            color: noteLabels.includes(label) ? "#000" : "#BDBDBD",
+            background: noteLabels.includes(label) ? "#f1f1f1" : "#f1f1f111",
+            "&hover": {
+              backgroundColor: "#f1f1f111",
+              color: "#fff"
+            },
+          }}
+        />
+      ))}
+    </Stack>
+
+    {/* Content */}
+    <TextField
+      placeholder="Start writing your note..."
+      value={noteContent}
+      onChange={(e) => setNoteContent(e.target.value)}
+      fullWidth
+      multiline
+      minRows={12}
+      variant="standard"
+      inputRef={noteContentRef}
+      InputProps={{
+        disableUnderline: true,
+        sx: { color: "#fff", fontFamily: "inherit", fontSize: 16 },
+      }}
+      sx={{ flex: 1, mb: 2 }}
+    />
+
+  </Box>
+
+    {/* Toolbar */}
+    <Box
+      sx={{ 
+        position: "sticky",
+        bottom: 0,
+        left: 0,
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 1,
+        mb: 2,
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: 1,
+        backgroundColor: "#414141",
+        borderRadius: 4,
+        backdropFilter: "blur(80px)"
+    }}>
+      
+      {["bold", "italic", "underline", "ul", "code"].map((action) => (
+        <Tooltip title={action.charAt(0).toUpperCase() + action.slice(1)} key={action}>
+          <IconButton onClick={() => applyFormat(action)} size="small" sx={{ color: "#fff", backgroundColor: "#ffffff11" }}>
+            {{
+              bold: <FormatBoldIcon />,
+              italic: <FormatItalicIcon />,
+              underline: <FormatUnderlinedIcon />,
+              ul: <FormatListBulletedIcon />,
+              code: <CodeIcon />,
+            }[action]}
+          </IconButton>
+        </Tooltip>
+      ))}
+
+
+      <Tooltip title="Add Collaborator">
+        <IconButton
+          onClick={() => setAddCollaboratorDrawerOpen(true)}
+          size="small"
+          sx={{
+            color: "#fff",
+            borderRadius: 2,
+            px: 0.6,
+            height: 36,
+            backgroundColor: "#ffffff11"
+          }}
+        >
+          <PersonAddIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Add Label">
+        <IconButton
+          onClick={() => setAddLabelDrawerOpen(true)}
+          size="small"
+          sx={{
+            color: "#fff",
+            borderRadius: 2,
+            px: 0.6,
+            height: 36,
+            backgroundColor: "#ffffff11"
+          }}
+        >
+          <LabelOutlinedIcon />
+        </IconButton>
+      </Tooltip>
+    </Box>
+          </SwipeableDrawer>
+
         <SwipeableDrawer
-          anchor="bottom"
-          open={editDrawerOpen}
-          onClose={() => setEditDrawerOpen(false)}
-          onOpen={() => {}}
-          disableSwipeToOpen={true}
-          disableDiscovery={true}
-          PaperProps={{
-            sx: {
-              borderTopLeftRadius: 0,
-              borderTopRightRadius: 0,
-              borderBottomLeftRadius: 0,
-              borderBottomRightRadius: 0,
-              backgroundColor: "#232526",
-              p: 3,
-              maxWidth: 480,
-              height: "95vh",
-              mx: "auto",
-            },
-          }}
-        >
-          <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-            Edit Note
-          </Typography>
-          <Stack spacing={2}>
-            <TextField
-              label="Title"
-              value={noteTitle}
-              onChange={e => setNoteTitle(e.target.value)}
-              fullWidth
-              variant="outlined"
-              InputProps={{ style: { color: "#fff" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
-            />
-            {/* Formatting Toolbar */}
-            <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
-              <Tooltip title="Bold">
-                <IconButton onClick={() => applyFormat("bold")} size="small">
-                  <FormatBoldIcon sx={{ color: "#fff" }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Italic">
-                <IconButton onClick={() => applyFormat("italic")} size="small">
-                  <FormatItalicIcon sx={{ color: "#fff" }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Underline">
-                <IconButton onClick={() => applyFormat("underline")} size="small">
-                  <FormatUnderlinedIcon sx={{ color: "#fff" }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Bulleted List">
-                <IconButton onClick={() => applyFormat("ul")} size="small">
-                  <FormatListBulletedIcon sx={{ color: "#fff" }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Numbered List">
-                <IconButton onClick={() => applyFormat("ol")} size="small">
-                  <FormatListNumberedIcon sx={{ color: "#fff" }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Code Block">
-                <IconButton onClick={() => applyFormat("code")} size="small">
-                  <CodeIcon sx={{ color: "#fff" }} />
-                </IconButton>
-              </Tooltip>
-            </Box>
-            {/* Collaborators */}
-            <Box>
-              <Typography variant="subtitle2" sx={{ color: "#BDBDBD", mb: 1 }}>
-                Collaborators:
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                {collaborators.map(uid => {
-                  const user = sharedUsersInfo[uid];
-                  return (
-                    <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: "#232526", borderRadius: 2, px: 1, py: 0.5 }}>
-                      <Avatar
-                        src={user?.photoURL || ""}
-                        alt={user?.username || "User"}
-                        sx={{ width: 24, height: 24, fontSize: 14, bgcolor: "#00f721", color: "#000" }}
-                      >
-                        {user?.username ? user.username[0].toUpperCase() : "U"}
-                      </Avatar>
-                      <Typography variant="body2" sx={{ color: "#BDBDBD", fontSize: 14 }}>
-                        {user?.username || uid.slice(0, 6) + "..."}
-                      </Typography>
-                      <IconButton size="small" onClick={() => handleRemoveCollaborator(uid)}>
-                        <DeleteOutlineIcon fontSize="small" sx={{ color: "#f44336" }} />
-                      </IconButton>
-                    </Box>
-                  );
-                })}
-                <Tooltip title="Add Collaborator">
-                  <IconButton
-                    onClick={() => setAddCollaboratorDrawerOpen(true)}
-                    size="small"
-                    sx={{ color: "#00f721", border: "1px solid #00f721", ml: 1 }}
-                  >
-                    <PersonAddIcon />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-            </Box>
-            {/* Labels */}
-            <Box>
-              <Typography variant="subtitle2" sx={{ color: "#BDBDBD", mb: 1 }}>
-                Labels:
-              </Typography>
-              <Stack direction="row" spacing={1}>
-                {labels.map(label => (
-                  <Chip
-                    key={label}
-                    icon={<LabelIcon sx={{ color: "#00f721" }} />}
-                    label={label}
-                    size="small"
-                    onClick={() => handleToggleLabel(label)}
-                    sx={{
-                      fontSize: "0.7rem",
-                      borderRadius: '10px',
-                      color: noteLabels.includes(label) ? "#00f721" : "#BDBDBD",
-                      background: noteLabels.includes(label) ? "#232526" : "#232526",
-                      border: noteLabels.includes(label) ? "1px solid #00f721" : "1px solid #444",
-                      cursor: "pointer",
-                    }}
-                    variant={noteLabels.includes(label) ? "filled" : "outlined"}
-                  />
-                ))}
-                <Tooltip title="Add Custom Label">
-                  <IconButton
-                    onClick={() => setAddLabelDrawerOpen(true)}
-                    size="small"
-                    sx={{ color: "#00f721", border: "1px solid #00f721", ml: 1 }}
-                  >
-                    <LabelOutlinedIcon />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-            </Box>
-            <TextField
-              label="Content"
-              value={noteContent}
-              onChange={e => setNoteContent(e.target.value)}
-              fullWidth
-              multiline
-              minRows={12}
-              variant="outlined"
-              inputRef={noteContentRef}
-              InputProps={{ style: { color: "#fff", fontFamily: "inherit" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
-              sx={{ flex: 1 }}
-            />
-            {error && (
-              <Typography color="error" sx={{ mt: 1 }}>
-                {error}
-              </Typography>
-            )}
-            <Button
-              variant="contained"
-              color="primary"
-              sx={{
-                borderRadius: 4,
-                px: 2,
-                py: 1,
-                color: "#000",
-                fontWeight: "bold",
-                mt: 2,
-              }}
-              onClick={handleEditNote}
-              disabled={saving}
-              fullWidth
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-          </Stack>
-        </SwipeableDrawer>
-
-                <SwipeableDrawer
           anchor="bottom"
           open={addCollaboratorDrawerOpen}
           onClose={() => setAddCollaboratorDrawerOpen(false)}
@@ -1487,7 +1448,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             <Avatar
               src={user?.photoURL || ""}
               alt={user?.username || "User"}
-              sx={{ width: 24, height: 24, fontSize: 14, bgcolor: "#00f721", color: "#000" }}
+              sx={{ width: 24, height: 24, fontSize: 14, bgcolor: buttonWeatherBg, color: "#000" }}
             >
               {user?.username ? user.username[0].toUpperCase() : "U"}
             </Avatar>
@@ -1508,14 +1469,14 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 {selectedNoteLabels.map(label => (
                   <Chip
                     key={label}
-                    icon={<LabelIcon sx={{ color: "#00f721" }} />}
+                    icon={<LabelIcon sx={{ color: buttonWeatherBg }} />}
                     label={label}
                     size="small"
                     sx={{
                       fontSize: "0.7rem",
                       borderRadius: '10px',
-                      color: '#fff',
-                      background: "#f4f4f436",
+                      color: buttonWeatherBg,
+                      background: WeatherBgdrop,
                     }}
                   />
                 ))}
@@ -1525,19 +1486,32 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
 
             <Box>
               <Box height={"-webkit-fill-available"}>
-                <Typography variant="body1" sx={{ mb: 2,color: "#fff", whiteSpace: "pre-line" }}>
+                <Typography variant="body1" sx={{ mb: 2, color: "#fff", whiteSpace: "pre-line" }}>
                 {selectedNote?.content}
               </Typography>
               </Box>
 
 
-            <Box sx={{ display: "flex", padding: 1, position: "sticky", right: 0, bottom: 0, backgroundColor: "#3f3f3f", justifyContent: "space-between", borderRadius: 4, alignContent: "center" }}>
+            <Box 
+              sx={{ 
+                display: "flex",
+                padding: 1,
+                position: "sticky",
+                right: 0,
+                bottom: 0,
+                backgroundColor: "#3f3f3f",
+                justifyContent: "space-between",
+                borderRadius: 4,
+                alignContent: "center"
+              }}>
               <Tooltip title="Edit">
               <IconButton
                 onClick={() => {
-                  setNoteTitle(selectedNote?.title || "");
-                  setNoteContent(selectedNote?.content || "");
+                  setSelectedNote(selectedNote);
+                  setNoteTitle(selectedNote.title || "");
+                  setNoteContent(selectedNote.content || "");
                   setEditDrawerOpen(true);
+                  setDrawerOpen(true);
                   setViewDrawerOpen(false);
                 }}
                 sx={{ color: "#fff", backgroundColor: "#f1f1f111", padding: 1 }}
@@ -1583,7 +1557,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   setNoteToDelete(selectedNote);
                   setDeleteDialogOpen(true);
                 }}
-                sx={{ color: "#ff0000", backgroundColor: "#ff000010", padding: 1 }}
+                sx={{ color: "#fbb", backgroundColor: "#ff000030", padding: 1 }}
               >
                 <DeleteOutlineIcon />
               </IconButton>
@@ -1595,18 +1569,19 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
 
         </SwipeableDrawer>
 
-        <Dialog
+<Dialog
   open={deleteDialogOpen}
   onClose={() => setDeleteDialogOpen(false)}
+  sx={{ padding: 2, borderRadius: "24px", }}
 >
-  <DialogTitle>Delete Note</DialogTitle>
+  <DialogTitle variant="title">Delete Note</DialogTitle>
   <DialogContent>
     <Typography>
       Are you sure you want to delete{" "}
       <strong>{noteToDelete?.title || "this note"}</strong>?
     </Typography>
   </DialogContent>
-  <DialogActions>
+  <DialogActions sx={{ mb: 2, mr: 2 }}>
     <Button onClick={() => setDeleteDialogOpen(false)} color="inherit">
       Cancel
     </Button>
@@ -1638,10 +1613,12 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             sx: {
               borderTopLeftRadius: 16,
               borderBottomLeftRadius: 16,
-              backgroundColor: "#232526",
+              backgroundColor: "#00000000",
+              backdropFilter: "blur(80px)",
               p: 3,
               maxWidth: 340,
-              width: 340,
+              width: 340, 
+              height: "95vh",
               mx: "auto",
             },
           }}
@@ -1653,7 +1630,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             <Stack spacing={2}>
               <Box>
                 <Typography variant="subtitle2" sx={{ color: "#BDBDBD" }}>Title:</Typography>
-                <Typography variant="body1">{selectedNote.title || "Untitled"}</Typography>
+                <Typography variant="title" sx={{ fontSize: "2rem" }}>{selectedNote.title || "Untitled"}</Typography>
               </Box>
               <Box>
                 <Typography variant="subtitle2" sx={{ color: "#BDBDBD" }}>Labels:</Typography>
@@ -1667,9 +1644,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                       sx={{
                         fontSize: "0.7rem",
                         borderRadius: '10px',
-                        color: '#00f721',
-                        background: "#232526",
-                        border: "1px solid #00f721",
+                        color: '#fff',
+                        background: "#f4f4f436",
                       }}
                     />
                   ))}
@@ -1681,15 +1657,15 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   {(selectedNote.sharedWith || []).map(uid => {
                     const user = sharedUsersInfo[uid];
                     return (
-                      <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: "#232526", borderRadius: 2, px: 1, py: 0.5 }}>
+                      <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: "#232526", borderRadius: 2, px: 0.5, py: 0.5 }}>
                         <Avatar
                           src={user?.photoURL || ""}
                           alt={user?.username || "User"}
-                          sx={{ width: 24, height: 24, fontSize: 14, bgcolor: "#00f721", color: "#000" }}
+                          sx={{ width: 24, height: 24, fontSize: 14, bgcolor: buttonWeatherBg, color: "#000" }}
                         >
                           {user?.username ? user.username[0].toUpperCase() : "U"}
                         </Avatar>
-                        <Typography variant="body2" sx={{ color: "#BDBDBD", fontSize: 14 }}>
+                        <Typography variant="body2" sx={{ color: "#BDBDBD", fontSize: 14, marginRight: 1 }}>
                           {user?.username || uid.slice(0, 6) + "..."}
                         </Typography>
                       </Box>
@@ -1709,17 +1685,17 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 <Typography variant="subtitle2" sx={{ color: "#BDBDBD" }}>Created By:</Typography>
                 <Stack direction="row" spacing={1}>
                   {selectedNote.owners && selectedNote.owners.length > 0 && (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, background: "#232526", borderRadius: 2, px: 1, py: 0.5 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, background: "#232526", borderRadius: 2, px: 0.5, py: 0.5 }}>
                       <Avatar
                         src={sharedUsersInfo[selectedNote.owners[0]]?.photoURL || ""}
                         alt={sharedUsersInfo[selectedNote.owners[0]]?.username || "User"}
-                        sx={{ width: 24, height: 24, fontSize: 14, bgcolor: "#00f721", color: "#000" }}
+                        sx={{ width: 24, height: 24, fontSize: 14, bgcolor: buttonWeatherBg, color: "#000" }}
                       >
                         {sharedUsersInfo[selectedNote.owners[0]]?.username
                           ? sharedUsersInfo[selectedNote.owners[0]].username[0].toUpperCase()
                           : "U"}
                       </Avatar>
-                      <Typography variant="body2" sx={{ color: "#BDBDBD", fontSize: 14 }}>
+                      <Typography variant="body2" sx={{ color: "#BDBDBD", fontSize: 14, marginRight: 1 }}>
                         {sharedUsersInfo[selectedNote.owners[0]]?.username ||
                           selectedNote.owners[0].slice(0, 6) + "..."}
                       </Typography>
@@ -1739,13 +1715,13 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           )}
         </SwipeableDrawer>
         
-          <IconButton
+          <Button
             size="medium"
-            sx={{ ml: 2, backgroundColor: "#fff", width: "70px", height: "70px", color: "#000", borderRadius: 1.5, boxShadow: "none", position: "fixed", bottom: 16, right: 16, zIndex: 999 }}
+            sx={{ ml: 2, backgroundColor: buttonWeatherBg, width: "70px", height: "70px", color: "#000", borderRadius: 1.5, boxShadow: "none", position: "fixed", bottom: 20, right: 20, zIndex: 999 }}
             onClick={() => setDrawerOpen(true)}
           >
             <AddIcon />
-          </IconButton>
+          </Button>
       </Box>
     </ThemeProvider>
   );

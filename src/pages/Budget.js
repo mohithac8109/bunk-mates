@@ -866,7 +866,7 @@ const canEditExpenses = (() => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon />
+                  <SearchIcon sx={{ color: buttonWeatherBg }} />
                 </InputAdornment>
               ),
             }}
@@ -894,21 +894,21 @@ const canEditExpenses = (() => {
 <Box sx={{ display: "flex", alignItems: "center", ml: "auto", gap: 1 }}>
   <IconButton
     aria-label={cardView === "grid" ? "List view" : "Grid view"}
-    color="#f0f0f0"
+    color="#000"
     onClick={() => setCardView(cardView === "grid" ? "list" : "grid")}
     sx={{
       borderRadius: 1,
       boxShadow: "inset 0 2px 8px #222",
-      background: "#181818",
+      background: WeatherBgdrop,
       transition: "all 0.2s",
       p: 1.2,
       // Make it look sunken/submerged always
     }}
   >
     {cardView === "grid" ? (
-      <ViewListIcon />
+      <ViewListIcon sx={{ color: buttonWeatherBg }} />
     ) : (
-      <ViewModuleIcon />
+      <ViewModuleIcon sx={{ color: buttonWeatherBg }} />
     )}
   </IconButton>
 </Box>
