@@ -757,8 +757,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
     label="All"
     onClick={() => setSelectedLabelFilter("All")}
     sx={{ 
-      color: selectedLabelFilter === "All" ? buttonWeatherBg : "default",
-      backgroundColor: selectedLabelFilter === "All" ? WeatherBgdrop : "default",
+      color: selectedLabelFilter === "All" ? "#000" : "default",
+      backgroundColor: selectedLabelFilter === "All" ? buttonWeatherBg : "default",
     }}
   />
 
@@ -766,8 +766,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
     label="📌 Pinned"
     onClick={() => setSelectedLabelFilter("Pinned")}
     sx={{ 
-      color: selectedLabelFilter === "Pinned" ? buttonWeatherBg : "default",
-      backgroundColor: selectedLabelFilter === "Pinned" ? WeatherBgdrop : "default",
+      color: selectedLabelFilter === "Pinned" ? "#000" : "default",
+      backgroundColor: selectedLabelFilter === "Pinned" ? buttonWeatherBg : "default",
     }}
   />
 
@@ -777,8 +777,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
       label={label}
       onClick={() => setSelectedLabelFilter(label)}
     sx={{ 
-      color: selectedLabelFilter === label ? buttonWeatherBg : "default",
-      backgroundColor: selectedLabelFilter === label ? WeatherBgdrop : "default",
+      color: selectedLabelFilter === label ? "#000" : "default",
+      backgroundColor: selectedLabelFilter === label ? buttonWeatherBg : "default",
     }}
     />
   ))}
@@ -1302,9 +1302,10 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           disableDiscovery={true}
           PaperProps={{
             sx: {
-              borderTopLeftRadius: 0,
-              borderTopRightRadius: 0,
-              backgroundColor: "#232526",
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              backgroundColor: "#0c0c0c00",
+              backdropFilter: "blur(80px)",
               p: 3,
               maxWidth: 400,
               mx: "auto",
@@ -1331,12 +1332,12 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             )}
             <Button
               variant="contained"
-              color="primary"
               sx={{
                 borderRadius: 4,
                 px: 2,
                 py: 1,
                 color: "#000",
+                background: buttonWeatherBg,
                 fontWeight: "bold",
               }}
               onClick={handleAddCollaboratorFromDrawer}
@@ -1357,9 +1358,10 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           disableDiscovery={true}
           PaperProps={{
             sx: {
-              borderTopLeftRadius: 0,
-              borderTopRightRadius: 0,
-              backgroundColor: "#232526",
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              backgroundColor: "#0c0c0c00",
+              backdropFilter: "blur(80px)",
               p: 3,
               maxWidth: 400,
               mx: "auto",
@@ -1381,12 +1383,12 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             />
             <Button
               variant="contained"
-              color="primary"
               sx={{
                 borderRadius: 4,
                 px: 2,
                 py: 1,
                 color: "#000",
+                background: buttonWeatherBg,
                 fontWeight: "bold",
               }}
               onClick={handleAddCustomLabel}

@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  Box, Avatar, Typography, TextField, IconButton, CircularProgress,
-  AppBar, Toolbar, Paper, Menu, MenuItem, Slide, Dialog, Divider, SwipeableDrawer, Stack, Chip
+  Box, Button, Avatar, Typography, TextField, IconButton, CircularProgress,
+  AppBar, Toolbar, Paper, Menu, MenuItem, Slide, Dialog, Divider, SwipeableDrawer, Stack, Chip, useTheme, keyframes, createTheme,
+  ThemeProvider
 } from '@mui/material';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { X, Phone, Video, MoreVertical } from 'lucide-react';
@@ -23,6 +24,7 @@ import {
 import { db, auth } from '../firebase';
 import { onAuthStateChanged } from "firebase/auth";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import TextFieldsIcon from '@mui/icons-material/TextFields';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
@@ -45,6 +47,147 @@ function showLocalNotification(title, options) {
     }
   }
 }
+
+// Fade-in animation keyframes
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Custom dark theme based on your detailed colors
+const theme = createTheme({
+  palette: {
+    mode: "dark",
+    background: {
+      default: "#02020200", // almost transparent black for main background
+      paper: "#0c0c0c", // deep black for dialogs/paper
+    },
+    primary: {
+      main: "#00f721", // bright green solid for buttons and accents
+      contrastText: "#000000", // black text on bright green buttons
+    },
+    secondary: {
+      main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
+    },
+    text: {
+      primary: "#FFFFFF", // pure white for main text
+      secondary: "#BDBDBD", // light grey for secondary text
+      disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
+    },
+    action: {
+      hover: "#00f721", // bright green hover for interactive elements
+      selected: "#131313", // dark black for selected states
+      disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
+      disabled: "#BDBDBD",
+    },
+    divider: "rgb(24, 24, 24)", // very dark grey for borders
+  },
+  typography: {
+    fontFamily: "Roboto, Arial, sans-serif",
+    h6: {
+      fontWeight: "bold",
+      color: "#FFFFFF",
+    },
+    body1: {
+      fontSize: "1rem",
+      lineHeight: "1.5",
+      color: "#FFFFFF",
+    },
+    body2: {
+      fontSize: "0.875rem",
+      color: "#BDBDBD",
+    },
+  },
+  shape: {
+    borderRadius: 12,
+  },
+  components: {
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#0c0c0c40",
+          backdropFilter: "blur(40px)", // dark grey/black for app bar background
+          boxShadow: "none",
+          borderBottom: "1px solid rgb(24, 24, 24, 0.5)",
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#2c2c2c00", // dark grey card background
+          color: "#FFFFFF",
+          boxShadow: "none",
+          borderRadius: 16,
+          transition: "box-shadow 0.3s ease, transform 0.3s ease",
+          cursor: "pointer",
+          "&:hover": {
+            transform: "translateY(-4px)",
+            backgroundColor: "#131313",
+          },
+          animation: `${fadeIn} 0.6s ease forwards`,
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: "none",
+          fontWeight: 600,
+          borderRadius: "12px",
+          transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+          color: "#000",
+          backgroundColor: "#fff",
+          "&:hover": {
+            backgroundColor: "#000",
+            color: "#fff",
+          },
+        },
+      },
+    },
+    MuiAvatar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#f0f0f0", // off-white avatar background
+          color: "#000",
+        },
+      },
+    },
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "#0c0c0c40", // deep black menu background
+          color: "#FFFFFF",
+          backdropFilter: "blur(40px)",
+          borderRadius: 10,
+          border: "1px solid rgb(24, 24, 24)",
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          "&:hover": {
+            backgroundColor: "#2c2c2c", // translucent dark green hover
+          },
+        },
+      },
+    },
+    MuiBox: {
+      styleOverrides: {
+        root: {
+          // General box overrides if needed
+        },
+      },
+    },
+  },
+});
 
 function ChatRoom() {
   const { friendId } = useParams();
@@ -70,7 +213,9 @@ function ChatRoom() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [nickname, setNickname] = useState('');
   const [editNickname, setEditNickname] = useState(false);
+  const [addNicknameDrawerOpen, setAddNicknameDrawerOpen] = useState(false);
   const [sharedBudgets, setSharedBudgets] = useState([]);
+  const muiTheme = useTheme();
 
   const scrollContainerRef = useRef(null);
   const chatId = currentUser && friendId ? [currentUser.uid, friendId].sort().join('_') : null;
@@ -496,7 +641,8 @@ useEffect(() => {
   }
   
   return (
-    <Box sx={{ backgroundColor: '#21212100', height: '98vh', display: 'flex', flexDirection: 'column', color: '#fff' }}>
+    <ThemeProvider theme={theme}>
+          <Box sx={{ backgroundColor: '#21212100', height: '98vh', display: 'flex', flexDirection: 'column', color: '#fff' }}>
       
       {/* Header */}
       <AppBar position="fixed" sx={{ backgroundColor: '#01010140', backdropFilter: 'blur(30px)', padding: '10px 0px', zIndex: 1100 }} elevation={1}>
@@ -1014,6 +1160,8 @@ useEffect(() => {
                 backgroundColor: '#0c0c0c0a',
                 backdropFilter: 'blur(70px)',
                 color: '#fff',
+                maxWidth: 470,
+                mx: "auto"
               }
             }}
           >
@@ -1041,21 +1189,17 @@ useEffect(() => {
                 <Typography variant="subtitle1" sx={{ color: '#aaa', mb: 0.5 }}>
                   @{friendDetails.username}
                 </Typography>
-                {friendDetails.email && (
-                  <Typography variant="body2" sx={{ color: '#aaa', mb: 0.5 }}>
-                    <strong>Email:</strong> {friendDetails.email}
+                  <Typography variant="body2" sx={{ backgroundColor: "#f1f1f111", px: 2, py: 0.5, borderRadius: 4, color: '#aaa', mb: 0.5 }}>
+                    {nickname ? nickname : friendDetails.name}
                   </Typography>
-                )}
-                {friendDetails.phone && (
-                  <Typography variant="body2" sx={{ color: '#aaa', mb: 0.5 }}>
-                    <strong>Phone:</strong> {friendDetails.phone}
-                  </Typography>
-                )}
                 {friendDetails.bio && (
-                  <Typography variant="body2" sx={{ color: '#aaa', mb: 0.5 }}>
+                  <Box sx={{ bgcolor: '#f1f1f111', color: '#fff', borderRadius: 0.7, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5, mt: 1 }}>
+                    <Typography variant="body2" sx={{ textAlign: "justify" ,color: '#aaa', mb: 0.5 }}>
                     <strong>Bio:</strong> {friendDetails.bio}
                   </Typography>
+                  </Box>
                 )}
+
                 {/* Show common groups and trips if available */}
                 {commonGroups && commonGroups.length > 0 && (
                   <Box sx={{ width: '100%', mt: 1 }}>
@@ -1077,35 +1221,6 @@ useEffect(() => {
                     </Stack>
                   </Box>
                 )}
-                <Box sx={{ width: '100%', mt: 2, mb: 1 }}>
-                  <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>Nickname:</Typography>
-                  {editNickname ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <TextField
-                        value={nickname}
-                        onChange={e => setNickname(e.target.value)}
-                        size="small"
-                        variant="outlined"
-                        sx={{ bgcolor: '#222', borderRadius: 1, input: { color: '#fff' } }}
-                      />
-                      <IconButton onClick={handleSaveNickname} color="success">
-                        <SaveIcon />
-                      </IconButton>
-                      <IconButton onClick={() => { setEditNickname(false); setNickname(nickname); }} color="error">
-                        <CloseIcon />
-                      </IconButton>
-                    </Box>
-                  ) : (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ color: '#aaa' }}>
-                        {nickname || <span style={{ color: '#555' }}>No nickname set</span>}
-                      </Typography>
-                      <IconButton onClick={() => setEditNickname(true)} color="primary" size="small">
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  )}
-                </Box>
 
                 {/* Shared Budgets */}
                 {sharedBudgets.length > 0 && (
@@ -1142,52 +1257,174 @@ useEffect(() => {
                 )}
 
                 {/* Action Buttons */}
-                <Stack direction="row" spacing={2} sx={{ mt: 3, mb: 2 }}>
+                <Stack direction="column" spacing={0.5} sx={{ mt: 3, mb: 2, backgroundColor: "#f1f1f100", borderRadius: 1, width: "100%", padding: 1 }}>
                   <IconButton
-                    color="primary"
-                    sx={{ bgcolor: '#222', color: '#00e676', borderRadius: 2 }}
+                    sx={{ bgcolor: '#f1f1f111', color: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomLeftRadius: 7, borderBottomRightRadius: 7, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5 }}
                     onClick={() => window.open(`mailto:${friendDetails.email}`, '_blank')}
                     disabled={!friendDetails.email}
                   >
                     <EmailOutlinedIcon />
+                      {friendDetails.email && (
+                        <Typography variant="body1" sx={{ fontSize: 16, color: '#aaa' }}>
+                          {friendDetails.email}
+                        </Typography>
+                      )}
                   </IconButton>
                   <IconButton
-                    color="primary"
-                    sx={{ bgcolor: '#222', color: '#00b0ff', borderRadius: 2 }}
-                    onClick={() => window.open(`tel:${friendDetails.phone}`, '_blank')}
-                    disabled={!friendDetails.phone}
+                    sx={{ bgcolor: '#f1f1f111', color: '#fff', borderRadius: 0.5, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5 }}
+                    onClick={() => window.open(`tel:${friendDetails.mobile}`, '_blank')}
+                    disabled={!friendDetails.mobile}
                   >
                     <PhoneOutlinedIcon />
+                {friendDetails.mobile && (
+                  <Typography variant="body1" sx={{ fontSize: 16, color: '#aaa' }}>
+                    {friendDetails.mobile}
+                  </Typography>
+                )}
                   </IconButton>
                   <IconButton
-                    color="primary"
-                    sx={{ bgcolor: '#222', color: '#fff', borderRadius: 2 }}
+                    sx={{ bgcolor: '#f1f1f111', color: '#fff', fontSize: 16, borderRadius: 0.5, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5 }}
                     onClick={() => setOpenProfile(false)}
                   >
                     <ChatOutlinedIcon />
+                    <Typography variant="body1" sx={{ fontSize: 16, color: '#aaa' }}>
+                      Send a Message
+                    </Typography>
                   </IconButton>
                   <IconButton
+                      onClick={() => {
+                        setAddNicknameDrawerOpen(true);
+                        setEditNickname(true);
+                      }}
+                      size="small"
+                      sx={{ bgcolor: '#f1f1f111', color: '#fff', borderRadius: 0.5, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5 }}
+                    >
+                      <TextFieldsIcon />
+                      <Typography variant="body1" sx={{ fontSize: 16, color: '#aaa' }}>
+                        Add a Nickname
+                      </Typography>
+                    </IconButton>
+                  <IconButton
                     color="error"
-                    sx={{ bgcolor: '#222', borderRadius: 2 }}
+                    sx={{ bgcolor: '#f1f1f111', color: '#ff6767', fontSize: 16, borderRadius: 0.5, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5 }}
                     onClick={handleClearChat}
                   >
                     <DeleteOutlineIcon />
+                    <Typography variant="body1" sx={{ fontSize: 16, color: '#ff6767' }}>
+                      Delete Chat
+                    </Typography>
                   </IconButton>
                   <IconButton
                     color="error"
-                    sx={{ bgcolor: '#222', borderRadius: 2 }}
+                    sx={{ bgcolor: '#f1f1f111', color: '#ff6767', fontSize: 16, borderTopLeftRadius: 7, borderTopRightRadius: 7, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5 }}
                     onClick={handleRemoveFriend}
                   >
                     <RemoveCircleOutlineIcon />
+                    <Typography variant="body1" sx={{ fontSize: 16, color: '#ff6767' }}>
+                      Remove from Friend
+                    </Typography>
                   </IconButton>
                 </Stack>
               </Box>
             </Box>
           </SwipeableDrawer>
+
+          
+                  <SwipeableDrawer
+                    anchor="bottom"
+                    open={addNicknameDrawerOpen}
+                    onClose={() => setAddNicknameDrawerOpen(false)}
+                    onOpen={() => {}}
+                    disableSwipeToOpen={true}
+                    disableDiscovery={true}
+                    PaperProps={{
+                      sx: {
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        backgroundColor: "#00000011",
+                        backdropFilter: "blur(80px)",
+                        p: 3,
+                        maxWidth: 400,
+                        mx: "auto",
+                      },
+                    }}
+                  >
+                  <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>Add a Nickname</Typography>
+                  {editNickname ? (
+                    <Box sx={{ display: 'flex', mt: 2, flexDirection: "column", alignItems: 'center', gap: 1 }}>
+                      <TextField
+                        value={nickname}
+                        label={"Nickname"}
+                        onChange={e => setNickname(e.target.value)}
+                        size="small"
+                        fullWidth
+                        variant="outlined"
+                        sx={{ 
+                          borderRadius: 1,
+                          input: { color: '#fff' }
+                        }}
+                        InputProps={{
+                          disableUnderline: true,
+                          sx: {
+                            fontSize: 22,
+                            fontWeight: 600,
+                            color: "#fff",
+                            mb: 1,
+                          },
+                        }}
+                        InputLabelProps={{ 
+                          style: { color: "#aaa" }
+                        }}
+                      />
+                      <Box 
+                      display={"flex"} 
+                      sx={{
+                        width: "100%",
+                        gap: 2,
+                      }}
+                      >
+                        <Button
+                        sx={{ 
+                          backgroundColor: "#f1f1f111",
+                          fontSize: 14,
+                          color: "#fff",
+                          width: "100vw",
+                          px: 2,
+                          py: 1,
+                          borderRadius: 14, 
+                        }}  
+                        onClick={() => { 
+                          setEditNickname(false); 
+                          setNickname(nickname);
+                        }}>
+                          Close
+                        </Button>
+                        <Button 
+                        sx={{ 
+                          backgroundColor: "#f1f1f1",
+                          fontSize: 14,
+                          color: "#000",
+                          width: "100vw",
+                          px: 2,
+                          py: 1,
+                          borderRadius: 14 
+                        }} 
+                        onClick={handleSaveNickname}>
+                          Save
+                        </Button>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography>
+                      Unable to edit Nickname
+                    </Typography>
+                  )}
+                  </SwipeableDrawer>
         </motion.div>
       </Box>
     </Box>
+    </ThemeProvider>
+
   );
 }
-
 export default ChatRoom;
