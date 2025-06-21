@@ -349,41 +349,38 @@ const ProfilePic = () => {
     }
   }, [drawerOpen, drawerPage, navigate]);
 
-
   // Save profile changes
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const userRef = doc(firestore, "users", auth.currentUser.uid);
-      await setDoc(userRef, {
-        name: userData.name,
-        username: userData.username,
-        email: userData.email,
-        mobile: userData.mobile,
-        photoURL: userData.photoURL,
-        bio: userData.bio,
-      });
+const handleSave = async () => {
+  setIsSaving(true);
 
-      if (userData.photoURL) {
-        await updateProfile(auth.currentUser, {
-          displayName: userData.name,
-          photoURL: userData.photoURL,
-        });
-      } else {
-        await updateProfile(auth.currentUser, {
-          displayName: userData.name,
-        });
-      }
+  // Shorten the photoURL if needed (only if it's a link)
 
-      setIsSaving(false);
-      alert("Profile updated successfully!");
-      setDrawerPage("main"); // Return to main drawer page after save
-    } catch (error) {
-      setIsSaving(false);
-      console.error("Error saving profile", error);
-      alert("Failed to update profile");
-    }
-  };
+  try {
+    const userRef = doc(firestore, "users", auth.currentUser.uid);
+    await setDoc(userRef, {
+      name: userData.name,
+      username: userData.username,
+      email: userData.email,
+      mobile: userData.mobile,
+      photoURL: userData.photoURL,
+      bio: userData.bio,
+    });
+
+    await updateProfile(auth.currentUser, {
+      displayName: userData.name,
+      photoURL: userData.photoURL || undefined,
+    });
+
+    setIsSaving(false);
+    alert("Profile updated successfully!");
+    setDrawerPage("main");
+  } catch (error) {
+    setIsSaving(false);
+    console.error("Error saving profile", error);
+    alert("Failed to update profile");
+  }
+};
+
 
   const handleDrawerOpen = () => {
     setDrawerOpen(true);
@@ -924,13 +921,14 @@ sx={{
           ) : (
             <>
               {/* Profile Picture */}
-              <Box sx={{ display: "flex", alignItems: "center",justifyContent: "center", mb: 3 }}>
-                <Avatar
-                  alt={userData.name}
-                  src={userData.photoURL || ""}
-                  sx={{ width: 140, height: 140, mr: 2 }}
-                />
-              </Box>
+<Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3 }}>
+  <Avatar
+    alt={userData.name}
+    src={userData.photoURL || ""}
+    sx={{ width: 140, height: 140, mb: 1 }}
+  />
+</Box>
+
 
               {/* Name */}
               <TextField

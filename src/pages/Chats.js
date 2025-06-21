@@ -814,6 +814,7 @@ const combinedChats = [
           >
             {chat.type === 'group' ? (
               <Avatar
+                src={chat.iconURL ? chat.iconURL : ""}
                 sx={{
                   bgcolor: '#f0f0f0',
                   color: '#000',
@@ -823,7 +824,7 @@ const combinedChats = [
                   marginRight: 2,
                 }}
               >
-                {chat.emoji || chat.name?.[0]?.toUpperCase() || ''}
+                  {(chat.iconURL || chat.emoji || chat.name?.[0]?.toUpperCase() || 'G')}
               </Avatar>
             ) : (
               <Avatar

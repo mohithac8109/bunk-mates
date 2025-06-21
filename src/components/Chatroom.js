@@ -144,10 +144,6 @@ const theme = createTheme({
           transition: "background-color 0.3s ease, box-shadow 0.3s ease",
           color: "#000",
           backgroundColor: "#fff",
-          "&:hover": {
-            backgroundColor: "#000",
-            color: "#fff",
-          },
         },
       },
     },
@@ -449,27 +445,12 @@ useEffect(() => {
   }, [messages]);
 
 
-  const handleScroll = () => {
-    const scrollEl = scrollContainerRef.current;
-    if (!scrollEl) return;
+  const bottomRef = useRef(null);
 
-    const atBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 100;
-    setIsAtBottom(atBottom);
+    useEffect(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
-    if (atBottom) {
-      setNewMessagesCount(0); // Reset if user scrolls down
-    }
-  };
-
-  useEffect(() => {
-    const scrollEl = scrollContainerRef.current;
-    if (scrollEl) {
-      scrollEl.addEventListener('scroll', handleScroll);
-    }
-    return () => {
-      if (scrollEl) scrollEl.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
 
 
   useEffect(() => {
@@ -645,8 +626,19 @@ useEffect(() => {
           <Box sx={{ backgroundColor: '#21212100', height: '98vh', display: 'flex', flexDirection: 'column', color: '#fff' }}>
       
       {/* Header */}
-      <AppBar position="fixed" sx={{ backgroundColor: '#01010140', backdropFilter: 'blur(30px)', padding: '10px 0px', zIndex: 1100 }} elevation={1}>
-        <Toolbar>
+      <AppBar
+        position="fixed"
+        sx={{
+          background: 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)',
+          backdropFilter: 'blur(0px)',
+          padding: '10px 10px',
+          borderBottom: "none",
+          zIndex: 1100 
+        }}
+        elevation={1}
+      >
+        <Box display={"flex"} justifyContent={"space-between"} alignItems={"center"}>
+          <Box display={"flex"} alignItems={"center"}>
           <IconButton onClick={goBack} sx={{ mr: 1, color: '#fff' }}>
             <ArrowBackIcon />
           </IconButton>
@@ -660,7 +652,15 @@ useEffect(() => {
               {friendDetails.status}
             </Typography>
           </Box>
-        </Toolbar>
+          </Box>
+                  <IconButton
+                    sx={{ color: '#fff', backgroundColor: "#181818", backdropFilter: "blur(80px)", borderRadius: 5, py: 1.4, px: 1.4, display: "flex", alignItems: "center", mr: 2 }}
+                    onClick={() => window.open(`tel:${friendDetails.mobile}`, '_blank')}
+                    disabled={!friendDetails.mobile}
+                  >
+                    <PhoneOutlinedIcon />
+                  </IconButton>
+        </Box>
       </AppBar>
 
       {/* Messages */}
@@ -869,7 +869,7 @@ useEffect(() => {
                     <button
                       className="scroll-to-bottom-btn"
                       onClick={() => {
-                        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
                         setNewMessagesCount(0);
                       }}
                     >
@@ -907,6 +907,7 @@ useEffect(() => {
         </Paper>
       )}
 
+          <div ref={bottomRef} />
       {/* Input Field */}
       <Box
         component="form"
@@ -916,11 +917,12 @@ useEffect(() => {
           display: 'flex',
           position: 'fixed',
           bottom: 0,
-          width: '94vw',
+          left: 0,
+          width: '95vw',
           alignItems: 'center',
+          zIndex: '1200',
           borderTop: '0px solid #5E5E5E',
-          bgcolor: '#01010140',
-          backdropFilter: 'blur(30px)'
+          background: 'linear-gradient(to top, #000000, #00000090, #00000000)',
         }}
       >
         <TextField
@@ -933,13 +935,14 @@ useEffect(() => {
           position="fixed"
           elevation={1}
           sx={{
-            zIndex: '1100',
+            zIndex: '1500',
             mr: 1,
             borderRadius: '40px',
             input: {
               color: '#FFFFFF',
               height: '40px',
-              borderRadius: '40px'
+              borderRadius: '40px',
+              backdropFilter: "blur(30px)",
             },
             '& .MuiOutlinedInput-root': {
               '& fieldset': {
@@ -960,9 +963,9 @@ useEffect(() => {
             }
           }}
         />
-        <IconButton type="submit" sx={{ backgroundColor: '#00f721', height: '50px', width: '50px' }} disabled={isSending}>
+        <Button type="submit" sx={{ backgroundColor: '#00f721', height: '50px', width: '50px', borderRadius: 4, }} disabled={isSending}>
           {isSending ? <CircularProgress size={24} sx={{ color: '#000' }} /> : <SendIcon sx={{ color: '#000' }} />}
-        </IconButton>
+        </Button>
       </Box>
 
       {/* Context Menu */}
@@ -1154,9 +1157,10 @@ useEffect(() => {
             onOpen={() => {}}
             PaperProps={{
               sx: {
-                height: '85vh',
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
+                height: '80vh',
+                border: "transparent",
+                borderTopLeftRadius: 25,
+                borderTopRightRadius: 25,
                 backgroundColor: '#0c0c0c0a',
                 backdropFilter: 'blur(70px)',
                 color: '#fff',
