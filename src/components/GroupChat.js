@@ -291,6 +291,7 @@ function GroupChat() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const safeResults = Array.isArray(searchResults) ? searchResults : [];
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [addUserDialog, setAddUserDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -311,6 +312,7 @@ function GroupChat() {
   const [groupIconValue, setGroupIconValue] = useState(groupInfo?.iconURL || "");
   const [editingGroupInfo, setEditingGroupInfo] = useState(false);
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
+  const addedBy = user?.displayName || user?.email || "Someone";
   
   const isAdmin = groupInfo?.createdBy === user?.uid;
 
@@ -563,32 +565,47 @@ const handleBatchAddUsers = async () => {
   if (!groupName || selectedUsers.length === 0) return;
 
   try {
+    const user = auth.currentUser;
     const groupRef = doc(db, "groupChats", groupName);
 
-    // Add all users in one update
+    // Step 1: Add all users to members array
     await updateDoc(groupRef, {
       members: arrayUnion(...selectedUsers),
     });
 
-    // Send one system message
+    // Step 2: Generate readable names from selectedUsers using searchResults
     const addedNames = searchResults
-      .filter((u) => selectedUsers.includes(u.uid))
-      .map((u) => u.username || "Someone");
+      ?.filter((u) => u && selectedUsers.includes(u.uid))
+      .map((u) => u?.username || u?.displayName || u?.email || u.uid.slice(0, 6));
 
+    // Step 3: Fallback in case names array is empty
+    const nameList =
+      addedNames.length > 0
+        ? addedNames
+        : selectedUsers.map((uid) => uid.slice(0, 6));
+
+    // Step 4: Who added them
+    const addedBy = user?.displayName || user?.email || "Someone";
+    const byText = user?.uid === groupInfo?.createdBy ? "You" : addedBy;
+
+    // Step 5: Final system message
+    const message = `${byText} added ${nameList.join(", ")} to the group.`;
+
+    // Step 6: Send system message to group chat
     await addDoc(collection(db, "groupChat", groupName, "messages"), {
       type: "system",
-      content: `${addedNames.join(", ")} ${addedNames.length > 1 ? "were" : "was"} added to the group.`,
+      content: message,
       timestamp: serverTimestamp(),
     });
 
-    // Reset state
+    // Step 7: Reset UI state
     setSelectedUsers([]);
     setSearchTerm('');
     setSearchResults([]);
     setAddUserDialogOpen(false);
-    console.log("Users added.");
+    console.log("✅ Users added to group with system message.");
   } catch (err) {
-    console.error("Failed to add users:", err.message);
+    console.error("❌ Failed to add users:", err.message);
   }
 };
 
@@ -1497,13 +1514,14 @@ const handleBatchAddUsers = async () => {
               )}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
          <Tooltip title="Call">
-          <IconButton
-            onClick={() => window.open(`tel:${member.mobile}`, '_blank')}
-            disabled={!member.mobile}
-            sx={{ color: "#fff", backgroundColor: "#f1f1f111", padding: 1 }}
-          >
+          {member?.mobile ? (
+            <IconButton
+              onClick={() => window.open(`tel:${member.mobile}`, '_self')}
+              sx={{ color: "#fff", backgroundColor: "#f1f1f111", padding: 1 }}
+            >
               <PhoneOutlinedIcon />
             </IconButton>
+          ) : null}
         </Tooltip>
         {/* Show "Remove" button only if admin AND not removing self */}
         {isAdmin && memberUid !== user?.uid && (
@@ -1526,6 +1544,32 @@ const handleBatchAddUsers = async () => {
 </Stack>
 </List>
  </Box>
+
+ <Dialog
+  open={confirmDialogOpen}
+  onClose={() => setConfirmDialogOpen(false)}
+>
+  <DialogTitle>Remove Member</DialogTitle>
+  <DialogContent>
+    <Typography>
+      Are you sure you want to remove this member from the group?
+    </Typography>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+    <Button
+      onClick={async () => {
+        await handleRemoveMember(selectedMemberToRemove);
+        setConfirmDialogOpen(false);
+      }}
+      color="error"
+      variant="contained"
+    >
+      Remove
+    </Button>
+  </DialogActions>
+</Dialog>
+
 
           </Box>
               <Box
