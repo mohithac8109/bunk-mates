@@ -568,46 +568,59 @@ const handleBatchAddUsers = async () => {
     const user = auth.currentUser;
     const groupRef = doc(db, "groupChats", groupName);
 
-    // Step 1: Add all users to members array
+    // Step 1: Add users to Firestore members array
     await updateDoc(groupRef, {
       members: arrayUnion(...selectedUsers),
     });
 
-    // Step 2: Generate readable names from selectedUsers using searchResults
-    const addedNames = searchResults
-      ?.filter((u) => u && selectedUsers.includes(u.uid))
-      .map((u) => u?.username || u?.displayName || u?.email || u.uid.slice(0, 6));
+    // Step 2: Attempt to map selectedUsers to usernames from searchResults
+    const localNames = searchResults
+      ?.filter(u => u && selectedUsers.includes(u.uid))
+      .map(u => u?.username || u?.displayName || u?.email);
 
-    // Step 3: Fallback in case names array is empty
-    const nameList =
-      addedNames.length > 0
-        ? addedNames
-        : selectedUsers.map((uid) => uid.slice(0, 6));
+    // Step 3: Fallback – fetch missing profiles from Firestore
+    const missingUids = selectedUsers.filter(
+      uid => !searchResults?.some(u => u?.uid === uid)
+    );
 
-    // Step 4: Who added them
+    const fetchedNames = [];
+    for (const uid of missingUids) {
+      const userDoc = await getDoc(doc(db, "users", uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        fetchedNames.push(data.username || data.displayName || data.email || uid.slice(0, 6));
+      } else {
+        fetchedNames.push(uid.slice(0, 6));
+      }
+    }
+
+    const fullNameList = [...(localNames || []), ...fetchedNames];
+
+    // Step 4: Identify the adder
     const addedBy = user?.displayName || user?.email || "Someone";
     const byText = user?.uid === groupInfo?.createdBy ? "You" : addedBy;
 
-    // Step 5: Final system message
-    const message = `${byText} added ${nameList.join(", ")} to the group.`;
+    // Step 5: Final message
+    const message = `${byText} added ${fullNameList.join(", ")} to the group.`;
 
-    // Step 6: Send system message to group chat
+    // Step 6: Send system message
     await addDoc(collection(db, "groupChat", groupName, "messages"), {
       type: "system",
       content: message,
       timestamp: serverTimestamp(),
     });
 
-    // Step 7: Reset UI state
+    // Step 7: Reset UI
     setSelectedUsers([]);
     setSearchTerm('');
     setSearchResults([]);
     setAddUserDialogOpen(false);
-    console.log("✅ Users added to group with system message.");
+    console.log("✅ Users added with proper system message.");
   } catch (err) {
     console.error("❌ Failed to add users:", err.message);
   }
 };
+
 
 
     useEffect(() => {
@@ -963,29 +976,45 @@ const handleBatchAddUsers = async () => {
                   {date}
                 </Typography>
                 {groupedMessages[date].map((msg) => {
-                      if (msg.type === "system") {
-    return (
-      <Typography
-        key={msg.id}
-        variant="caption"
+if (msg.type === "system") {
+  return (
+    <Box
+      key={msg.id}
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        mb: 1,
+        mt: 1,
+      }}
+    >
+      <Box
         sx={{
-          textAlign: "center",
-          color: "#b5b5b5",
-          my: 2,
-          fontStyle: "italic",
-          fontSize: "13px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 0.5,
           backgroundColor: "#ffffff0a",
           borderRadius: 2,
           px: 2,
           py: 0.5,
-          width: "fit-content",
-          mx: "auto",
         }}
       >
-        {msg.content}
-      </Typography>
-    );
-  }
+        <Typography
+          variant="caption"
+          sx={{
+            color: "#b5b5b5",
+            fontStyle: "italic",
+            fontSize: "13px",
+            textAlign: "center",
+          }}
+        >
+          {msg.content}
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
                     return(
                       <Box
   key={msg.id}

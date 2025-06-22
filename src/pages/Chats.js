@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { auth, db } from '../firebase';
+import { onAuthStateChanged } from "firebase/auth";
 import {
   collection,
   getDocs,
@@ -207,10 +208,11 @@ function Chats({ onlyList }) {
   const [friends, setFriends] = useState([]);
   const [nicknames, setNicknames] = useState({});
   const navigate = useNavigate();
-  const currentUser = auth.currentUser;
+  const [currentUser, setCurrentUser] = useState(null);
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   const { settings, setTheme, setAccent, setAutoAccent } = useSettings();
   const [dynamicTheme, setDynamicTheme] = useState(theme);
+
 
   useEffect(() => {
   // Request notification permission and FCM token
@@ -239,7 +241,12 @@ function Chats({ onlyList }) {
   };
 }, []);
 
-
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    setCurrentUser(user);
+  });
+  return () => unsubscribe();
+}, []);
 
   const weatherBg =
   weather && weatherGradients[weather.main]
@@ -258,7 +265,7 @@ function Chats({ onlyList }) {
     : weatherbgColors.Default;
 
 
-    const [userData, setUserData] = useState({
+const [userData, setUserData] = useState({
   name: "",
   username: "",
   email: "",
@@ -291,15 +298,15 @@ useEffect(() => {
     // If user is authenticated, use Firebase user object
     const { displayName, email, photoURL, phoneNumber, userBio, uid } = user;
     setUserData({
-      name: displayName || "User",
-      email: email || "",
-      mobile: phoneNumber || "Not provided",
-      photoURL: photoURL || "",
-      bio: userBio || "",
-      uid: uid || "",
-    });
-  }
-}, []);
+        name: displayName || "User",
+        email: email || "",
+        mobile: phoneNumber || "Not provided",
+        photoURL: photoURL || "",
+        bio: userBio || "",
+        uid: uid || "",
+      });
+    }
+  }, []);
 
   useEffect(() => {
   if (!weather) {
@@ -447,21 +454,28 @@ useEffect(() => {
     setGroupEmoji('💬');
   };
 
-  useEffect(() => {
-    const unsubs = onSnapshot(doc(db, "userChats", currentUser.uid), (docSnap) => {
-      if (docSnap.exists()) {
-        const chatsData = docSnap.data();
-        const sortedChats = Object.entries(chatsData).sort((a, b) => b[1].date?.seconds - a[1].date?.seconds);
-        setUsers(sortedChats.map(([chatId, data]) => ({
+useEffect(() => {
+  if (!currentUser) return;
+
+  const unsubs = onSnapshot(doc(db, "userChats", currentUser.uid), (docSnap) => {
+    if (docSnap.exists()) {
+      const chatsData = docSnap.data();
+      const sortedChats = Object.entries(chatsData).sort(
+        (a, b) => b[1].date?.seconds - a[1].date?.seconds
+      );
+      setUsers(
+        sortedChats.map(([chatId, data]) => ({
           ...data.userInfo,
           chatId,
           lastMessage: data.lastMessage?.text || '',
-        })));
-      }
-    });
-  
-    return () => unsubs();
-  }, []);
+        }))
+      );
+    }
+  });
+
+  return () => unsubs();
+}, [currentUser]);
+
   
   useEffect(() => {
     const fetchUsers = async () => {
@@ -478,34 +492,45 @@ useEffect(() => {
     fetchUsers();
   }, [currentUser]);
 
-  useEffect(() => {
-    if (!currentUser || users.length === 0) return;
+useEffect(() => {
+  if (!currentUser || users.length === 0) return;
 
-    const unsubscribes = users.map((user) => {
-      const chatId = [currentUser.uid, user.id].sort().join('_');
-      const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('timestamp', 'desc'), limit(1));
+  const unsubscribes = users.map((user) => {
+    const chatId = [currentUser.uid, user.id].sort().join('_');
+    const q = query(
+      collection(db, 'chats', chatId, 'messages'),
+      orderBy('timestamp', 'desc'),
+      limit(1)
+    );
 
-      return onSnapshot(q, (snapshot) => {
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          const msg = data.text || 'No messages yet';
-          const ts = data.timestamp?.toDate?.() || new Date(0);
-          const unread = data.senderId !== currentUser.uid && !data.isRead ? 1 : 0;
+    return onSnapshot(q, (snapshot) => {
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const msg = data.system
+          ? `[System] ${data.text}`
+          : data.text || 'No messages yet';
+        const ts = data.timestamp?.toDate?.() || new Date(0);
+        const unread =
+          data.senderId !== currentUser.uid && !data.isRead ? 1 : 0;
 
-          setLatestMessages((prev) => ({ ...prev, [user.id]: msg }));
-          setUnreadCounts((prev) => ({ ...prev, [user.id]: unread }));
-          setLatestTimestamps((prev) => ({ ...prev, [user.id]: ts }));
+        setLatestMessages((prev) => ({ ...prev, [user.id]: msg }));
+        setUnreadCounts((prev) => ({ ...prev, [user.id]: unread }));
+        setLatestTimestamps((prev) => ({ ...prev, [user.id]: ts }));
 
-          if (unread) {
-            setNotification({ user: user.name || user.username, message: msg });
-            setTimeout(() => setNotification(null), 3000);
-          }
-        });
+        if (unread) {
+          setNotification({
+            user: user.name || user.username || 'Unknown',
+            message: msg,
+          });
+          setTimeout(() => setNotification(null), 3000);
+        }
       });
     });
+  });
 
-    return () => unsubscribes.forEach((unsub) => unsub && unsub());
-  }, [users, currentUser]);
+  return () => unsubscribes.forEach((unsub) => unsub && unsub());
+}, [users, currentUser]);
+
 
   useEffect(() => {
     const fetchUserGroups = async () => {
@@ -521,36 +546,45 @@ useEffect(() => {
     fetchUserGroups();
   }, [currentUser]);
 
-  useEffect(() => {
-    if (!currentUser || userGroups.length === 0) return;
+useEffect(() => {
+  if (!currentUser || userGroups.length === 0) return;
 
-    const unsubscribes = userGroups.map((group) => {
-      const q = query(collection(db, 'groupChat', group.id, 'messages'), orderBy('timestamp', 'desc'), limit(1));
+  const unsubscribes = userGroups.map((group) => {
+    const q = query(
+      collection(db, 'groupChat', group.id, 'messages'),
+      orderBy('timestamp', 'desc'),
+      limit(1)
+    );
 
-      return onSnapshot(q, (snapshot) => {
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          const msg = {
-            text: data.text || 'No messages yet',
-            senderName: data.senderName || 'Unknown',
-          };
-          const ts = data.timestamp?.toDate?.() || new Date(0);
-          const unread = data.senderId !== currentUser.uid && !data.isRead ? 1 : 0;
+    return onSnapshot(q, (snapshot) => {
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const isSystem = data.type === "system";
 
-          setLatestGroupMessages((prev) => ({ ...prev, [group.id]: msg }));
-          setGroupUnreadCounts((prev) => ({ ...prev, [group.id]: unread }));
-          setLatestGroupTimestamps((prev) => ({ ...prev, [group.id]: ts }));
+        const msg = {
+          text: isSystem
+            ? `${data.content}`
+            : data.text || 'No messages yet',
+          senderName: isSystem ? 'System' : data.senderName || 'Unknown',
+        };
 
-          if (unread) {
-            setNotification({ user: group.name, message: msg.text });
-            setTimeout(() => setNotification(null), 3000);
-          }
-        });
+        const ts = data.timestamp?.toDate?.() || new Date(0);
+        const unread = data.senderId !== currentUser.uid && !data.isRead ? 1 : 0;
+
+        setLatestGroupMessages((prev) => ({ ...prev, [group.id]: msg }));
+        setGroupUnreadCounts((prev) => ({ ...prev, [group.id]: unread }));
+        setLatestGroupTimestamps((prev) => ({ ...prev, [group.id]: ts }));
+
+        if (unread) {
+          setNotification({ user: group.name, message: msg.text });
+          setTimeout(() => setNotification(null), 3000);
+        }
       });
     });
+  });
 
-    return () => unsubscribes.forEach((unsub) => unsub && unsub());
-  }, [userGroups, currentUser]);
+  return () => unsubscribes.forEach((unsub) => unsub && unsub());
+}, [userGroups, currentUser]);
 
   const goBack = () => {
     history(-1);
@@ -558,6 +592,7 @@ useEffect(() => {
 
 
   const handleSelect = async (userId) => {
+    if (!currentUser) return;
     const chatId = [currentUser.uid, userId].sort().join('_');
     const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('timestamp', 'desc'), limit(20));
     const snapshot = await getDocs(q);
@@ -642,6 +677,15 @@ const handleAddFriend = async (userToAdd) => {
 // Only show chats with friends
 const friendUsers = users.filter(u => friends.includes(u.id));
 
+  if (currentUser === null) {
+  return (
+    <ThemeProvider theme={theme}>
+      <div style={{ padding: '20px', color: '#fff', textAlign: 'center' }}>
+        Loading chats...
+      </div>
+    </ThemeProvider>
+  );
+}
 
 const combinedChats = [
   ...friendUsers.map((user) => ({
@@ -658,6 +702,7 @@ const combinedChats = [
     id: group.id,
     name: group.name,
     emoji: group.emoji,
+    iconURL: group.iconURL || "",
     lastMessage: latestGroupMessages[group.id]?.text,
     timestamp: latestGroupTimestamps[group.id] || new Date(0),
     unreadCount: groupUnreadCounts[group.id] || 0,
@@ -784,8 +829,9 @@ const combinedChats = [
             color: '#f0f0f0',
             padding: '10px 20px',
             borderRadius: '12px',
-            width: '330px',
+            width: '80vw',
             height: 'auto',
+            mx: "auto",
             boxShadow: '0 4px 6px rgba(0, 0, 0, 0.06)',
             fontSize: '14px',
             zIndex: 1000,
@@ -796,7 +842,9 @@ const combinedChats = [
       )}
 
       <div>
+        
         {combinedChats.map((chat) => (
+          
           <div
             key={chat.id}
             onClick={() => chat.type === 'user' ? handleSelect(chat.id) : handleGroupClick(chat.id)}
@@ -843,9 +891,21 @@ const combinedChats = [
               <p style={{ margin: 0, fontWeight: 'bold', color: '#FFFFFF' }}>
                 {chat.name}
               </p>
-              <p style={{ margin: 0, color: '#BDBDBD' }}>
-                {chat.lastMessage || 'No messages yet'}
+              <p
+                style={{
+                  margin: 0,
+                  color: '#BDBDBD',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '100%',
+                }}
+              >
+                {(chat.lastMessage?.length > 30
+                  ? chat.lastMessage.slice(0, 26) + '...'
+                  : chat.lastMessage) || 'No messages yet'}
               </p>
+
               <span style={{ fontSize: '12px', color: '#BDBDBD' }}>
                 {formatTimestamp(chat.timestamp)}
               </span>
