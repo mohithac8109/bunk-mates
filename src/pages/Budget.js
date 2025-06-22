@@ -26,7 +26,8 @@ import {
   createTheme,
   InputAdornment,
   MenuItem,
-  Menu
+  Menu,
+  SwipeableDrawer
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import Card from "@mui/material/Card";
@@ -1465,7 +1466,7 @@ const canEditExpenses = (() => {
 
 
 
-                <Drawer
+                <SwipeableDrawer
   anchor="right"
   open={aboutDrawerOpen}
   onClose={() => setAboutDrawerOpen(false)}
@@ -1475,6 +1476,7 @@ const canEditExpenses = (() => {
       backdropFilter: "blur(80px)",
       color: "#fff",
       p: 3,
+      width: "90vw"
     },
   }}
 >
@@ -1573,7 +1575,7 @@ const canEditExpenses = (() => {
       Only the owner (admin) can manage contributor roles and permissions.
     </Typography>
   </Box>
-</Drawer>
+                </SwipeableDrawer>
               </>
             )}
 

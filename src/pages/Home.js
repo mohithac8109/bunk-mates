@@ -772,7 +772,7 @@ useEffect(() => {
         <Container maxWidth="lg" sx={{ mb: 3, padding: 0 }}>
           <Grid
             container
-            spacing={2}
+            spacing={1.2}
             justifyContent="center"
             alignItems="stretch"
           >

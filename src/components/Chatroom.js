@@ -5,7 +5,7 @@ import {
   ThemeProvider
 } from '@mui/material';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
-import { X, Phone, Video, MoreVertical } from 'lucide-react';
+import { X, Phone, Video, MoreVertical, ArrowDownToDotIcon } from 'lucide-react';
 import SendIcon from '@mui/icons-material/Send';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 import { useSwipeable } from 'react-swipeable';
@@ -16,6 +16,7 @@ import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
 import EmojiPicker from 'emoji-picker-react';
 import Popover from '@mui/material/Popover';
+import AddIcon from "@mui/icons-material/Add";
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   collection, addDoc, query, orderBy, onSnapshot,
@@ -463,36 +464,29 @@ useEffect(() => {
   }, []);
 
 
-  useEffect(() => {
-    const fetchCommonGroupsAndTrips = async () => {
-      if (!currentUser || !friendDetails.uid) return;
-  
-      // Fetch common groups
-      const groupQuery = query(
-        collection(db, 'groupChats'),
-        where('members', 'array-contains', currentUser.uid)
-      );
-      const groupSnapshot = await getDocs(groupQuery);
-      const matchedGroups = groupSnapshot.docs
-        .filter(doc => doc.data().members.includes(friendDetails.uid))
-        .map(doc => doc.data().name); // or doc.id if you prefer
-      setCommonGroups(matchedGroups);
-  
-      // Fetch common trips
-      const tripQuery = query(
-        collection(db, 'trips'),
-        where('members', 'array-contains', currentUser.uid)
-      );
-      const tripSnapshot = await getDocs(tripQuery);
-      const matchedTrips = tripSnapshot.docs
-        .filter(doc => doc.data().members.includes(friendDetails.uid))
-        .map(doc => doc.data().name);
-      setCommonTrips(matchedTrips);
-    };
-  
-    fetchCommonGroupsAndTrips();
-  }, [currentUser, friendDetails.uid]);
-  
+const fetchCommonGroupsAndTrips = async () => {
+  if (!currentUser || !friendDetails.uid) return;
+
+  // Fetch groups where currentUser is a member
+  const groupQuery = query(
+    collection(db, 'groupChats'),
+    where('members', 'array-contains', currentUser.uid)
+  );
+  const groupSnapshot = await getDocs(groupQuery);
+
+  // Match groups where friend is also a member
+  const matchedGroups = groupSnapshot.docs
+    .filter(doc => doc.data().members.includes(friendDetails.uid))
+    .map(doc => ({
+      id: doc.id,
+      name: doc.data().name,
+      iconURL: doc.data().iconURL,
+      emoji: doc.data().emoji,
+    }));
+
+  setCommonGroups(matchedGroups);
+};
+
 
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -701,15 +695,17 @@ useEffect(() => {
                   <Paper
                     elevation={0}
                     sx={{
-                      px: 2,
+                      px: 1,
                       py: 1,
-                      bgcolor: '#232323',
-                      color: '#00f721',
+                      bgcolor: '#f1f1f111',
+                      backdropFilter: "blur(80px)",
+                      color: '#fff',
                       borderRadius: '12px',
                       fontStyle: 'italic',
                       fontSize: '0.95em',
                       opacity: 0.85,
-                      boxShadow: 'none'
+                      boxShadow: 'none',
+                      textAlign: "center"
                     }}
                   >
                     {msg.text}
@@ -774,6 +770,7 @@ useEffect(() => {
                       px: 2,
                       py: 1,
                       maxWidth: '70%',
+                      minWidth: "100px",
                       bgcolor: isOwn ? '#005c4b' : '#353535',
                       borderRadius: isOwn ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
                       color: '#FFFFFF',
@@ -809,12 +806,24 @@ useEffect(() => {
                         fontSize: '0.7rem',
                         color: '#BDBDBD',
                         mt: 0.5,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
                       }}
                     >
                       {msg.timestamp?.toDate().toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
+
+                      {isOwn && (
+                        <Box sx={{ textAlign: 'right' }}>
+                          <DoneAllIcon
+                            fontSize="small"
+                            sx={{ color: msg.isRead ? '#0099ff' : '#BDBDBD' }}
+                          />
+                        </Box>
+                      )}
                     </Typography>
 
                     {msg.reactions && msg.reactions.length > 0 && (
@@ -827,11 +836,7 @@ useEffect(() => {
                           bottom: -18,
                           right: 5,
                           zIndex: 2,
-                          bgcolor: '#222',
                           borderRadius: '12px',
-                          px: 1,
-                          py: 0.6,
-                          boxShadow: '0 2px 8px #0004',
                         }}
                       >
                         {Object.entries(getGroupedReactions(msg)).map(([emoji, users]) => (
@@ -845,7 +850,7 @@ useEffect(() => {
                               fontSize: '1.1em',
                               borderRadius: '18px',
                               cursor: 'pointer',
-                              padding: '10px 1px',
+                              padding: '5px 1px',
                             }}
                             onClick={(e) => {
                               setReactionAnchorEl(e.currentTarget);
@@ -856,14 +861,6 @@ useEffect(() => {
                       </Box>
                     )}
 
-                    {isOwn && (
-                      <Box sx={{ textAlign: 'right', mt: 0.5 }}>
-                        <DoneAllIcon
-                          fontSize="small"
-                          sx={{ color: msg.isRead ? '#0099ff' : '#BDBDBD' }}
-                        />
-                      </Box>
-                    )}
                   </Paper>
                   {!isAtBottom && newMessagesCount > 0 && (
                     <button
@@ -969,93 +966,130 @@ useEffect(() => {
       </Box>
 
       {/* Context Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        PaperProps={{
-          sx: {
-            minWidth: 170,
-            borderRadius: 2,
-            bgcolor: "#181818",
-            color: "#fff",
-            boxShadow: "0 4px 24px #000a",
-            p: 0.5,
-          },
+<Menu
+  anchorEl={anchorEl}
+  open={Boolean(anchorEl)}
+  onClose={handleMenuClose}
+  PaperProps={{
+    sx: {
+      minWidth: 200,
+      borderRadius: 2,
+      bgcolor: '#181818',
+      color: '#fff',
+      boxShadow: '0 4px 24px #000a',
+      p: 0.5,
+    },
+  }}
+>
+  {/* ──────── 1️⃣  Reactions row ──────── */}
+  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, px: 1 }}>
+    {['❤️', '😂', '👍', '😁', '👌'].map((emoji) => (
+      <IconButton
+        key={emoji}
+        onClick={() => {
+          handleReaction(emoji, selectedMsg);
+          handleMenuClose();
+        }}
+        sx={{
+          width: 36,
+          height: 36,
+          fontSize: 18,
+          bgcolor: '#292929',
+          borderRadius: 1.5,
+          color: '#fff',
+          '&:hover': { bgcolor: '#3a3a3a' },
         }}
       >
-        <MenuItem
-          onClick={() => {
-            setReplyingTo(selectedMsg);
-            handleMenuClose();
-          }}
-          sx={{ fontWeight: 500, fontSize: 15 }}
-        >
-          💬 Reply
-        </MenuItem>
-        {selectedMsg?.senderId === currentUser.uid && (
-          <>
-            <MenuItem
-              onClick={() => {
-                handleEdit(selectedMsg);
-                handleMenuClose();
-              }}
-              sx={{ fontWeight: 500, fontSize: 15 }}
-            >
-              ✏️ Edit
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                handleDelete(selectedMsg?.id);
-                handleMenuClose();
-              }}
-              sx={{ color: "#ff4444", fontWeight: 500, fontSize: 15 }}
-            >
-              🗑️ Delete
-            </MenuItem>
-          </>
-        )}
-        <Divider sx={{ my: 0.5, bgcolor: "#333" }} />
-        <MenuItem
-          onClick={() => {
-            handleReaction('❤️');
-            handleMenuClose();
-          }}
-          sx={{ fontSize: 15 }}
-        >
-          ❤️ React
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            handleReaction('😂');
-            handleMenuClose();
-          }}
-          sx={{ fontSize: 15 }}
-        >
-          😂 React
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            navigator.clipboard.writeText(selectedMsg?.text || "");
-            setNotification("Message copied!");
-            handleMenuClose();
-          }}
-          sx={{ fontSize: 15 }}
-        >
-          📋 Copy Text
-        </MenuItem>
-        {selectedMsg?.text && selectedMsg.text.length > 10 && (
-          <MenuItem
-            onClick={() => {
-              window.open(`https://www.google.com/search?q=${encodeURIComponent(selectedMsg.text)}`, "_blank");
-              handleMenuClose();
-            }}
-            sx={{ fontSize: 15 }}
-          >
-            🔎 Search on Google
-          </MenuItem>
-        )}
-      </Menu>
+        {emoji}
+      </IconButton>
+    ))}
+
+    {/* + emoji‑picker trigger */}
+    <IconButton
+      onClick={() => {
+        setShowEmojiPicker(true);
+        handleMenuClose();
+      }}
+      sx={{
+        width: 36,
+        height: 36,
+        bgcolor: '#292929',
+        borderRadius: 1.5,
+        color: '#fff',
+        '&:hover': { bgcolor: '#3a3a3a' },
+      }}
+    >
+      <AddIcon fontSize="small" />
+    </IconButton>
+  </Box>
+
+  <Divider sx={{ my: 1, bgcolor: '#333' }} />
+
+  {/* ──────── 2️⃣  Message actions ──────── */}
+  <MenuItem
+    onClick={() => {
+      setReplyingTo(selectedMsg);
+      handleMenuClose();
+    }}
+    sx={{ fontWeight: 500, fontSize: 15 }}
+  >
+    💬 Reply
+  </MenuItem>
+
+  {selectedMsg?.senderId === currentUser.uid && (
+    <>
+      <MenuItem
+        onClick={() => {
+          handleEdit(selectedMsg);
+          handleMenuClose();
+        }}
+        sx={{ fontWeight: 500, fontSize: 15 }}
+      >
+        ✏️ Edit
+      </MenuItem>
+      <MenuItem
+        onClick={() => {
+          handleDelete(selectedMsg?.id);
+          handleMenuClose();
+        }}
+        sx={{ color: '#ff4444', fontWeight: 500, fontSize: 15 }}
+      >
+        🗑️ Delete
+      </MenuItem>
+    </>
+  )}
+
+  <Divider sx={{ my: 0.5, bgcolor: '#333' }} />
+
+  <MenuItem
+    onClick={() => {
+      navigator.clipboard.writeText(selectedMsg?.text || '');
+      setNotification('Message copied!');
+      handleMenuClose();
+    }}
+    sx={{ fontSize: 15 }}
+  >
+    📋 Copy Text
+  </MenuItem>
+
+  {selectedMsg?.text?.length > 10 && (
+    <MenuItem
+      onClick={() => {
+        window.open(
+          `https://www.google.com/search?q=${encodeURIComponent(
+            selectedMsg.text
+          )}`,
+          '_blank'
+        );
+        handleMenuClose();
+      }}
+      sx={{ fontSize: 15 }}
+    >
+      🔎 Search on Google
+    </MenuItem>
+  )}
+</Menu>
+
       <Menu
         anchorEl={reactionAnchorEl}
         open={Boolean(reactionAnchorEl) && !showEmojiPicker}
@@ -1076,17 +1110,10 @@ useEffect(() => {
       >
         {reactionMsg &&
           Object.entries(getGroupedReactions(reactionMsg)).map(([emoji, users]) => (
-            <MenuItem key={emoji} disabled>
-              {emoji} {users.includes(currentUser.uid) ? "(You)" : ""}
+            <MenuItem key={emoji}>
+              {emoji} {users.includes(currentUser.uid) ? "(You)" : friendDetails.name}
             </MenuItem>
           ))}
-        <Divider sx={{ my: 0.5, bgcolor: "#333" }} />
-        <MenuItem
-          onClick={() => setShowEmojiPicker(true)}
-          sx={{ fontSize: 15, display: 'flex', alignItems: 'center' }}
-        >
-          <EmojiEmotionsIcon sx={{ mr: 1 }} /> Add Reaction
-        </MenuItem>
       </Menu>
 
       <Popover
@@ -1129,8 +1156,8 @@ useEffect(() => {
             transition={{ duration: 0.3 }}
             style={{
               position: 'fixed',
-              bottom: 20,
-              left: 20,
+              top: 20,
+              right: 20,
               padding: '10px',
               backgroundColor: '#000',
               color: '#fff',
@@ -1205,26 +1232,59 @@ useEffect(() => {
                 )}
 
                 {/* Show common groups and trips if available */}
-                {commonGroups && commonGroups.length > 0 && (
-                  <Box sx={{ width: '100%', mt: 1 }}>
-                    <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>Common Groups:</Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
-                      {commonGroups.map((group, i) => (
-                        <Chip key={i} label={group} size="small" sx={{ bgcolor: '#222', color: '#fff' }} />
-                      ))}
-                    </Stack>
-                  </Box>
-                )}
-                {commonTrips && commonTrips.length > 0 && (
-                  <Box sx={{ width: '100%', mt: 1 }}>
-                    <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>Common Trips:</Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
-                      {commonTrips.map((trip, i) => (
-                        <Chip key={i} label={trip} size="small" sx={{ bgcolor: '#222', color: '#fff' }} />
-                      ))}
-                    </Stack>
-                  </Box>
-                )}
+{commonGroups?.length > 0 && (
+  <Box sx={{ width: '100%', mt: 2 }}>
+    <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>
+      Common Groups:
+    </Typography>
+
+    <Stack direction="row" spacing={1} flexWrap="wrap">
+      {commonGroups.map((group) => (
+        <Chip
+          key={group.id}
+          avatar={
+            <Avatar src={group.iconURL}>
+              {group.emoji || group.name?.[0]}
+            </Avatar>
+          }
+          label={group.name}
+          size="small"
+          sx={{
+            bgcolor: '#222',
+            color: '#fff',
+            maxWidth: '200px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        />
+      ))}
+    </Stack>
+  </Box>
+)}
+
+ {commonTrips?.length > 0 && (
+  <Box sx={{ width: '100%', mt: 2 }}>
+    
+    {commonTrips?.length > 0 && (
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>
+          Common Trips:
+        </Typography>
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          {commonTrips.map((trip, i) => (
+            <Chip
+              key={i}
+              label={trip}
+              size="small"
+              sx={{ bgcolor: '#222', color: '#fff' }}
+            />
+          ))}
+        </Stack>
+      </Box>
+    )}
+
+  </Box>
+)}
 
                 {/* Shared Budgets */}
                 {sharedBudgets.length > 0 && (

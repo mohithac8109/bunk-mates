@@ -958,7 +958,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(40vw, 1fr))",
+        gridTemplateColumns: "repeat(auto-fill, minmax(30vw, 1fr))",
         gap: 2,
       }}
     >
@@ -1619,7 +1619,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               backdropFilter: "blur(80px)",
               p: 3,
               maxWidth: 340,
-              width: 340, 
+              width: "85vw", 
               height: "95vh",
               mx: "auto",
             },

@@ -15,9 +15,10 @@ import {
   serverTimestamp,
   getDoc,
   setDoc,
+  arrayUnion
 } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, useTheme, IconButton, Dialog, createTheme, keyframes, Slide, Box, Typography, TextField, Button, ThemeProvider } from '@mui/material';
+import { Avatar, useTheme, IconButton, Dialog, createTheme, keyframes, Slide, Box, Typography, TextField, Button, ThemeProvider, CircularProgress } from '@mui/material';
 import { format, isToday, isYesterday } from 'date-fns';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
@@ -674,15 +675,65 @@ const handleAddFriend = async (userToAdd) => {
   setSearchTerm('');
 };
 
+useEffect(() => {
+  const autoAddToSystemGroup = async () => {
+    if (!currentUser?.uid) return;
+
+    try {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      const userSnap = await getDoc(userDocRef);
+
+      if (!userSnap.exists()) return;
+
+      const userData = userSnap.data();
+      const userType = userData.type?.toLowerCase();
+
+      // Group IDs from Firestore (must already exist!)
+      const systemGroups = {
+        beta: "bm-beta-testers-group",      // Replace with actual Firestore ID
+        "dev beta": "bm-dev-beta-group"   // Replace with actual Firestore ID
+      };
+
+      const targetGroupId = systemGroups[userType];
+      if (!targetGroupId) return;
+
+      const groupRef = doc(db, "groupChats", targetGroupId);
+      const groupSnap = await getDoc(groupRef);
+      if (!groupSnap.exists()) return;
+
+      const groupData = groupSnap.data();
+
+      if (!groupData.members.includes(currentUser.uid)) {
+        await updateDoc(groupRef, {
+          members: arrayUnion(currentUser.uid)
+        });
+
+        // Optionally: send a system message to the group
+        await addDoc(collection(db, "groupChat", targetGroupId, "messages"), {
+          type: "system",
+          content: `${userData.name || "A user"} joined the ${groupData.name} group.`,
+          timestamp: serverTimestamp(),
+        });
+
+        console.log(`✅ User added to ${groupData.name} group.`);
+      }
+    } catch (err) {
+      console.error("❌ Failed to auto-add user to system group:", err);
+    }
+  };
+
+  autoAddToSystemGroup();
+}, [currentUser]);
+
 // Only show chats with friends
 const friendUsers = users.filter(u => friends.includes(u.id));
 
   if (currentUser === null) {
   return (
     <ThemeProvider theme={theme}>
-      <div style={{ padding: '20px', color: '#fff', textAlign: 'center' }}>
-        Loading chats...
-      </div>
+      <Box sx={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff' }}>
+        <CircularProgress color="inherit" />
+      </Box>
     </ThemeProvider>
   );
 }
@@ -733,6 +784,7 @@ const combinedChats = [
           >
             {chat.type === 'group' ? (
               <Avatar
+                src={chat.iconURL ? chat.iconURL : ""}
                 sx={{
                   bgcolor: '#f0f0f0',
                   color: '#000',
@@ -742,7 +794,7 @@ const combinedChats = [
                   marginRight: 2,
                 }}
               >
-                {chat.emoji || chat.name?.[0]?.toUpperCase() || ''}
+                  {(chat.iconURL || chat.emoji || chat.name?.[0]?.toUpperCase() || 'G')}
               </Avatar>
             ) : (
               <Avatar
@@ -760,9 +812,32 @@ const combinedChats = [
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontWeight: 'bold', color: '#FFFFFF' }}>
                 {chat.name}
+                  {["BM - Beta members", "BM - Dev Beta"].includes(chat.name) && (
+                    <span style={{
+                      marginLeft: 6,
+                      fontSize: 14,
+                      backgroundColor: '#00f72133',
+                      padding: '2px 6px',
+                      borderRadius: 6,
+                      color: '#00f721',
+                    }}>
+                      {chat.name.includes("Dev") ? "🧪 Dev Beta" : "🔒 Beta"}
+                    </span>
+                  )}
               </p>
-              <p style={{ margin: 0, color: '#BDBDBD' }}>
-                {chat.lastMessage || 'No messages yet'}
+              <p
+                style={{
+                  margin: 0,
+                  color: '#BDBDBD',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '100%',
+                }}
+              >
+                {(chat.lastMessage?.length > 30
+                  ? chat.lastMessage.slice(0, 14) + '...'
+                  : chat.lastMessage) || 'No messages yet'}
               </p>
             </div>
 
@@ -890,6 +965,18 @@ const combinedChats = [
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontWeight: 'bold', color: '#FFFFFF' }}>
                 {chat.name}
+                  {["BM - Beta members", "BM - Dev Beta"].includes(chat.name) && (
+                    <span style={{
+                      marginLeft: 6,
+                      fontSize: 14,
+                      backgroundColor: '#00f72133',
+                      padding: '2px 6px',
+                      borderRadius: 6,
+                      color: '#00f721',
+                    }}>
+                      {chat.name.includes("Dev") ? "🧪 Dev Beta" : "🔒 Beta"}
+                    </span>
+                  )}
               </p>
               <p
                 style={{

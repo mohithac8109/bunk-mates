@@ -59,8 +59,12 @@ import {
   RadioGroup,
   FormLabel,
   FormControlLabel,
-  Tooltip
+  Tooltip,
+  Menu,
 } from '@mui/material';
+import EmojiPicker from 'emoji-picker-react';
+import Popover from '@mui/material/Popover';
+import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
 import { styled } from '@mui/system';
 import SendIcon from '@mui/icons-material/Send';
 import CloseIcon from '@mui/icons-material/Close';
@@ -72,6 +76,7 @@ import ExitToAppOutlinedIcon from '@mui/icons-material/ExitToAppOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
+import CheckIcon from '@mui/icons-material/Check';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 
 
@@ -272,7 +277,7 @@ const theme = createTheme({
   
 
 function GroupChat() {
-  const { name, groupName } = useParams();
+  const { groupName } = useParams();
   const [messages, setMessages] = useState([]);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
@@ -312,6 +317,21 @@ function GroupChat() {
   const [groupIconValue, setGroupIconValue] = useState(groupInfo?.iconURL || "");
   const [editingGroupInfo, setEditingGroupInfo] = useState(false);
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [allUsers, setAllUsers] = useState({}); // { uid1: { photoURL, name }, ... }
+  const [editingMsg, setEditingMsg] = useState(null); // message object
+  const [editText, setEditText] = useState(""); // input value
+
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedMsg, setSelectedMsg] = useState(null);
+
+  const [reactionAnchorEl, setReactionAnchorEl] = useState(null);
+  const [reactionMsg, setReactionMsg] = useState(null);
+
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+
+
   const addedBy = user?.displayName || user?.email || "Someone";
   
   const isAdmin = groupInfo?.createdBy === user?.uid;
@@ -325,6 +345,17 @@ useEffect(() => {
   return () => unsubscribe();
 }, []);
 
+useEffect(() => {
+  const fetchUsers = async () => {
+    const snapshot = await getDocs(collection(db, "users"));
+    const usersMap = {};
+    snapshot.forEach(doc => {
+      usersMap[doc.id] = doc.data();
+    });
+    setAllUsers(usersMap);
+  };
+  fetchUsers();
+}, []);
 
 const handleExitGroup = async () => {
   if (!user || !groupName) {
@@ -333,17 +364,41 @@ const handleExitGroup = async () => {
   }
 
   try {
-    const groupRef = doc(db, "groupChats", groupName); // ✅ use groupName
+    const groupRef = doc(db, "groupChats", groupName); // groupName = doc ID
+    const groupSnap = await getDoc(groupRef);
+
+    if (!groupSnap.exists()) {
+      console.warn("Group does not exist");
+      return;
+    }
+
+    const groupData = groupSnap.data();
+
+    // ✅ Prevent exit for system groups
+    if (groupData.isSystem) {
+      alert("You cannot exit a system group like Beta or Dev Beta.");
+      return;
+    }
+
+    // ✅ Remove user from group
     await updateDoc(groupRef, {
       members: arrayRemove(user.uid),
     });
 
-    console.log("User removed from group.");
+    // ✅ Send system message
+    await addDoc(collection(db, "groupChat", groupName, "messages"), {
+      type: "system",
+      content: `${user.displayName || "A user"} left the group.`,
+      timestamp: serverTimestamp(),
+    });
+
+    console.log("✅ User removed from group.");
     navigate("/chats");
   } catch (err) {
-    console.error("Failed to exit group:", err.message);
+    console.error("❌ Failed to exit group:", err.message);
   }
 };
+
 
 const handleRemoveMember = async (uidToRemove) => {
   if (!groupName || !uidToRemove) return;
@@ -485,34 +540,110 @@ useEffect(() => {
 }, [searchTerm, groupInfo?.members]);
 
 const handleUpdateGroupInfo = async () => {
+  if (!groupName) {
+    console.error("❌ No groupName found in URL.");
+    return;
+  }
+
   try {
     const groupRef = doc(db, "groupChats", groupName);
+    const groupSnap = await getDoc(groupRef);
 
-    // If user selected an image (as base64)
-    if (groupIconType === "image" && groupIconValue.startsWith("data:image")) {
-      // Optional: you can add a size re-check here if needed
+    if (!groupSnap.exists()) {
+      console.error("❌ Group not found.");
+      return;
     }
 
-    // If user selected an emoji
+    const oldData = groupSnap.data();
+
     if (groupIconType === "emoji" && !groupIconValue) {
       alert("Please select an emoji.");
       return;
     }
 
-    const updatePayload = {
-      description: groupDesc,
+    const newData = {
+      name: groupInfo?.name?.trim() || groupName,
+      description: groupInfo?.description?.trim() || "",
       iconURL: groupIconType === "image" ? groupIconValue : "",
       emoji: groupIconType === "emoji" ? groupIconValue : "",
     };
 
-    await updateDoc(groupRef, updatePayload);
+    await updateDoc(groupRef, newData);
+    console.log("✅ Group info updated in Firestore.");
+
+    // Get current user details
+    const currentUser = auth.currentUser;
+    const senderId = currentUser?.uid || "";
+    const senderName =
+      currentUser?.displayName ||
+      currentUser?.email?.split("@")[0] ||
+      "Someone";
+
+    // Detect changes
+    const changes = [];
+
+    if (oldData.name !== newData.name) {
+      changes.push(`renamed the group to "${newData.name}"`);
+    }
+    if (oldData.description !== newData.description) {
+      changes.push("updated the description");
+    }
+    if (
+      oldData.iconURL !== newData.iconURL ||
+      oldData.emoji !== newData.emoji
+    ) {
+      changes.push("updated the group icon");
+    }
+
+    // Send system message if changes occurred
+    if (changes.length > 0) {
+      const messageText = `${senderName} ${changes.join(", ")}.`;
+
+      await addDoc(collection(db, "groupChat", groupName, "messages"), {
+        type: "system",
+        content: messageText,
+        senderId: senderId,
+        senderName: senderName,
+        timestamp: serverTimestamp(),
+      });
+
+      console.log("📢 System message sent:", messageText);
+    }
 
     setEditingGroupInfo(false);
-    console.log("✅ Group info updated in Firestore.");
   } catch (err) {
     console.error("❌ Failed to update group info:", err.message);
   }
 };
+
+
+useEffect(() => {
+  if (editingGroupInfo && groupInfo) {
+    setGroupDesc(groupInfo.description || "");
+    setGroupIconType(groupInfo.iconURL ? "image" : "emoji");
+    setGroupIconValue(groupInfo.iconURL || groupInfo.emoji || "💬");
+  }
+}, [editingGroupInfo, groupInfo]);
+
+
+
+const fetchGroupDetails = async (groupId) => {
+  try {
+    const groupRef = doc(db, "groupChats", groupId);
+    const groupSnap = await getDoc(groupRef);
+
+    if (groupSnap.exists()) {
+      const groupData = { id: groupSnap.id, ...groupSnap.data() };
+      setSelectedGroup(groupData);
+      setEditingGroupInfo(true); // optionally open drawer here
+    } else {
+      console.warn("Group not found in Firestore.");
+    }
+  } catch (err) {
+    console.error("Error fetching group details:", err.message);
+  }
+};
+
 
 const handleGroupIconUpload = (e) => {
   const file = e.target.files[0];
@@ -845,6 +976,58 @@ const handleBatchAddUsers = async () => {
   const groupedMessages = groupMessagesByDate(messages);
 
 
+const handleReaction = async (emoji, msg) => {
+  if (!msg || !msg.id || !groupName || !auth?.currentUser) return;
+
+  const userId = auth.currentUser.uid;
+  const messageRef = doc(db, "groupChat", groupName, "messages", msg.id);
+
+  try {
+    const msgSnap = await getDoc(messageRef);
+    if (!msgSnap.exists()) return;
+
+    const currentData = msgSnap.data();
+    const reactions = currentData.reactions || {};
+
+    // Toggle emoji: if same emoji exists, remove it
+    if (reactions[userId] === emoji) {
+      const updated = { ...reactions };
+      delete updated[userId];
+      await updateDoc(messageRef, { reactions: updated });
+    } else {
+      const updated = { ...reactions, [userId]: emoji };
+      await updateDoc(messageRef, { reactions: updated });
+    }
+  } catch (err) {
+    console.error("🔥 Failed to update reaction:", err.message);
+  }
+};
+
+const handleEdit = (msg) => {
+  if (msg.senderId !== currentUser.uid) return; // permission check
+  setEditingMsg(msg);
+  setEditText(msg.text || "");
+};
+
+
+
+const getGroupedReactions = (msg, allUsers = {}) => {
+  const grouped = {};
+  if (!msg?.reactions) return grouped;
+
+  for (const [uid, emoji] of Object.entries(msg.reactions)) {
+    if (!grouped[emoji]) grouped[emoji] = [];
+    grouped[emoji].push({
+      uid,
+      name: allUsers[uid]?.name || "User",
+      photoURL: allUsers[uid]?.photoURL || "",
+    });
+  }
+
+  return grouped;
+};
+
+
   return (
     <ThemeProvider theme={theme}>
           <Box sx={{
@@ -854,72 +1037,132 @@ const handleBatchAddUsers = async () => {
       backgroundColor: '#F0F2F500',
       overflow: 'hidden'
     }}>
-      <GroupHeader>
-        <Box
+<GroupHeader>
+  <Box
+    sx={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 1000,
+      padding: '10px 16px',
+      display: 'flex',
+      alignItems: 'center',
+      height: '64px',
+      background: 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)',
+      backdropFilter: 'blur(0px)',
+    }}
+  >
+    <IconButton onClick={handleBackButton} sx={{ mr: 1 }} style={{ color: '#fff' }}>
+      <ArrowBackIcon />
+    </IconButton>
+
+    <Box
+      onClick={() => setProfileOpen(true)}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        cursor: 'pointer',
+      }}
+    >
+      <Avatar
+        src={groupInfo.iconURL || ""}
+        sx={{
+          bgcolor: '#333333',
+          color: '#000',
+          fontSize: 24,
+          width: 48,
+          height: 48,
+          border: '2px solid rgb(7, 7, 7)',
+          marginRight: 2,
+        }}
+      >
+        {(groupInfo.iconURL || groupInfo.emoji || groupInfo.name?.[0]?.toUpperCase() || 'G')}
+      </Avatar>
+
+      <Box>
+        <Typography
+          variant="subtitle1"
           sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 1000,
-            padding: '10px 16px',
+            fontWeight: 'bold',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
             display: 'flex',
             alignItems: 'center',
-            height: '64px',
-          background: 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)',
-          backdropFilter: 'blur(0px)',
+            gap: 1,
+            color: '#fff',
           }}
         >
-          <IconButton onClick={handleBackButton} sx={{ mr: 1 }} style={{color: '#fff'}}>
-            <ArrowBackIcon />
-          </IconButton>
-          <Box
-          onClick={() => setProfileOpen(true)}
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            cursor: 'pointer',
-          }}
-          >
-          <Avatar
-            src={groupInfo.iconURL ? groupInfo.iconURL : ""}
-            onClick={() => setProfileOpen(true)}
-            sx={{
-              bgcolor: '#333333',
-              color: '#000',
-              fontSize: 24,
-              width: 48,
-              height: 48,
-              border: '2px solid rgb(7, 7, 7)',
-              marginRight: 2,
-              cursor: 'pointer',
-            }}
-          >
-            {(groupInfo.iconURL || groupInfo.emoji || groupInfo.name?.[0]?.toUpperCase() || 'G')}
-          </Avatar>
-          <Box>
-            <Typography
-              variant="subtitle1"
-              sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', alignItems: 'center', textOverflow: 'ellipsis' }}
+          {groupInfo.name || groupName}
+
+          {/* ✅ Conditionally show group chip */}
+          {groupInfo.name === "BM - Beta members" && (
+            <Box
+              component="span"
+              sx={{
+                ml: 1,
+                px: 1,
+                py: 0.3,
+                fontSize: 12,
+                backgroundColor: '#00f72133',
+                color: '#00f721',
+                borderRadius: 1.5,
+              }}
             >
-              {groupInfo.name || groupName}
-            </Typography>
-          </Box>
-          </Box>
-        </Box>
-      </GroupHeader>
+              🔒 Beta
+            </Box>
+          )}
+          {groupInfo.name === "BM - Dev Beta" && (
+            <Box
+              component="span"
+              sx={{
+                ml: 1,
+                px: 1,
+                py: 0.3,
+                fontSize: 12,
+                backgroundColor: '#66ccff33',
+                color: '#66ccff',
+                borderRadius: 1.5,
+              }}
+            >
+              🧪 Dev Beta
+            </Box>
+          )}
+        </Typography>
+      </Box>
+    </Box>
+  </Box>
+</GroupHeader>
 
 
-      <Box sx={{
-        flexGrow: 1,
-        paddingTop: '60px',
-        overflowY: 'auto',
-        marginBottom: '0px', // optional if you have a fixed input/footer
-      }}>
+
+      <Box
+        sx={{
+          flexGrow: 1,
+          paddingTop: '60px',
+          overflowY: 'auto',
+          marginBottom: '0px', // optional if you have a fixed input/footer
+        }}
+      >
         <MessageContainer>
 
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', margin: '20px', backgroundColor: '#009b5912', borderRadius: '20px', alignItems: 'center', textAlign: 'center', padding: '25px', border: '1.2px solid #009b59ad', maxWidth: '100%' }}>
+        <Box
+          onClick={() => setProfileOpen(true)}
+          sx={{
+            display: 'flex', 
+            flexDirection: 'column',
+            margin: '20px',
+            backgroundColor: '#009b5912',
+            borderRadius: '20px',
+            alignItems: 'center',
+            textAlign: 'center',
+            padding: '25px',
+            border: '1.2px solid #009b59ad',
+            maxWidth: '100%'
+          }}
+        >
         <Avatar
             src={groupInfo.iconURL ? groupInfo.iconURL : ""}
             sx={{
@@ -947,6 +1190,54 @@ const handleBatchAddUsers = async () => {
     }}
   >
     {groupInfo.name || groupName}
+          {groupInfo.name === "BM - Beta members" && (
+            <Box
+              component="span"
+              sx={{
+                ml: 1,
+                px: 1,
+                py: 0.3,
+                fontSize: 12,
+                backgroundColor: '#00f72133',
+                color: '#00f721',
+                borderRadius: 1.5,
+              }}
+            >
+              🔒
+            </Box>
+          )}
+          {groupInfo.name === "BM - Dev Beta" && (
+            <Box
+              component="span"
+              sx={{
+                ml: 1,
+                px: 1,
+                py: 0.3,
+                fontSize: 12,
+                backgroundColor: '#66ccff33',
+                color: '#66ccff',
+                borderRadius: 1.5,
+              }}
+            >
+              🧪
+            </Box>
+          )}
+  </Typography>
+
+  <Typography
+    variant="caption"
+    multiline
+    sx={{
+      whiteSpace: 'pre-wrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      color: '#FFFFFF',
+      textAlign: "center",
+      mb: 0.5,
+      width: "80vw"
+    }}
+  >
+    {groupInfo.description || ""}
   </Typography>
 
   {createdByUser && (
@@ -959,9 +1250,26 @@ const handleBatchAddUsers = async () => {
   <br></br><strong sx={{color: '#fff'}}>{groupInfo.members?.length || 0} Members</strong>
   </Typography>
 
-  <Typography variant="caption" sx={{ color: '#B0BEC5' }}>
-  <br></br><strong sx={{color: '#fff'}}>Members Joined:</strong><br></br> {memberUsers.map((user) => user.name).join(', ') || 'None'}
-  </Typography>
+<Typography
+  variant="caption"
+  sx={{
+    color: '#B0BEC5',
+    whiteSpace: 'pre-wrap',
+    mt: 1,
+  }}
+>
+  <strong style={{ color: '#fff' }}>Members Joined:</strong>
+  {'\n'}
+  {memberUsers.length === 0 ? (
+    'None'
+  ) : (
+    <>
+      {memberUsers.slice(0, 3).map((user) => user.name).join(', ')}
+      {memberUsers.length > 3 && ` +${memberUsers.length - 3} more`}
+    </>
+  )}
+</Typography>
+
 </Box>
 
 
@@ -1028,12 +1336,8 @@ if (msg.type === "system") {
   }}
   onContextMenu={(e) => {
     e.preventDefault();
-    setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      visible: true,
-      message: msg,
-    });
+    setSelectedMsg(msg);
+    setAnchorEl(e.currentTarget);
   }}
   onTouchStart={(e) => handleTouchStart(e, msg)}
   onTouchEnd={(e) => handleTouchEnd(e)}
@@ -1116,15 +1420,53 @@ if (msg.type === "system") {
                       >
                         {msg.senderName}
                       </Typography>
-                      <Typography variant="body2">{msg.text}</Typography>
+                      <Typography variant="body2">
+                        {msg.text}
+                      </Typography>
                       
                       
-    <Box sx={{ mt: 1 }}>
-      {msg.reactions &&
-        Object.entries(msg.reactions).map(([uid, emoji]) => (
-          <span key={uid} style={{ marginRight: 6 }}>{emoji}</span>
-        ))}
-    </Box>
+{msg.reactions && (
+  <Box
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      gap: 1,
+      mt: 1,
+      flexWrap: "wrap",
+    }}
+  >
+    {Object.entries(msg.reactions).map(([uid, emoji]) => {
+      const user = allUsers[uid] || {};
+      return (
+        <Box
+          key={uid}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            bgcolor: "#2b2b2b",
+            borderRadius: "20px",
+            px: 0.5,
+            py: 0.2,
+            gap: 0.5,
+          }}
+          onClick={(e) => {
+            setReactionMsg(msg);
+            setReactionAnchorEl(e.currentTarget);
+          }}
+        >
+          <Avatar
+            src={user.photoURL || "https://via.placeholder.com/32"}
+            sx={{ width: 15, height: 15 }}
+          />
+          <Typography variant="body2" sx={{ fontSize: 14 }}>
+            {emoji}
+          </Typography>
+        </Box>
+      );
+    })}
+  </Box>
+)}
+
 
                       <MessageTime>
                         {msg.timestamp?.seconds
@@ -1134,6 +1476,7 @@ if (msg.type === "system") {
                             })
                           : 'Just now'}
                       </MessageTime>
+                      
 
                       <Box
                         sx={{
@@ -1148,9 +1491,16 @@ if (msg.type === "system") {
                           ? 'Sent'
                           : msg.status === 'delivered'
                           ? 'Delivered'
-                          : 'Read'}
-                      </Box>
-                      
+                          : 'Read'} 
+                        {msg.edited && (
+                          <Typography
+                          variant="caption"
+                          sx={{ color: "#888", ml: 1, fontStyle: "italic" }}
+                          >
+                            edited
+                          </Typography>
+                        )}
+                        </Box>
                     </MessageBubble>
                     </motion.div>
                   </Box>
@@ -1180,65 +1530,231 @@ if (msg.type === "system") {
   </Button>
 )}
 
-{contextMenu.visible && (
-  <Box
-    sx={{
-      position: 'fixed',
-      top: contextMenu.y,
-      left: contextMenu.x,
-      bgcolor: '#232323',
+<Menu
+  anchorEl={anchorEl}
+  open={Boolean(anchorEl)}
+  onClose={() => setAnchorEl(null)}
+  PaperProps={{
+    sx: {
+      minWidth: 200,
       borderRadius: 2,
-      boxShadow: 4,
-      zIndex: 1300,
-      p: 1,
-      minWidth: 140,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 1,
-    }}
-    onMouseLeave={() => setContextMenu({ ...contextMenu, visible: false })}
-  >
-    <Button
-      sx={{ color: '#fff', justifyContent: 'flex-start', textTransform: 'none' }}
-      onClick={() => handleReply(contextMenu.message)}
-    >
-      💬 Reply
-    </Button>
-    <Button
-      sx={{ color: '#fff', justifyContent: 'flex-start', textTransform: 'none' }}
-      onClick={() => handleAddReaction(contextMenu.message, '❤️')}
-    >
-      ❤️ React
-    </Button>
-    <Button
-      sx={{ color: '#fff', justifyContent: 'flex-start', textTransform: 'none' }}
-      onClick={() => handleAddReaction(contextMenu.message, '😂')}
-    >
-      😂 React
-    </Button>
-    <Button
-      sx={{ color: '#fff', justifyContent: 'flex-start', textTransform: 'none' }}
+      bgcolor: "#181818",
+      color: "#fff",
+      boxShadow: "0 4px 24px #000a",
+      p: 0.5,
+    },
+  }}
+>
+  {/* 🔥 Row of Reactions */}
+  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, px: 1 }}>
+    {["❤️", "😂", "👍", "😁", "👌"].map((emoji) => (
+      <IconButton
+        key={emoji}
+        onClick={() => {
+          handleReaction(emoji, selectedMsg);
+          setAnchorEl(null);
+        }}
+        sx={{
+          color: "#fff",
+          fontSize: 18,
+          width: 36,
+          height: 36,
+          bgcolor: "#292929",
+          borderRadius: "12px",
+          "&:hover": {
+            bgcolor: "#3a3a3a",
+          },
+        }}
+      >
+        {emoji}
+      </IconButton>
+    ))}
+    <IconButton
       onClick={() => {
-        navigator.clipboard.writeText(contextMenu.message.text || '');
-        setContextMenu({ ...contextMenu, visible: false });
+        setShowEmojiPicker(true);
+        setAnchorEl(null);
+      }}
+      sx={{
+        color: "#fff",
+        width: 36,
+        height: 36,
+        bgcolor: "#292929",
+        borderRadius: "12px",
+        "&:hover": {
+          bgcolor: "#3a3a3a",
+        },
       }}
     >
-      📋 Copy Text
-    </Button>
-    <Button
-      sx={{ color: '#ff4444', justifyContent: 'flex-start', textTransform: 'none' }}
-      onClick={() => handleDelete(contextMenu.message.id)}
-    >
-      🗑️ Delete
-    </Button>
+      <AddIcon />
+    </IconButton>
   </Box>
-)}
+
+  <Divider sx={{ my: 1, bgcolor: "#333" }} />
+
+  {/* 📄 Message Actions */}
+  <MenuItem
+    onClick={() => {
+      handleReply(selectedMsg);
+      setAnchorEl(null);
+    }}
+    sx={{ fontWeight: 500, fontSize: 15 }}
+  >
+    💬 Reply
+  </MenuItem>
+
+  {selectedMsg?.senderId === currentUser.uid && (
+    <>
+      <MenuItem
+        onClick={() => {
+          handleEdit(selectedMsg);
+          setAnchorEl(null);
+        }}
+        sx={{ fontWeight: 500, fontSize: 15 }}
+      >
+        ✏️ Edit
+      </MenuItem>
+      <MenuItem
+        onClick={() => {
+          handleDelete(selectedMsg?.id);
+          setAnchorEl(null);
+        }}
+        sx={{ color: "#ff4444", fontWeight: 500, fontSize: 15 }}
+      >
+        🗑️ Delete
+      </MenuItem>
+    </>
+  )}
+
+  <Divider sx={{ my: 0.5, bgcolor: "#333" }} />
+
+  <MenuItem
+    onClick={() => {
+      navigator.clipboard.writeText(selectedMsg?.text || "");
+      setNotification("Message copied!");
+      setAnchorEl(null);
+    }}
+    sx={{ fontSize: 15 }}
+  >
+    📋 Copy Text
+  </MenuItem>
+
+  {selectedMsg?.text?.length > 10 && (
+    <MenuItem
+      onClick={() => {
+        window.open(
+          `https://www.google.com/search?q=${encodeURIComponent(selectedMsg.text)}`,
+          "_blank"
+        );
+        setAnchorEl(null);
+      }}
+      sx={{ fontSize: 15 }}
+    >
+      🔎 Search on Google
+    </MenuItem>
+  )}
+</Menu>
+
+<Menu
+  anchorEl={reactionAnchorEl}
+  open={Boolean(reactionAnchorEl) && !showEmojiPicker}
+  onClose={() => {
+    setReactionAnchorEl(null);
+    setReactionMsg(null);
+  }}
+  PaperProps={{
+    sx: {
+      minWidth: 220,
+      borderRadius: 2,
+      bgcolor: "#181818",
+      color: "#fff",
+      boxShadow: "0 4px 24px #000a",
+      p: 0.5,
+    },
+  }}
+>
+  {reactionMsg &&
+    Object.entries(getGroupedReactions(reactionMsg, allUsers)).map(
+      ([emoji, users]) => (
+        <MenuItem
+          key={emoji}
+          onClick={() => {
+            const youReacted = users.find(u => u.uid === currentUser.uid);
+            if (youReacted) {
+              // Remove your own reaction
+              handleReaction(emoji, reactionMsg);
+              setReactionAnchorEl(null);
+              setReactionMsg(null);
+            }
+          }}
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            py: 1,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
+            <Typography variant="body1">{emoji}</Typography>
+                {users.map((u) => (
+                  <Tooltip title={u.name} key={u.uid}>
+                    <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 1, fontSize: 12, ml: 1 }}>
+                        <Avatar
+                          src={u.photoURL || ""}
+                          sx={{ width: 22, height: 22 }}
+                          />
+                            {users.map((u) => (
+                                <>
+                                  {u.uid === currentUser.uid ? "You" : u.name}
+                                </>
+                            ))}
+                      </Box>
+                  </Tooltip>
+                ))}
+          </Box>
+        </MenuItem>
+      )
+    )}
+
+</Menu>
+
+
+<Popover
+  open={showEmojiPicker}
+  anchorEl={reactionAnchorEl}
+  onClose={() => setShowEmojiPicker(false)}
+  anchorOrigin={{
+    vertical: "top",
+    horizontal: "center",
+  }}
+  transformOrigin={{
+    vertical: "bottom",
+    horizontal: "center",
+  }}
+  PaperProps={{
+    sx: {
+      bgcolor: "#222",
+      borderRadius: 3,
+      boxShadow: "0 4px 24px #000a",
+      p: 1,
+    },
+  }}
+>
+<EmojiPicker
+  onEmojiClick={(emojiData) => {
+    handleReaction(emojiData.emoji, reactionMsg);
+    setShowEmojiPicker(false);
+  }}
+  theme="dark"
+/>
+</Popover>
+
+
           <div ref={bottomRef} />
         </MessageContainer>
       </Box>
     
       {replyTo && (
-    <Paper sx={{ p: 1, position: 'relative', bottom: '55px', width: '95vw', bgcolor: '#2b2b2bb0', mb: 1, borderLeft: '4px solid #00f721', backdropFilter: 'blur(30px)' }}>
+    <Paper sx={{ p: 1, position: 'relative', bottom: '55px', width: '90vw', bgcolor: '#2b2b2bb0', mb: 1, borderLeft: '4px solid #00f721', backdropFilter: 'blur(30px)' }}>
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Box>
           <Typography variant="caption" color="primary">
@@ -1257,62 +1773,106 @@ if (msg.type === "system") {
     </Paper>
   )}
   
-      <Box
-        sx={{
-          p: 1,
-          display: 'flex',
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          width: '96vw',
-          zIndex: '1200',
-          alignItems: 'center',
-          borderTop: '0px solid #5E5E5E',
-          background: 'linear-gradient(to top, #000000, #00000090, #00000000)',
+<Box
+  sx={{
+    p: 1,
+    display: 'flex',
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    width: '96vw',
+    zIndex: '1200',
+    alignItems: 'center',
+    borderTop: '0px solid #5E5E5E',
+    background: 'linear-gradient(to top, #000000, #00000090, #00000000)',
+  }}
+>
+  <TextField
+    value={editingMsg ? editText : newMsg}
+    onChange={(e) =>
+      editingMsg ? setEditText(e.target.value) : setNewMsg(e.target.value)
+    }
+    placeholder={editingMsg ? "Edit message..." : "Type a message..."}
+    variant="outlined"
+    size="small"
+    fullWidth
+    sx={{
+      zIndex: '1500',
+      mr: 1,
+      borderRadius: '40px',
+      backdropFilter: "blur(30px)",
+      input: {
+        color: '#FFFFFF',
+        height: '30px',
+        borderRadius: '40px'
+      },
+      '& .MuiOutlinedInput-root': {
+        '& fieldset': {
+          borderColor: '#5E5E5E',
+          borderRadius: '40px'
+        },
+        '&:hover fieldset': {
+          borderColor: '#757575',
+          borderRadius: '40px'
+        },
+        '&.Mui-focused fieldset': {
+          borderColor: '#757575',
+          borderRadius: '40px'
+        },
+      },
+      '& .MuiInputBase-input::placeholder': {
+        color: '#757575'
+      }
+    }}
+  />
+
+  {editingMsg ? (
+    <>
+      <Button
+        sx={{ backgroundColor: '#00f721', height: '50px', width: '50px', borderRadius: 40, mr: 1 }}
+        onClick={async () => {
+          try {
+            const msgRef = doc(
+              db,
+              "groupChat",
+              groupName,
+              "messages",
+              editingMsg.id
+            );
+            await updateDoc(msgRef, {
+              text: editText,
+              edited: true,
+              timestamp: serverTimestamp(), // optional
+            });
+            setEditingMsg(null);
+            setEditText("");
+          } catch (err) {
+            console.error("❌ Failed to update message:", err.message);
+          }
         }}
       >
-        <TextField
-          value={newMsg}
-          onChange={(e) => setNewMsg(e.target.value)}
-          placeholder="Type a message..."
-          variant="outlined"
-          size="small"
-          fullWidth
-          position="fixed"
-          elevation={1}
-          sx={{
-            zIndex: '1500',
-            mr: 1,
-            borderRadius: '40px',
-            backdropFilter: "blur(30px)",
-            input: {
-              color: '#FFFFFF',
-              height: '30px',
-              borderRadius: '40px'
-            },
-            '& .MuiOutlinedInput-root': {
-              '& fieldset': {
-                borderColor: '#5E5E5E',
-                borderRadius: '40px'
-              },
-              '&:hover fieldset': {
-                borderColor: '#757575',
-                borderRadius: '40px'
-              },
-              '&.Mui-focused fieldset': {
-                borderColor: '#757575',
-                borderRadius: '40px'
-              },
-            },
-            '& .MuiInputBase-input::placeholder': {
-              color: '#757575'
-            }
-          }}
-        />
-        <Button sx={{ backgroundColor: '#00f721', height: '50px', width: '50px', borderRadius: 40, }} onClick={sendMessage}>
-        <SendIcon sx={{ color: '#000' }} />
-        </Button>
-      </Box>
+        <CheckIcon sx={{ color: '#000' }} />
+      </Button>
+
+      <Button
+        sx={{ backgroundColor: '#f44336', height: '50px', width: '50px', borderRadius: 40 }}
+        onClick={() => {
+          setEditingMsg(null);
+          setEditText("");
+        }}
+      >
+        <CloseIcon sx={{ color: '#fff' }} />
+      </Button>
+    </>
+  ) : (
+    <Button
+      sx={{ backgroundColor: '#00f721', height: '50px', width: '50px', borderRadius: 40 }}
+      onClick={sendMessage}
+    >
+      <SendIcon sx={{ color: '#000' }} />
+    </Button>
+  )}
+</Box>
 
 
 
@@ -1337,9 +1897,7 @@ if (msg.type === "system") {
         }}
         PaperProps={{
           sx: {
-            height: '85vh',
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
+            height: '100vh',
             backgroundColor: 'rgba(12, 12, 12, 0.32)',
             backdropFilter: 'blur(40px)',
             color: '#fff',
@@ -1397,6 +1955,38 @@ if (msg.type === "system") {
 
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {groupInfo.name || groupName}
+              {groupInfo.name === "BM - Beta members" && (
+            <Box
+              component="span"
+              sx={{
+                ml: 1,
+                px: 1,
+                py: 0.3,
+                fontSize: 12,
+                backgroundColor: '#00f72133',
+                color: '#00f721',
+                borderRadius: 1.5,
+              }}
+            >
+              🔒 Beta
+            </Box>
+          )}
+          {groupInfo.name === "BM - Dev Beta" && (
+            <Box
+              component="span"
+              sx={{
+                ml: 1,
+                px: 1,
+                py: 0.3,
+                fontSize: 12,
+                backgroundColor: '#66ccff33',
+                color: '#66ccff',
+                borderRadius: 1.5,
+              }}
+            >
+              🧪 Dev Beta
+            </Box>
+          )}
             </Typography>
 
             <Box
@@ -1405,19 +1995,28 @@ if (msg.type === "system") {
                 flexDirection: "column",
                 gap: 0.5,
                 backgroundColor: "#f1f1f111",
-                width: "85vw",
-                mt: 1,
+                width: "84vw",
+                mt: 2,
                 mb: 2,
                 px: 1.5,
                 py: 0.5,
                 borderRadius: 1
               }}
             >
-              {groupInfo.description && (
-                <Typography variant="caption" sx={{ color: '#B0BEC5', mt: 0.5 }}>
-                  {groupInfo.description}
-                </Typography>
-              )}
+{groupInfo.description && (
+  <Typography
+    variant="body2"
+    sx={{
+      color: '#B0BEC5',
+      mt: 0.5,
+      whiteSpace: 'pre-wrap', // ✅ preserves \n line breaks and spaces
+      wordBreak: 'break-word',
+    }}
+  >
+    {groupInfo.description}
+  </Typography>
+)}
+
               {createdByUser && (
                 <Typography variant="caption" sx={{ color: '#bbb', mb: 1 }}>
                   Created by <strong>{createdByUser.name}</strong>
@@ -1429,8 +2028,9 @@ if (msg.type === "system") {
                 sx={{
                   display: "flex",
                   flexDirection: "column",
-                  width: "90vw",
+                  width: "86vw",
                   gap: 0.5,
+                  px: 2,
                   alignContent: "left"
                 }}
               >
@@ -1605,9 +2205,10 @@ if (msg.type === "system") {
                 sx={{
                   display: "flex",
                   flexDirection: "column",
-                  width: "88vw",
+                  width: "86vw",
                   gap: 0.5,
-                  mt: 2
+                  mt: 2,
+                  mx: "auto"
                 }}
               >
                 {(!user || !groupName) ? (
@@ -1745,117 +2346,157 @@ if (msg.type === "system") {
     Edit Group Details
   </Typography>
 
-  {/* Preview */}
-  <Box display="flex" justifyContent="center" mb={2}>
-    {groupIconType === "emoji" ? (
-      <Avatar sx={{ width: 80, height: 80, fontSize: 40, bgcolor: "#232323" }}>
-        {groupIconValue || "📍"}
-      </Avatar>
-    ) : (
-      <Avatar
-        src={groupIconValue}
-        sx={{ width: 80, height: 80, fontSize: 40, bgcolor: "#232323" }}
-      />
-    )}
-  </Box>
+{/* Group Name */}
+<TextField
+  label="Group Name"
+  fullWidth
+  value={groupInfo?.name || ""}
+  onChange={(e) =>
+    setGroupInfo((prev) => ({ ...prev, name: e.target.value }))
+  }
+  sx={{ mb: 2, input: { color: "#fff" }, label: { color: "#ccc" } }}
+/>
 
-  {/* Icon type toggle */}
-  <FormControl fullWidth sx={{ mb: 2 }}>
-    <InputLabel sx={{ color: "#ccc" }}>Icon Type</InputLabel>
-    <Select
-      value={groupIconType}
-      onChange={(e) => setGroupIconType(e.target.value)}
-      sx={{ color: "#fff" }}
-    >
-      <MenuItem value="emoji">Emoji</MenuItem>
-      <MenuItem value="image">Image URL</MenuItem>
-    </Select>
-  </FormControl>
-
-  {/* Icon input */}
+{/* Preview */}
+<Box display="flex" justifyContent="center" mb={2}>
   {groupIconType === "emoji" ? (
-      <>
-    <Typography variant="subtitle2" sx={{ mb: 1, color: '#ccc' }}>
-      Choose an Emoji
-    </Typography>
-
-    <Grid container spacing={1} sx={{ mb: 2 }}>
-      {["😀", "😎", "🔥", "🎉", "🚀", "🌍", "📚", "🧠", "🧳", "🍕", "🎮", "🏖️"].map((emoji) => (
-        <Grid item xs={3} sm={2} key={emoji}>
-          <Button
-            variant={groupIconValue === emoji ? "contained" : "outlined"}
-            onClick={() => setGroupIconValue(emoji)}
-            sx={{
-              fontSize: 24,
-              width: "100%",
-              aspectRatio: "1",
-              color: groupIconValue === emoji ? "#000" : "#fff",
-              backgroundColor: groupIconValue === emoji ? "#00f721" : "#232323",
-              borderColor: "#555",
-              borderRadius: 2,
-            }}
-          >
-            {emoji}
-          </Button>
-        </Grid>
-      ))}
-    </Grid>
-  </>
+    <Avatar sx={{ width: 80, height: 80, fontSize: 40, bgcolor: "#232323" }}>
+      {groupIconValue || "📍"}
+    </Avatar>
   ) : (
-<Box sx={{ mb: 2 }}>
-  <TextField
-    label="Image URL or Uploaded Image"
-    value={groupIconValue}
-    onChange={(e) => setGroupIconValue(e.target.value)}
-    fullWidth
-    sx={{ mb: 1, input: { color: "#fff" }, label: { color: "#ccc" } }}
-  />
-
-  <Button
-    variant="outlined"
-    component="label"
-    sx={{
-      mt: 1,
-      color: "#00f721",
-      borderColor: "#00f721",
-      fontWeight: 600,
-      textTransform: "none",
-    }}
-  >
-    📁 Select Image
-    <input
-      type="file"
-      accept="image/*"
-      hidden
-      onChange={handleGroupIconUpload}
+    <Avatar
+      src={groupIconValue}
+      sx={{ width: 80, height: 80, fontSize: 40, bgcolor: "#232323" }}
     />
-  </Button>
-
-  <Typography variant="caption" sx={{ color: "#888", mt: 1, display: 'block' }}>
-    Only images under 250KB allowed.
-  </Typography>
+  )}
 </Box>
 
-  )}
-
-  {/* Group Description */}
-  <TextField
-    label="Group Description"
-    fullWidth
-    multiline
-    rows={3}
-    value={groupDesc}
-    onChange={(e) => setGroupDesc(e.target.value)}
-    sx={{ mb: 3, input: { color: "#fff" }, label: { color: "#ccc" } }}
-  />
-
-  <Button
-    variant="contained"
-    onClick={handleUpdateGroupInfo}
-    sx={{ bgcolor: "#00f721", color: "#000", fontWeight: 600 }}
+{/* Icon Type Toggle */}
+<FormControl fullWidth sx={{ mb: 2 }}>
+  <InputLabel sx={{ color: "#ccc" }}>Icon Type</InputLabel>
+  <Select
+    value={groupIconType}
+    onChange={(e) => setGroupIconType(e.target.value)}
+    sx={{ color: "#fff" }}
   >
-    Save Changes
-  </Button>
+    <MenuItem value="emoji">Emoji</MenuItem>
+    <MenuItem value="image">Image URL</MenuItem>
+  </Select>
+</FormControl>
+
+{/* Icon Selector */}
+{groupIconType === "emoji" ? (
+  <>
+    <Typography variant="subtitle2" sx={{ mb: 1, color: "#ccc" }}>
+      Choose an Emoji
+    </Typography>
+    <Grid container spacing={1} sx={{ mb: 2 }}>
+      {["😀", "😎", "🔥", "🎉", "🚀", "🌍", "📚", "🧠", "🧳", "🍕", "🎮", "🏖️"].map(
+        (emoji) => (
+          <Grid item xs={3} sm={2} key={emoji}>
+            <Button
+              variant={groupIconValue === emoji ? "contained" : "outlined"}
+              onClick={() => setGroupIconValue(emoji)}
+              sx={{
+                fontSize: 24,
+                width: "100%",
+                aspectRatio: "1",
+                color: groupIconValue === emoji ? "#000" : "#fff",
+                backgroundColor:
+                  groupIconValue === emoji ? "#00f721" : "#232323",
+                borderColor: "#555",
+                borderRadius: 2,
+              }}
+            >
+              {emoji}
+            </Button>
+          </Grid>
+        )
+      )}
+    </Grid>
+  </>
+) : (
+  <Box sx={{ mb: 2 }}>
+    <TextField
+      label="Image URL or Uploaded Image"
+      value={groupIconValue}
+      onChange={(e) => setGroupIconValue(e.target.value)}
+      fullWidth
+      sx={{ mb: 1, input: { color: "#fff" }, label: { color: "#ccc" } }}
+    />
+
+    <Button
+      variant="conatined"
+      component="label"
+      sx={{
+        mt: 1,
+        color: "#fff",
+        background:"#f1f1f111",
+        borderColor: "#f1f1f151",
+        fontWeight: 600,
+        textTransform: "none",
+      }}
+    >
+      📁 Select Image
+      <input
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={handleGroupIconUpload}
+      />
+    </Button>
+
+    <Typography
+      variant="caption"
+      sx={{ color: "#888", mt: 1, display: "block" }}
+    >
+      Only images under 250KB allowed.
+    </Typography>
+  </Box>
+)}
+
+{/* Group Description */}
+<TextField
+  label="Group Description"
+  fullWidth
+  multiline
+  rows={3}
+  value={groupInfo?.description || ""}
+  onChange={(e) =>
+    setGroupInfo((prev) => ({ ...prev, description: e.target.value }))
+  }
+  sx={{ mb: 3, input: { color: "#fff" }, label: { color: "#ccc" } }}
+/>
+
+
+  {/* Buttons */}
+  <Box display="flex" justifyContent="space-between" gap={2}>
+    <Button
+      variant="outlined"
+      onClick={() => setEditingGroupInfo(false)}
+      sx={{
+        flex: 1,
+        color: "#fff",
+        borderColor: "#666",
+        fontWeight: 500,
+      }}
+    >
+      Cancel
+    </Button>
+
+    <Button
+      variant="contained"
+      onClick={handleUpdateGroupInfo}
+      sx={{
+        flex: 1,
+        bgcolor: "#00f721",
+        color: "#000",
+        fontWeight: 600,
+      }}
+    >
+      Save Changes
+    </Button>
+  </Box>
 </SwipeableDrawer>
 
 
