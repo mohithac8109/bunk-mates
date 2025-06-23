@@ -18,6 +18,7 @@ import {
   arrayUnion
 } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
+import BetaAccessGuard from "../components/BetaAccessGuard";
 import { Avatar, useTheme, IconButton, Dialog, createTheme, keyframes, Slide, Box, Typography, TextField, Button, ThemeProvider, CircularProgress } from '@mui/material';
 import { format, isToday, isYesterday } from 'date-fns';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -31,6 +32,7 @@ import { Theme } from 'emoji-picker-react';
 import { useSettings } from "../contexts/SettingsContext";
 import { messaging } from "../firebase";
 import { getToken, onMessage } from "firebase/messaging";
+import DeviceGuard from '../components/DeviceGuard';
 
 // Fade-in animation keyframes
 const fadeIn = keyframes`
@@ -862,6 +864,8 @@ const combinedChats = [
 
   return (
       <ThemeProvider theme={theme}>
+        <DeviceGuard>
+                  <BetaAccessGuard>
           <div style={{ padding: '10px', backgroundColor: '#02020200' }}>
       <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
       <IconButton onClick={goBack} sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
@@ -1143,8 +1147,9 @@ const combinedChats = [
   </Box>
 </Dialog>
 
-    </div>
-
+          </div>
+        </BetaAccessGuard>
+        </DeviceGuard>
     </ThemeProvider>
   );
 }

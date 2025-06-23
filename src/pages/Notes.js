@@ -72,6 +72,8 @@ import { Navigate } from "react-router-dom";
 import ProfilePic from "../components/Profile";
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
+import BetaAccessGuard from "../components/BetaAccessGuard";
+import DeviceGuard from "../components/DeviceGuard";
 
 
 function setCookie(name, value, days = 7) {
@@ -669,7 +671,9 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
 
   return (
     <ThemeProvider theme={theme}>
-      <Box
+      <DeviceGuard>
+      <BetaAccessGuard>
+              <Box
         sx={{
           p: 3,
           backgroundColor: "#00000000",
@@ -699,7 +703,16 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             Notes
           </Typography>
         </Box>
-        <Box sx={{ mb: 2 }}>
+        <Box 
+          sx={{ 
+            mb: 2,
+            position: "sticky", 
+            top: 17, 
+            zIndex: 1,
+            pb: 3,
+            background: "linear-gradient(to bottom, #000000, #000000, #00000030)",
+          }}
+        >
           <TextField
             size="small"
             placeholder="Search notes..."
@@ -752,36 +765,45 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
 </ToggleButtonGroup>
 </Box>
 
-<Stack direction="row" spacing={1} sx={{ overflowX: "auto", mb: 2 }}>
-  <Chip
-    label="All"
-    onClick={() => setSelectedLabelFilter("All")}
-    sx={{ 
-      color: selectedLabelFilter === "All" ? "#000" : "default",
-      backgroundColor: selectedLabelFilter === "All" ? buttonWeatherBg : "default",
-    }}
-  />
+<Stack direction="row" spacing={1} sx={{ overflowX: "auto", mb: 2, color: "#fff" }}>
+<Button
+  onClick={() => setSelectedLabelFilter("All")}
+  sx={{
+    color: selectedLabelFilter === "All" ? "#000" : "#fff",
+    backgroundColor: selectedLabelFilter === "All" ? buttonWeatherBg : "#f1f1f111",
+    borderRadius: 24,
+    backdropFilter: "blur(80px)"
+  }}
+>
+  All
+</Button>
 
-  <Chip
-    label="📌 Pinned"
-    onClick={() => setSelectedLabelFilter("Pinned")}
-    sx={{ 
-      color: selectedLabelFilter === "Pinned" ? "#000" : "default",
-      backgroundColor: selectedLabelFilter === "Pinned" ? buttonWeatherBg : "default",
-    }}
-  />
+<Button
+  onClick={() => setSelectedLabelFilter("Pinned")}
+  sx={{
+    color: selectedLabelFilter === "Pinned" ? "#000" : "#fff",
+    backgroundColor: selectedLabelFilter === "Pinned" ? buttonWeatherBg : "#f1f1f111",
+    borderRadius: 24,
+    backdropFilter: "blur(80px)"
+  }}
+>
+  📌 Pinned
+</Button>
 
-  {labels.map((label) => (
-    <Chip
-      key={label}
-      label={label}
-      onClick={() => setSelectedLabelFilter(label)}
-    sx={{ 
-      color: selectedLabelFilter === label ? "#000" : "default",
-      backgroundColor: selectedLabelFilter === label ? buttonWeatherBg : "default",
+{labels.map((label) => (
+  <Button
+    key={label}
+    onClick={() => setSelectedLabelFilter(label)}
+    sx={{
+      color: selectedLabelFilter === label ? "#000" : "#fff",
+      backgroundColor: selectedLabelFilter === label ? buttonWeatherBg : "#f1f1f111",
+      borderRadius: 24,
+    backdropFilter: "blur(80px)"
     }}
-    />
-  ))}
+  >
+    {label}
+  </Button>
+))}
 </Stack>
 
 
@@ -1725,6 +1747,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             <AddIcon />
           </Button>
       </Box>
+      </BetaAccessGuard>
+      </DeviceGuard>
     </ThemeProvider>
   );
 };

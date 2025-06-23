@@ -66,6 +66,7 @@ import EmojiPicker from 'emoji-picker-react';
 import Popover from '@mui/material/Popover';
 import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
 import { styled } from '@mui/system';
+import BetaAccessGuard from "../components/BetaAccessGuard";
 import SendIcon from '@mui/icons-material/Send';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -1030,6 +1031,7 @@ const getGroupedReactions = (msg, allUsers = {}) => {
 
   return (
     <ThemeProvider theme={theme}>
+      <BetaAccessGuard>
           <Box sx={{
       display: 'flex',
       flexDirection: 'column',
@@ -2644,6 +2646,7 @@ if (msg.type === "system") {
   )}
 </Box>
     </Box>
+    </BetaAccessGuard>
     </ThemeProvider>
   );
 }

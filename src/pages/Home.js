@@ -28,7 +28,8 @@ import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import ProfilePic from "../components/Profile";
 import Reminders from "./Reminders";
-
+import DeviceGuard from "../components/DeviceGuard";
+import BetaAccessGuard from "../components/BetaAccessGuard";
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import RestaurantOutlinedIcon from '@mui/icons-material/RestaurantOutlined';
 import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
@@ -325,9 +326,11 @@ function getUserFromStorage() {
   return null;
 }
 
+
 const Home = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [notLoggedIn, setNotLoggedIn] = useState(false);
   const muiTheme = useTheme();
   const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
@@ -353,7 +356,7 @@ const Home = () => {
     navigate("/budget-mngr");
   };
 
-    useEffect(() => {
+  useEffect(() => {
     const fetchReminders = async () => {
       setRemindersLoading(true);
       try {
@@ -372,7 +375,6 @@ const Home = () => {
         const data = [];
         querySnapshot.forEach((doc) => {
           const reminder = { id: doc.id, ...doc.data() };
-          // Extra check for uid match
           if (reminder.uid === user.uid) {
             data.push(reminder);
           }
@@ -386,7 +388,7 @@ const Home = () => {
     fetchReminders();
   }, []);
 
-   // Fetch reminders for Home page glimpse
+     // Fetch reminders for Home page glimpse
   useEffect(() => {
     const fetchReminders = async () => {
       setRemindersLoading(true);
@@ -564,14 +566,15 @@ const Home = () => {
     ? weatherbgColors[weather.main]
     : weatherbgColors.Default;
   
-        useEffect(() => {
+  useEffect(() => {
     const session = localStorage.getItem(SESSION_KEY) || document.cookie.split('; ').find(row => row.startsWith(SESSION_KEY + '='))?.split('=')[1];
     if (!session) {
       setLoading(true);
       // No session, check for user in localStorage
       const storedUser = localStorage.getItem("bunkmateuser");
       if (!storedUser) {
-        navigate("/login");
+        setNotLoggedIn(true); // Instead of redirect
+        setLoading(false);
         return;
       }
     } else {
@@ -587,53 +590,119 @@ const Home = () => {
     }
   }, [userData]);
 
+    // Add loading state to budgets fetch
+  useEffect(() => {
+    setLoading(true); // Start loading when fetching budgets
+    let userId = null;
+    try {
+      const storedUser = localStorage.getItem("bunkmateuser");
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        if (parsed?.uid) userId = parsed.uid;
+      }
+      if (!userId) {
+        const cookieUser = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("bunkmateuser="))
+          ?.split("=")[1];
+        if (cookieUser) {
+          const parsed = JSON.parse(decodeURIComponent(cookieUser));
+          if (parsed?.uid) userId = parsed.uid;
+        }
+      }
+    } catch {}
+    if (!userId) {
+      setBudgets([]);
+      setLoading(false);
+      return;
+    }
+
+    import("../firebase").then(({ db }) => {
+      import("firebase/firestore").then(({ doc, getDoc }) => {
+        const docRef = doc(db, "budgets", userId);
+        getDoc(docRef).then((docSnap) => {
+          if (docSnap.exists()) {
+            setBudgets(docSnap.data().items || []);
+          } else {
+            setBudgets([]);
+          }
+          setLoading(false); // End loading after fetching
+        }).catch(() => setLoading(false));
+      });
+    });
+  }, []);
 
 useEffect(() => {
   const fetchUserData = async () => {
+    setLoading(true);
     let user = auth.currentUser;
+    let uid = null;
 
-    if (!user) {
+    if (user) {
+      uid = user.uid;
+    } else {
+      // Try to get UID from localStorage/cookie
       const storedUser = localStorage.getItem("bunkmateuser");
       if (storedUser) {
-        setUserData(JSON.parse(storedUser));
-        setLoading(false);
-        return;
-      } else {
-        navigate("/login");
-        return;
+        try {
+          const parsed = JSON.parse(storedUser);
+          if (parsed?.uid) uid = parsed.uid;
+        } catch {}
+      }
+      if (!uid) {
+        const cookieUser = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("bunkmateuser="))
+          ?.split("=")[1];
+        if (cookieUser) {
+          try {
+            const parsed = JSON.parse(decodeURIComponent(cookieUser));
+            if (parsed?.uid) uid = parsed.uid;
+          } catch {}
+        }
       }
     }
 
-    const { displayName, email, photoURL, phoneNumber, userBio, uid } = user;
-    const newUserData = {
-      name: displayName || "User",
-      email: email || "",
-      mobile: phoneNumber || "Not provided",
-      photoURL: photoURL || "",
-      bio: userBio || "",
-      uid: uid || "", // <-- Add uid here
-    };
+    if (!uid) {
+      setNotLoggedIn(true);
+      setLoading(false);
+      return;
+    }
 
-      setUserData(newUserData);
-      localStorage.setItem("bunkmateuser", JSON.stringify(newUserData));
-      localStorage.setItem(SESSION_KEY, "active");
-      document.cookie = `${SESSION_KEY}=active; path=/; max-age=604800`;
-      // Get user type from Firestore
-      const docRef = doc(db, "users", user.uid);
+    // Fetch user data from Firestore
+    try {
+      const docRef = doc(db, "users", uid);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        if (data?.type === "Beta" || data?.type === "Dev Beta") {
-          setUserType(data.type.toUpperCase());
-        }
+        const newUserData = {
+          name: data.displayName || data.name || "User",
+          email: data.email || "",
+          mobile: data.phoneNumber || data.mobile || "Not provided",
+          photoURL: data.photoURL || "",
+          bio: data.userBio || data.bio || "",
+          uid: uid,
+        };
+        setUserData(newUserData);
+        setUserType(data.type || "");
+        localStorage.setItem("bunkmateuser", JSON.stringify(newUserData));
+        localStorage.setItem(SESSION_KEY, "active");
+        document.cookie = `${SESSION_KEY}=active; path=/; max-age=604800`;
+        setNotLoggedIn(false);
+      } else {
+        setNotLoggedIn(true);
       }
-      setLoading(false);
-    };
-    // Only fetch if not already loaded
+    } catch {
+      setNotLoggedIn(true);
+    }
+    setLoading(false);
+  };
+
+  // Only fetch if not already loaded
   if (!userData.email || !userData.uid) {
     fetchUserData();
   }
-}, [navigate, userData.email, userData.uid]);
+}, [userData.email, userData.uid]);
 
     const handleLogout = () => {
     localStorage.removeItem(SESSION_KEY);
@@ -645,6 +714,8 @@ useEffect(() => {
 
   return (
     <ThemeProvider theme={theme}>
+      <DeviceGuard>
+              <BetaAccessGuard>
       <Box
         sx={{
           display: "flex",
@@ -652,6 +723,7 @@ useEffect(() => {
           flexDirection: "column",
         }}
       >
+        
         {/* AppBar */}
         <AppBar position="fixed" elevation={0} backgroundColor="transparent">
           <Toolbar sx={{ justifyContent: 'space-between', py: 1, px: 3, backgroundColor: 'transparent' }}>
@@ -677,8 +749,27 @@ useEffect(() => {
             <ProfilePic />
           </Toolbar>
         </AppBar>
+
 <Box sx={{ height: { xs: 86, sm: 77 } }} />
-        {/* Weather Gradient Greetings Section */}
+                {loading ? (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "60vh",
+              zIndex: 1500
+            }}
+          >
+            <CircularProgress color="white" />
+          </Box>
+        ) : notLoggedIn ? (
+          <Box sx={{ p: 6, textAlign: "center" }}>
+            <Typography variant="h5" color="text.secondary">
+              Please log in to use BunkMate.
+            </Typography>
+          </Box>
+        ) : (
         <Box
           sx={{
             width: "100%",
@@ -814,8 +905,8 @@ useEffect(() => {
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    minHeight: 120,
-                    width: "85px",
+                    minHeight: 105,
+                    width: "21vw",
                     aspectRatio: "1 / 1",
                     cursor: "pointer",
                     background: "#f1f1f111",
@@ -826,12 +917,12 @@ useEffect(() => {
                   }}
                   onClick={tile.onClick}
                 >
-                  <Box sx={{ mb: 1, fontSize: 38, px: 2, py: 0.5, borderRadius: 4, backgroundColor: WeatherBgdrop, color: buttonWeatherBg }}>
+                  <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 4, backgroundColor: WeatherBgdrop, color: buttonWeatherBg }}>
                     {tile.icon}
                   </Box>
                   <Typography
                     variant="subtitle6"
-                    sx={{ color: "text.primary", fontSize: "12px" }}
+                    sx={{ color: "text.primary", fontSize: "10.5px" }}
                   >
                     {tile.label}
                   </Typography>
@@ -840,8 +931,9 @@ useEffect(() => {
             ))}
           </Grid>
         </Container>
-        </Box>
 
+        </Box>
+        )}
 
         {/* Main Content */}
         <Box sx={{ display: "flex", flexGrow: 1 }}>
@@ -1175,6 +1267,8 @@ useEffect(() => {
           </Container>
         </Box>
       </Box>
+      </BetaAccessGuard>
+      </DeviceGuard>
     </ThemeProvider>
   );
 };

@@ -11,6 +11,7 @@ import Chats from "./pages/Chats";
 import Budgetmngr from "./pages/Budget"
 import Reminders from "./pages/Reminders";
 import Notes from "./pages/Notes";
+import Waitlist from "./pages/Wishlist";
 import { UserProvider } from './contexts/UserContext';
 import Chatroom from "./components/Chatroom";
 import GroupChat from "./components/GroupChat";
@@ -55,6 +56,7 @@ function App() {
             <Route path="/budget-mngr" element={<Budgetmngr />}/>
             <Route path="/reminders" element={<Reminders />} />
             <Route path="/notes" element={<Notes />} />
+            <Route path="/waitlist" element={<Waitlist />} />
             <Route path="/" element={
           <ProtectedRoute>
             <Home />

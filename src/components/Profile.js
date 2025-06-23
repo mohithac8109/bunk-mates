@@ -215,13 +215,14 @@ const ProfilePic = () => {
     mobile: "",
     photoURL: "",
     bio: "",
+    type: "",
   });
 
   const [editedData, setEditedData] = useState({
     name: userData.name || "",
     email: userData.email || "",
   });
-
+  const [userType, setUserType] = useState("");
   const [photoFile, setPhotoFile] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [firestoreDataLoaded, setFirestoreDataLoaded] = useState(false);
@@ -334,8 +335,10 @@ const ProfilePic = () => {
               mobile: phoneNumber || userDocData?.mobile || "Not provided",
               photoURL: photoURL || userDocData?.photoURL || "",
               bio: userBio || userDocData?.bio || "",
+              type: userDocData?.type || "",
             });
 
+            setUserType(userDocData?.type || "");
             setFirestoreDataLoaded(true);
           } catch (error) {
             console.error("Error fetching user data:", error);
@@ -550,8 +553,8 @@ sx={{
         <Divider sx={{ borderColor: "#333" }} />
 
         {/* Menu List */}
-        <List sx={{ my: 2, gap: 0.5, display: "flex", flexDirection: "column" }}>
-          <ListItem>
+        <List sx={{ my: 0, gap: 0.5, display: "flex", flexDirection: "column" }}>
+          <ListItem sx={{ pb: 0 }}>
             <ListItemButton onClick={() => setDrawerPage("editProfile")} 
                 sx={{ 
                   backgroundColor: "#f1f1f111", 
@@ -567,7 +570,7 @@ sx={{
             </ListItemButton>
           </ListItem>
 
-          <ListItem>
+          {/* <ListItem>
             <ListItemButton
               onClick={() => setDrawerPage("generalSettings")}
               sx={{ backgroundColor: "#f1f1f111", borderRadius: 1.7, py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}
@@ -577,11 +580,11 @@ sx={{
               </ListItemIcon>
               <ListItemText primary="General Settings" />
             </ListItemButton>
-          </ListItem>
+          </ListItem> */}
 
 
           {/* New: App Version & About */}
-          <ListItem>
+          <ListItem sx={{ pb: 0 }}>
             <ListItemButton onClick={() => setDrawerPage("about")} sx={{ backgroundColor: "#f1f1f111", borderRadius: 1.7, py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}>
               <ListItemIcon>
                 <InfoOutlinedIcon sx={{ color: "#fff" }} />
@@ -591,7 +594,7 @@ sx={{
           </ListItem>
 
           {/* New: Support / Help */}
-          <ListItem>
+          <ListItem sx={{ pb: 0 }}>
             <ListItemButton onClick={() => setDrawerPage("support")} sx={{ backgroundColor: "#f1f1f111", borderRadius: 1.7, py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}>
               <ListItemIcon>
                 <HelpOutlineIcon sx={{ color: "#fff" }} />

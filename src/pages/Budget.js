@@ -63,6 +63,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSettings } from "../contexts/SettingsContext";
 
 import ProfilePic from "../components/Profile";
+import BetaAccessGuard from "../components/BetaAccessGuard";
+import DeviceGuard from "../components/DeviceGuard";
 
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -358,6 +360,415 @@ function getViewType() {
   } catch {
     return "grid";
   }
+}
+
+// Helper for long-press
+function useLongPress(callback = () => {}, ms = 600) {
+  const [startLongPress, setStartLongPress] = useState(false);
+
+  useEffect(() => {
+    let timerId;
+    if (startLongPress) {
+      timerId = setTimeout(callback, ms);
+    } else {
+      clearTimeout(timerId);
+    }
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [startLongPress, callback, ms]);
+
+  const start = () => setStartLongPress(true);
+  const stop = () => setStartLongPress(false);
+
+  return {
+    onMouseDown: start,
+    onMouseUp: stop,
+    onMouseLeave: stop,
+    onTouchStart: start,
+    onTouchEnd: stop,
+    onTouchCancel: stop,
+  };
+}
+
+// --- BudgetGridCard Component ---
+function BudgetGridCard({
+  item,
+  itemIndex,
+  handleMenuOpen,
+  history,
+  getCurrentBalance,
+  CATEGORY_ICONS,
+  buttonWeatherBg,
+}) {
+  const balance = getCurrentBalance(item);
+  const isOver = Number(balance) > Number(item.amount);
+
+  // Store the last pointer event for menu positioning
+  const lastPointerEvent = React.useRef(null);
+
+  const onLongPress = React.useCallback(
+    () => {
+      if (lastPointerEvent.current) {
+        handleMenuOpen(lastPointerEvent.current, itemIndex);
+      } else {
+        handleMenuOpen({ currentTarget: null, clientX: window.innerWidth/2, clientY: window.innerHeight/2 }, itemIndex);
+      }
+    },
+    [handleMenuOpen, itemIndex]
+  );
+
+  // Custom handlers to capture pointer position
+  const longPressHandlers = useLongPress(onLongPress, 600);
+
+  // Attach pointer position to the ref
+  const attachTarget = (handler) => (e) => {
+    if (e && (e.touches?.[0] || e.changedTouches?.[0])) {
+      // Touch event
+      const touch = e.touches?.[0] || e.changedTouches?.[0];
+      lastPointerEvent.current = {
+        currentTarget: e.currentTarget,
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+      };
+    } else if (e && (typeof e.clientX === "number")) {
+      // Mouse event
+      lastPointerEvent.current = {
+        currentTarget: e.currentTarget,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+      };
+    }
+    handler && handler(e);
+  };
+
+  return (
+    <Grid
+      item
+      xs={1}
+      key={itemIndex}
+      sx={{
+        display: "flex",
+        flex: 1,
+        minWidth: "30vw",
+      }}
+    >
+      <Paper
+        {...Object.fromEntries(
+          Object.entries(longPressHandlers).map(([k, v]) => [k, attachTarget(v)])
+        )}
+        onClick={() => history(`/budget-mngr?index=${itemIndex}&expdrawer=true`)}
+        elevation={1}
+        sx={{
+          width: "100%",
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          p: 1.9,
+          borderRadius: "15px",
+          userSelect: "none",
+          bgcolor: isOver
+            ? "#ff000033"
+            : CATEGORY_ICONS[item.category]?.listbgcolor || "background.paper",
+          color: isOver ? "#ff4444" : "text.primary",
+          boxShadow: "0px 1px 4px rgba(0, 0, 0, 0.08)",
+          transition: "all 0.2s ease-in-out",
+          cursor: "pointer",
+          gap: 1.2,
+          "&:hover": {
+            boxShadow: "0 6px 16px rgba(0, 0, 0, 0.15)",
+          },
+        }}
+      >
+        <Box>
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            marginBottom={1}
+          >
+            <Typography variant="h6" fontWeight={600} pr={2}>
+              {item.name}
+            </Typography>
+            {/* Removed MoreVertIcon */}
+          </Box>
+        </Box>
+        <Box
+          display={"flex"}
+          flexDirection={"row"}
+          alignItems="center"
+          gap={1}
+        >
+          <Typography
+            sx={{
+              backgroundColor:
+                CATEGORY_ICONS[item.category]?.bgcolor || "#f1f1f111",
+              py: 0.4,
+              px: 1,
+              width: "auto",
+              borderRadius: 0.4,
+              fontWeight: "bolder",
+              mt: 0,
+              color: CATEGORY_ICONS[item.category]?.fcolor || "#000",
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+            }}
+            variant="bodySmall"
+            color="text.secondary"
+          >
+            <Avatar
+              sx={{
+                bgcolor: CATEGORY_ICONS[item.category]?.mcolor || "#333",
+                color: CATEGORY_ICONS[item.category]?.fcolor || "#000",
+                width: "auto",
+                height: "auto",
+                fontSize: 1,
+                ml: "-6px",
+                alignSelf: "center",
+              }}
+              variant="bodySmall"
+            >
+              {CATEGORY_ICONS[item.category]?.icon || <CategoryOutlinedIcon />}
+            </Avatar>
+            {item.category}
+          </Typography>
+          {/* Contributors */}
+          {item.contributors?.length > 0 && (
+            <Box mt={0}>
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                {item.contributors.length > 3 && (
+                  <Chip
+                    label={`+${item.contributors.length - 3} more`}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      fontSize: "0.7rem",
+                      borderRadius: "10px",
+                      borderColor: buttonWeatherBg,
+                      color: "text.secondary",
+                      mb: 0,
+                    }}
+                  />
+                )}
+              </Stack>
+              <Typography
+                variant="caption"
+                sx={{
+                  backgroundColor: "#f1f1f111",
+                  color: "#aaa",
+                  py: 0.5,
+                  px: 1,
+                  borderRadius: 0.4,
+                  mt: 0,
+                  fontWeight: "bolder",
+                }}
+              >
+                {item.contributors.length}
+              </Typography>
+            </Box>
+          )}
+        </Box>
+        {/* Total Amount */}
+        <Typography variant="bodyMedium">
+          <Typography
+            variant="bodyMedium"
+            fontWeight={600}
+            color={isOver ? "#ff4444" : "success.main"}
+          >
+            ₹{balance.toFixed(2)}
+          </Typography>
+          <br />/ ₹{item.amount}
+        </Typography>
+      </Paper>
+    </Grid>
+  );
+}
+
+// --- BudgetListCard Component ---
+function BudgetListCard({
+  item,
+  itemIndex,
+  handleMenuOpen,
+  history,
+  getCurrentBalance,
+  CATEGORY_ICONS,
+  buttonWeatherBg,
+}) {
+  const balance = getCurrentBalance(item);
+  const isOver = Number(balance) > Number(item.amount);
+
+  const lastPointerEvent = React.useRef(null);
+
+  const onLongPress = React.useCallback(
+    () => {
+      if (lastPointerEvent.current) {
+        handleMenuOpen(lastPointerEvent.current, itemIndex);
+      } else {
+        handleMenuOpen({ currentTarget: null, clientX: window.innerWidth/2, clientY: window.innerHeight/2 }, itemIndex);
+      }
+    },
+    [handleMenuOpen, itemIndex]
+  );
+
+  const longPressHandlers = useLongPress(onLongPress, 600);
+
+  const attachTarget = (handler) => (e) => {
+    if (e && (e.touches?.[0] || e.changedTouches?.[0])) {
+      const touch = e.touches?.[0] || e.changedTouches?.[0];
+      lastPointerEvent.current = {
+        currentTarget: e.currentTarget,
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+      };
+    } else if (e && (typeof e.clientX === "number")) {
+      lastPointerEvent.current = {
+        currentTarget: e.currentTarget,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+      };
+    }
+    handler && handler(e);
+  };
+
+  return (
+    <Paper
+      {...Object.fromEntries(
+        Object.entries(longPressHandlers).map(([k, v]) => [k, attachTarget(v)])
+      )}
+      key={itemIndex}
+      onClick={() => history(`/budget-mngr?index=${itemIndex}&expdrawer=true`)}
+      elevation={1}
+      sx={{
+        width: "100%",
+        minWidth: 0,
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        p: 2,
+        borderRadius: "30px",
+        userSelect: "none",
+        bgcolor: isOver
+          ? "#ff000033"
+          : CATEGORY_ICONS[item.category]?.listbgcolor || "background.paper",
+        color: isOver ? "#ff4444" : "text.primary",
+        boxShadow: "0px 1px 4px rgba(0, 0, 0, 0.08)",
+        transition: "all 0.2s ease-in-out",
+        cursor: "pointer",
+        gap: 0.3,
+        "&:hover": {
+          boxShadow: "0 6px 16px rgba(0, 0, 0, 0.15)",
+        },
+      }}
+    >
+      <Avatar
+        sx={{
+          bgcolor: CATEGORY_ICONS[item.category]?.mcolor || "#333",
+          color: CATEGORY_ICONS[item.category]?.fcolor || "#000",
+          width: 48,
+          height: 48,
+          fontSize: 48,
+          mr: 2,
+          borderRadius: "40%",
+        }}
+      >
+        {CATEGORY_ICONS[item.category]?.icon || <CategoryOutlinedIcon />}
+      </Avatar>
+      <Box sx={{ flex: 1, m: 0 }}>
+        <Box
+          display={"flex"}
+          flexDirection={"row"}
+          justifyContent="space-between"
+          alignItems="center"
+          gap={1}
+        >
+          <Typography variant="h6" fontWeight={100}>
+            {item.name}
+          </Typography>
+          <Box
+            display={"flex"}
+            flexDirection={"row"}
+            alignItems="center"
+            gap={1}
+          >
+            <Typography
+              sx={{
+                backgroundColor:
+                  CATEGORY_ICONS[item.category]?.bgcolor || "#f1f1f111",
+                py: 0.4,
+                px: 1,
+                width: "auto",
+                borderRadius: 0.4,
+                fontWeight: "bolder",
+                mt: 0,
+                color: CATEGORY_ICONS[item.category]?.fcolor || "#000",
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+              }}
+              variant="bodySmall"
+              color="text.secondary"
+            >
+              {item.category}
+            </Typography>
+            {/* Contributors */}
+            {item.contributors?.length > 0 && (
+              <Box mt={0}>
+                <Stack direction="row" spacing={1} flexWrap="wrap">
+                  {item.contributors.length > 3 && (
+                    <Chip
+                      label={`+${item.contributors.length - 3} more`}
+                      size="small"
+                      variant="outlined"
+                      sx={{
+                        fontSize: "0.7rem",
+                        borderRadius: "10px",
+                        borderColor: buttonWeatherBg,
+                        color: "text.secondary",
+                        mb: 0,
+                      }}
+                    />
+                  )}
+                </Stack>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    backgroundColor: "#f1f1f111",
+                    color: "#aaa",
+                    py: 0.5,
+                    px: 1,
+                    borderRadius: 0.4,
+                    mt: 0,
+                    fontWeight: "bolder",
+                  }}
+                >
+                  {item.contributors.length}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Box>
+        <Typography variant="bodyMedium" sx={{ mt: 0.5 }}>
+          <Typography
+            variant="bodyMedium"
+            fontWeight={"bolder"}
+            color={isOver ? "#ff4444" : "success.main"}
+          >
+            ₹{balance.toFixed(2)}
+          </Typography>{" "}
+          / ₹{item.amount}
+        </Typography>
+      </Box>
+    </Paper>
+  );
 }
 
 const BudgetManager = () => {
@@ -822,12 +1233,14 @@ const canEditExpenses = (() => {
 
   return (
     <ThemeProvider theme={theme}>
+      <DeviceGuard>
+              <BetaAccessGuard>
       <Box
         sx={{
           p: 3,
           backgroundColor: "#00000000",
           color: "#fff",
-          minHeight: "90vh",
+          minHeight: "100vh",
           maxWidth: 600,
           mx: "auto",
           borderRadius: 3,
@@ -857,7 +1270,19 @@ const canEditExpenses = (() => {
             Budget Manager
           </Typography>
         </Box>
-        <Box display="flex" gap={2} flexWrap="wrap" mb={2}>
+        <Box 
+          display="flex" 
+          gap={2} 
+          flexWrap="wrap" 
+          mb={2} 
+          sx={{ 
+            position: "sticky", 
+            top: 17, 
+            zIndex: 1,
+            pb: 3,
+            background: "linear-gradient(to bottom, #000000, #000000, #00000030)",
+          }}
+        >
           <TextField
             size="small"
             placeholder="Search by name..."
@@ -871,7 +1296,7 @@ const canEditExpenses = (() => {
                 </InputAdornment>
               ),
             }}
-            sx={{ flex: 1, minWidth: 200 }}
+            sx={{ flex: 1, minWidth: 200, backdropFilter: "blur(80px)" }}
           />
 
           <TextField
@@ -880,7 +1305,7 @@ const canEditExpenses = (() => {
             label="Filter by Category"
             value={selectedCategory}
             onChange={e => setSelectedCategory(e.target.value)}
-            sx={{ width: 200 }}
+            sx={{ width: 200, backdropFilter: "blur(80px)" }}
           >
             <MenuItem value="">All Categories</MenuItem>
             {categories.map((cat, i) => (
@@ -902,6 +1327,7 @@ const canEditExpenses = (() => {
       boxShadow: "inset 0 2px 8px #222",
       background: WeatherBgdrop,
       transition: "all 0.2s",
+      backdropFilter: "blur(80px)",
       p: 1.2,
       // Make it look sunken/submerged always
     }}
@@ -941,253 +1367,51 @@ const canEditExpenses = (() => {
     margin: 0,
   }}
 >
-  {filteredBudgets.map((item, idx) => {
-    const itemIndex = budgetItems.findIndex(
-      b => b.name === item.name && b.category === item.category
-    );
-    const balance = getCurrentBalance(item);
-    const isOver = Number(balance) > Number(item.amount);
-    return (
-      <Grid
-        item
-        xs={1}
-        key={itemIndex}
-        sx={{
-          display: "flex",
-          flex: 1,
-          minWidth: "30vw", // allow shrinking
-        }}
-      >
-        <Paper
-          onClick={() => history(`/budget-mngr?index=${itemIndex}&expdrawer=true`)}
-          elevation={1}
-          sx={{
-            width: "100%", // <-- Make width always fill the grid cell
-            minWidth: 0,   // <-- Allow shrinking
-            display: "flex",
-            flexDirection: "column",
-            p: 1.9,
-            borderRadius: '15px',
-            bgcolor: isOver ? "#ff000033" : CATEGORY_ICONS[item.category]?.listbgcolor || 'background.paper',
-            color: isOver ? "#ff4444" : 'text.primary',  
-            boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.08)',
-            transition: 'all 0.2s ease-in-out',
-            cursor: 'pointer',
-            gap: 1.2,
-            "&:hover": {
-              boxShadow: '0 6px 16px rgba(0, 0, 0, 0.15)',
-              transform: 'translateY(-2px)',
-            },
-          }}
-        >
-                        <Box>
-                          {/* Header: Name + Balance + Menu */}
-                          <Box display="flex" justifyContent="space-between" alignItems="center" marginBottom={1}>
-                            <Typography variant="h6" fontWeight={600} pr={2}>
-                              {item.name}
-                            </Typography>
-                            {/* Three-dot Menu */}
-                            <IconButton
-                              onClick={(e) => handleMenuOpen(e, itemIndex)}
-                              size="small"
-                              sx={{ ml: 1.2, p: 0 }}
-                            >
-                              <MoreVertIcon />
-                            </IconButton>
-                          </Box>
-                        </Box>
-                        <Box display={"flex"} flexDirection={"row"} alignItems="center" gap={1}>
-                          <Typography
-                            sx={{
-                              backgroundColor: CATEGORY_ICONS[item.category]?.bgcolor || "#f1f1f111",
-                              py: 0.4,
-                              px: 1,
-                              width: "auto",
-                              borderRadius: 0.4,
-                              fontWeight: "bolder",
-                              mt: 0,
-                              color: CATEGORY_ICONS[item.category]?.fcolor || "#000",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5
-                            }}
-                            variant="bodySmall"
-                            color="text.secondary"
-                          >
-                            <Avatar
-                              sx={{
-                                bgcolor: CATEGORY_ICONS[item.category]?.mcolor || "#333",
-                                color: CATEGORY_ICONS[item.category]?.fcolor || "#000",
-                                width: "auto",
-                                height: "auto",
-                                fontSize: 1,
-                                ml: "-6px",
-                                alignSelf: "center"
-                              }}
-                              variant="bodySmall"
-                            >
-                              {CATEGORY_ICONS[item.category]?.icon || <CategoryOutlinedIcon />}
-                            </Avatar>
-                            {item.category}
-                          </Typography>
-                          {/* Contributors */}
-                          {item.contributors?.length > 0 && (
-                            <Box mt={0}>
-                              <Stack direction="row" spacing={1} flexWrap="wrap">
-                                {item.contributors.length > 3 && (
-                                  <Chip
-                                    label={`+${item.contributors.length - 3} more`}
-                                    size="small"
-                                    variant="outlined"
-                                    sx={{
-                                      fontSize: "0.7rem",
-                                      borderRadius: '10px',
-                                      borderColor: buttonWeatherBg,
-                                      color: 'text.secondary',
-                                      mb: 0,
-                                    }}
-                                  />
-                                )}
-                              </Stack>
-                              <Typography variant="caption" sx={{ backgroundColor: "#f1f1f111", color: "#aaa", py: 0.5, px: 1, borderRadius: 0.4, mt: 0, fontWeight: "bolder" }}>
-                                {item.contributors.length}
-                              </Typography>
-                            </Box>
-                          )}
-                        </Box>
-                        {/* Total Amount */}
-                        <Typography variant="bodyMedium">
-                          <Typography variant="bodyMedium" fontWeight={600} color={isOver ? "#ff4444" : "success.main"}>
-                            ₹{balance.toFixed(2)}
-                          </Typography><br />/ ₹{item.amount}
-                        </Typography>
-                      </Paper>
-                    </Grid>
-                  );
-                })}
-                {/* If odd number of cards, add an empty card to complete the row */}
-  {filteredBudgets.length % 2 === 1 && (
-    <Grid item xs={1} sx={{ display: "flex", flex: 1, minWidth: 0 }}>
-      <Box sx={{ width: "100%", minWidth: 0, background: "transparent" }} />
-    </Grid>
-  )}
-              </Grid>
-              ) : (
-              // List View
-              <Stack spacing={2} width={"77vw"} sx={{ mt: 2 }}>
-                {filteredBudgets.map((item, idx) => {
-                  const itemIndex = budgetItems.findIndex(
-                    b => b.name === item.name && b.category === item.category
-                  );
-                  const balance = getCurrentBalance(item);
-                  const isOver = balance.toFixed(2) > item.amount;
-                  return (
-                    <Paper
-                      key={itemIndex}
-                      onClick={() => history(`/budget-mngr?index=${itemIndex}&expdrawer=true`)}
-                      elevation={1}
-                      sx={{
-                        width: "100%",
-                        minWidth: 0,
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        p: 2,
-                        borderRadius: '30px',
-                        bgcolor: isOver ? "#ff000033" : CATEGORY_ICONS[item.category]?.listbgcolor || 'background.paper', // <-- red if over
-                        color: isOver ? "#ff4444" : 'text.primary', // <-- red text if over
-                        boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.08)',
-                        transition: 'all 0.2s ease-in-out',
-                        cursor: 'pointer',
-                        gap: 0.3,
-                        "&:hover": {
-                          boxShadow: '0 6px 16px rgba(0, 0, 0, 0.15)',
-                          transform: 'translateY(-2px)',
-                        },
-                      }}
-                    >
-                      <Avatar
-                        sx={{
-                          bgcolor: CATEGORY_ICONS[item.category]?.mcolor || "#333",
-                          color: CATEGORY_ICONS[item.category]?.fcolor || "#000",
-                          width: 48,
-                          height: 48,
-                          fontSize: 48,
-                          mr: 2,
-                          borderRadius: '40%',
-                        }}
-                      >
-                        {CATEGORY_ICONS[item.category]?.icon || <CategoryOutlinedIcon />}
-                      </Avatar>
-                      <Box sx={{ flex: 1, m: 0 }}>
-                        <Box display={"flex"} flexDirection={"row"} justifyContent="space-between" alignItems="center" gap={1}>
-                          <Typography variant="h6" fontWeight={100}>
-                            {item.name}
-                          </Typography>
-                          <Box display={"flex"} flexDirection={"row"} alignItems="center" gap={1}>
-                            <Typography
-                            sx={{
-                              backgroundColor: CATEGORY_ICONS[item.category]?.bgcolor || "#f1f1f111",
-                              py: 0.4,
-                              px: 1,
-                              width: "auto",
-                              borderRadius: 0.4,
-                              fontWeight: "bolder",
-                              mt: 0,
-                              color: CATEGORY_ICONS[item.category]?.fcolor || "#000",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5
-                            }}
-                            variant="bodySmall"
-                            color="text.secondary"
-                          >
-                            {item.category}
-                          </Typography>
-                          {/* Contributors */}
-                          {item.contributors?.length > 0 && (
-                            <Box mt={0}>
-                              <Stack direction="row" spacing={1} flexWrap="wrap">
-                                {item.contributors.length > 3 && (
-                                  <Chip
-                                    label={`+${item.contributors.length - 3} more`}
-                                    size="small"
-                                    variant="outlined"
-                                    sx={{
-                                      fontSize: "0.7rem",
-                                      borderRadius: '10px',
-                                      borderColor: buttonWeatherBg,
-                                      color: 'text.secondary',
-                                      mb: 0,
-                                    }}
-                                  />
-                                )}
-                              </Stack>
-                              <Typography variant="caption" sx={{ backgroundColor: "#f1f1f111", color: "#aaa", py: 0.5, px: 1, borderRadius: 0.4, mt: 0, fontWeight: "bolder" }}>
-                                {item.contributors.length}
-                              </Typography>
-                            </Box>
-                          )}
-                          </Box>
-                        </Box>
-                        <Typography variant="bodyMedium" sx={{ mt: 0.5 }}>
-                          <Typography variant="bodyMedium" fontWeight={"bolder"} color={isOver ? "#ff4444" : "success.main"}>
-                            ₹{balance.toFixed(2)}
-                          </Typography>{" "} / ₹{item.amount}
-                        </Typography>
-                      </Box>
-                      <IconButton
-                        onClick={(e) => { e.stopPropagation(); handleMenuOpen(e, itemIndex); }}
-                        size="small"
-                        sx={{ ml: 1.2, p: 0 }}
-                      >
-                        <MoreVertIcon />
-                      </IconButton>
-                    </Paper>
-                  );
-                })}
-              </Stack>
-            )}
+          {filteredBudgets.map((item, idx) => {
+            const itemIndex = budgetItems.findIndex(
+              (b) => b.name === item.name && b.category === item.category
+            );
+            return (
+              <BudgetGridCard
+                key={itemIndex}
+                item={item}
+                itemIndex={itemIndex}
+                handleMenuOpen={handleMenuOpen}
+                history={history}
+                getCurrentBalance={getCurrentBalance}
+                CATEGORY_ICONS={CATEGORY_ICONS}
+                buttonWeatherBg={buttonWeatherBg}
+              />
+            );
+          })}
+          {/* If odd number of cards, add an empty card to complete the row */}
+          {filteredBudgets.length % 2 === 1 && (
+            <Grid item xs={1} sx={{ display: "flex", flex: 1, minWidth: 0 }}>
+              <Box sx={{ width: "100%", minWidth: 0, background: "transparent" }} />
+            </Grid>
+          )}
+        </Grid>
+      ) : (
+        <Stack spacing={2} width={"77vw"} sx={{ mt: 2 }}>
+          {filteredBudgets.map((item, idx) => {
+            const itemIndex = budgetItems.findIndex(
+              (b) => b.name === item.name && b.category === item.category
+            );
+            return (
+              <BudgetListCard
+                key={itemIndex}
+                item={item}
+                itemIndex={itemIndex}
+                handleMenuOpen={handleMenuOpen}
+                history={history}
+                getCurrentBalance={getCurrentBalance}
+                CATEGORY_ICONS={CATEGORY_ICONS}
+                buttonWeatherBg={buttonWeatherBg}
+              />
+            );
+          })}
+        </Stack>
+      )}
 
             {/* Shared Menu Component */}
             <Menu
@@ -1960,6 +2184,8 @@ const canEditExpenses = (() => {
           </Stack>
         </Drawer>
       </Box>
+      </BetaAccessGuard>
+      </DeviceGuard>
     </ThemeProvider>
   );
 };
