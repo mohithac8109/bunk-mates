@@ -698,19 +698,19 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             <ProfilePic />
           </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 0 }}>
           <Typography variant="h4" fontWeight="bold" sx={{ flex: 1, color: "#fff" }}>
             Notes
           </Typography>
         </Box>
         <Box 
           sx={{ 
-            mb: 2,
             position: "sticky", 
-            top: 17, 
+            top: 0,
+            paddingTop: "25px", 
             zIndex: 1,
             pb: 3,
-            background: "linear-gradient(to bottom, #000000, #000000, #00000030)",
+            background: "linear-gradient(to bottom, #0c0c0c, #0c0c0c, #0c0c0c, #0c0c0c, #0c0c0c90, #0c0c0c00)",
           }}
         >
           <TextField
@@ -830,7 +830,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   <Card
           key={note.id}
           sx={{
-            background: "#232526",
+            background: "#191919",
             borderRadius: 2,
             boxShadow: "0 1px 4px #0003",
             color: "#fff",
@@ -989,7 +989,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   <Card
           key={note.id}
           sx={{
-            background: "#232526",
+            background: "#191919",
             borderRadius: 2,
             boxShadow: "0 1px 4px #0003",
             color: "#fff",
@@ -1161,8 +1161,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               borderTopRightRadius: 0,
               borderBottomLeftRadius: 0,
               borderBottomRightRadius: 0,
-              backgroundColor: "#00000000",
-              backdropFilter: "blur(80px)",
+              backgroundColor: "#000000",
               p: 3,
               maxWidth: 480,
               height: "95vh",
@@ -1431,8 +1430,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           disableDiscovery={true}
           PaperProps={{
             sx: {
-              backgroundColor: "#00000010",
-              backdropFilter: "blur(180px)",
+              backgroundColor: "#000000",
               p: 3,
               maxWidth: 480,
               height: "95vh",
@@ -1445,15 +1443,15 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               onClick={() => setViewDrawerOpen(false)}
               sx={{
                 mr: 2,
-                width: 36,
                 height: 36,
                 minWidth: 0,
                 borderRadius: 2,
                 color: "#fff",
-                backgroundColor: "#232526",
+                backgroundColor: "#f1f1f111",
+                gap: 0.5,
               }}
             >
-              <ArrowBackIcon />
+              <ArrowBackIcon /> <Typography>Back</Typography>
             </Button>
           </Box>
           
@@ -1468,7 +1466,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
       {selectedNote.sharedWith.map((uid, i) => {
         const user = sharedUsersInfo[uid];
         return (
-          <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: "#232526", borderRadius: 2, px: 0.5, py: 0.5 }}>
+          <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: "#171717", borderRadius: 2, px: 0.5, py: 0.5 }}>
             <Avatar
               src={user?.photoURL || ""}
               alt={user?.username || "User"}
@@ -1523,7 +1521,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 position: "sticky",
                 right: 0,
                 bottom: 0,
-                backgroundColor: "#3f3f3f",
+                backgroundColor: "#191919ff",
                 justifyContent: "space-between",
                 borderRadius: 4,
                 alignContent: "center"
@@ -1538,7 +1536,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   setDrawerOpen(true);
                   setViewDrawerOpen(false);
                 }}
-                sx={{ color: "#fff", backgroundColor: "#f1f1f111", padding: 1 }}
+                sx={{ color: "#fff", backgroundColor: "#b9b9b911", padding: 1 }}
               >
                 <EditIcon />
               </IconButton>
@@ -1549,7 +1547,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   handleShareNote(selectedNote);
                   setViewDrawerOpen(false);
                 }}
-                sx={{ color: "#fff", backgroundColor: "#f1f1f111", padding: 1 }}
+                sx={{ color: "#fff", backgroundColor: "#b9b9b911", padding: 1 }}
               >
                 <ShareIcon />
               </IconButton>
@@ -1559,7 +1557,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 onClick={() => handlePinNote(selectedNote)}
                 sx={{ 
                   color: selectedNote?.pinned ? "#00f721" : "#fff",
-                  backgroundColor: selectedNote?.pinned ? "#00f72121" : "#f1f1f111",
+                  backgroundColor: selectedNote?.pinned ? "#00f72121" : "#b9b9b911",
                   padding: 1,
                   transform: selectedNote?.pinned ? "rotate(30deg)" : "rotate(0deg)",
                  }}
@@ -1570,7 +1568,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             <Tooltip title="Note Details">
               <IconButton
                 onClick={() => setDetailsDrawerOpen(true)}
-                sx={{ color: "#fff", backgroundColor: "#f1f1f111", padding: 1 }}
+                sx={{ color: "#fff", backgroundColor: "#b9b9b911", padding: 1 }}
               >
                 <InfoOutlinedIcon />
               </IconButton>

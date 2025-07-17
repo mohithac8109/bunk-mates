@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth, db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
 import {
   Box,
   Typography,
@@ -11,17 +9,16 @@ import {
   Fade,
   Slide,
   Stack,
-  useTheme,
   SvgIcon,
   GlobalStyles,
 } from "@mui/material";
 import { LockOutlined, RocketLaunch, HourglassBottom } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
-// Inject Nunito font from Google Fonts
-const nunitoFontUrl =
-  "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap";
+import { getCookie } from "../utils/cookies"; // ✅ Import from your cookies.js utility
 
-// Material 3 expressive dark theme
+const ALLOWED_USER_TYPES = ["Beta", "Dev Beta"];
+
+// Theme definition
 const theme = createTheme({
   palette: {
     mode: "dark",
@@ -62,9 +59,7 @@ const theme = createTheme({
   },
 });
 
-const ALLOWED_USER_TYPES = ["Beta", "Dev Beta"];
-
-// Simple illustration SVG
+// Simple SVG
 function BetaIllustration(props) {
   return (
     <SvgIcon viewBox="0 0 120 120" {...props} sx={{ fontSize: 120 }}>
@@ -81,60 +76,32 @@ export default function BetaAccessGuard({ children }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Dynamically inject Nunito font link
+    const checkAccess = () => {
+      const rawUserType = getCookie("bunkmate_usertype") ||
+                       JSON.parse(localStorage.getItem("bunkmateuser") || "{}")?.type;
+
+      const userType = decodeURIComponent(rawUserType || "").trim();
+
+      if (ALLOWED_USER_TYPES.includes((userType || "").trim())) {
+        setAccessDenied(false);
+      } else {
+        setAccessDenied(true);
+      }
+      setLoading(false);
+    };
+
+    checkAccess();
+  }, []);
+
+  useEffect(() => {
+    // Inject Nunito font
     if (!document.getElementById("nunito-font-link")) {
       const link = document.createElement("link");
       link.id = "nunito-font-link";
       link.rel = "stylesheet";
-      link.href = nunitoFontUrl;
+      link.href = "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap";
       document.head.appendChild(link);
     }
-  }, []);
-
-  useEffect(() => {
-    async function checkAccess() {
-      setLoading(true);
-      let user = auth.currentUser;
-      let uid = null;
-
-      if (user) {
-        uid = user.uid;
-      } else {
-        // Try to get UID from localStorage/cookie
-        const storedUser = localStorage.getItem("bunkmateuser");
-        if (storedUser) {
-          try {
-            const parsed = JSON.parse(storedUser);
-            if (parsed?.uid) uid = parsed.uid;
-          } catch {}
-        }
-      }
-
-      if (!uid) {
-        setAccessDenied(true);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const docRef = doc(db, "users", uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (!ALLOWED_USER_TYPES.includes((data.type || "").trim())) {
-            setAccessDenied(true);
-          } else {
-            setAccessDenied(false);
-          }
-        } else {
-          setAccessDenied(true);
-        }
-      } catch {
-        setAccessDenied(true);
-      }
-      setLoading(false);
-    }
-    checkAccess();
   }, []);
 
   if (loading) {
@@ -153,15 +120,7 @@ export default function BetaAccessGuard({ children }) {
       <ThemeProvider theme={theme}>
         <GlobalStyles styles={{ body: { fontFamily: "Nunito, Roboto, Arial, sans-serif" } }} />
         <Fade in>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              py: 4,
-              minHeight: "91vh"
-            }}
-          >
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", py: 4, minHeight: "91vh" }}>
             <Slide in direction="up" timeout={600}>
               <Paper
                 elevation={4}
@@ -194,8 +153,7 @@ export default function BetaAccessGuard({ children }) {
                     Beta Access Only
                   </Typography>
                   <Typography variant="body1" color="#696969" sx={{ mb: 1 }}>
-                    Thank you for your patience.<br />
-                    This application is currently available only to <b>Beta</b> and <b>Dev Beta</b> users.<br />
+                    This app is only available to <b>Beta</b> and <b>Dev Beta</b> users.<br />
                     Want to join the Beta program?
                   </Typography>
                   <Button
@@ -207,12 +165,11 @@ export default function BetaAccessGuard({ children }) {
                       borderRadius: 1,
                       fontWeight: 600,
                       fontSize: "1.1rem",
-                      boxShadow: "0 2px 8px 0 rgba(208, 188, 255, 0)",
                       px: 4,
                       py: 1.5,
                       letterSpacing: 0.5,
                       backgroundColor: "#f1f1f131",
-                      color: "#fff"
+                      color: "#fff",
                     }}
                     startIcon={<RocketLaunch />}
                   >

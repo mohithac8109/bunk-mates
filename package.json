@@ -1,6 +1,6 @@
 {
   "name": "bunk-mates",
-  "version": "1.0.99.4(Dev Beta)",
+  "version": "2.1.14.0.07(Beta1)",
   "private": true,
   "scripts": {
     "start": "react-scripts start",
@@ -64,6 +64,7 @@
     "lexical": "^0.32.1",
     "lucide-react": "^0.503.0",
     "phosphor-react": "^1.4.1",
+    "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-feather": "^2.0.10",

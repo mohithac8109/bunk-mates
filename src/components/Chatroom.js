@@ -26,11 +26,9 @@ import { db, auth } from '../firebase';
 import { onAuthStateChanged } from "firebase/auth";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
-import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
-import SaveIcon from '@mui/icons-material/Save';
 import { v4 as uuidv4 } from 'uuid'; // For notification message id
 import { messaging } from "../firebase";
 import { getToken, onMessage } from "firebase/messaging";

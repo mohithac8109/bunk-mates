@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Box,
-  Container,
   Typography,
   TextField,
   Button,
@@ -12,7 +11,7 @@ import {
   Fade,
   GlobalStyles,
 } from "@mui/material";
-import { RocketLaunch, Person, Email, EditNote } from "@mui/icons-material";
+import { RocketLaunch, Person, Email } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { db } from "../firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";

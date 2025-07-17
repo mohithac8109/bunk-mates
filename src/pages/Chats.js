@@ -19,13 +19,17 @@ import {
 } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import BetaAccessGuard from "../components/BetaAccessGuard";
-import { Avatar, useTheme, IconButton, Dialog, createTheme, keyframes, Slide, Box, Typography, TextField, Button, ThemeProvider, CircularProgress } from '@mui/material';
+import { Avatar, useTheme, IconButton, Dialog, createTheme, keyframes, Slide, Box, Tabs, Tab, InputAdornment, Typography, TextField, Button, ThemeProvider, CircularProgress, Drawer, Divider, SwipeableDrawer } from '@mui/material';
 import { format, isToday, isYesterday } from 'date-fns';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import AddIcon from '@mui/icons-material/Add';
 import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
 import CloseIcon from '@mui/icons-material/Close';
+import SearchIcon from "@mui/icons-material/Search";
 import ProfilePic from '../components/Profile';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
 import { Theme } from 'emoji-picker-react';
@@ -33,6 +37,9 @@ import { useSettings } from "../contexts/SettingsContext";
 import { messaging } from "../firebase";
 import { getToken, onMessage } from "firebase/messaging";
 import DeviceGuard from '../components/DeviceGuard';
+import Snackbar from "@mui/material/Snackbar";
+import MuiAlert from "@mui/material/Alert";
+
 
 // Fade-in animation keyframes
 const fadeIn = keyframes`
@@ -55,7 +62,7 @@ const theme = createTheme({
       paper: "#0c0c0c", // deep black for dialogs/paper
     },
     primary: {
-      main: "#00f721", // bright green solid for buttons and accents
+      main: "#ffffffff", // bright green solid for buttons and accents
       contrastText: "#000000", // black text on bright green buttons
     },
     secondary: {
@@ -67,12 +74,12 @@ const theme = createTheme({
       disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
     },
     action: {
-      hover: "#00f721", // bright green hover for interactive elements
+      hover: "#ffffffff", // bright green hover for interactive elements
       selected: "#131313", // dark black for selected states
       disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
       disabled: "#BDBDBD",
     },
-    divider: "rgb(24, 24, 24)", // very dark grey for borders
+    divider: "rgba(159, 159, 159, 0.45)", // very dark grey for borders
   },
   typography: {
     fontFamily: "Roboto, Arial, sans-serif",
@@ -215,6 +222,26 @@ function Chats({ onlyList }) {
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   const { settings, setTheme, setAccent, setAutoAccent } = useSettings();
   const [dynamicTheme, setDynamicTheme] = useState(theme);
+  const [tab, setTab] = useState(0);
+  const [friendsList, setFriendsList] = useState([]);
+  const [searchFriend, setSearchFriend] = useState(""); 
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
+  const [groupDescription, setGroupDescription] = useState('');
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false); // Controls group drawer
+  const [membDialogOpen, setMembDialogOpen] = useState(false); // Controls group drawer
+  const [groupIcon, setGroupIcon] = useState(""); // Icon or emoji
+  const [selectedFriends, setSelectedFriends] = useState([]); // List of selected members for group
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success", // can be "success", "error", "info", etc.
+  });
+
+  const handleCloseSnackbar = (_, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbar({ ...snackbar, open: false });
+  };
 
 
   useEffect(() => {
@@ -344,6 +371,63 @@ useEffect(() => {
 }, [currentUser]);
 
 useEffect(() => {
+  if (!currentUser) return;
+
+  const fetchFriends = async () => {
+    try {
+      const userRef = doc(db, "users", currentUser.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) return;
+
+      const friendsUIDs = userSnap.data().friends || [];
+
+      const friendDocs = await Promise.all(
+        friendsUIDs.map(uid => getDoc(doc(db, "users", uid)))
+      );
+
+      const fetchedFriends = friendDocs
+        .filter(doc => doc.exists())
+        .map(doc => {
+          const data = doc.data();
+          return {
+            uid: doc.id,
+            name: data.name || "Unnamed",
+            username: data.username || "",
+            photoURL:
+              data.photoURL ||
+              `https://api.dicebear.com/7.x/identicon/svg?seed=${doc.id}`,
+          };
+        });
+
+      setFriendsList(fetchedFriends);
+    } catch (err) {
+      console.error("Failed to fetch friends:", err);
+    }
+  };
+
+  fetchFriends();
+}, [currentUser]);
+
+const filteredFriends = friendsList.filter((friend) => {
+  const query = searchFriend.toLowerCase();
+  return (
+    friend.name?.toLowerCase().includes(query) ||
+    friend.username?.toLowerCase().includes(query)
+  );
+});
+
+const toggleFriendSelection = (friend) => {
+  const alreadySelected = selectedFriends.find((f) => f.uid === friend.uid);
+  if (alreadySelected) {
+    setSelectedFriends((prev) => prev.filter((f) => f.uid !== friend.uid));
+  } else {
+    setSelectedFriends((prev) => [...prev, friend]);
+  }
+};
+
+
+useEffect(() => {
     if (!currentUser) return;
     const fetchNicknames = async () => {
       const userDoc = await getDoc(doc(db, "users", currentUser.uid));
@@ -427,7 +511,6 @@ useEffect(() => {
     setSearchTerm('');
   };
   
-  
 
   const handleAddUser = (user) => {
     setSelectedUsers([...selectedUsers, user]);
@@ -438,24 +521,40 @@ useEffect(() => {
     setSelectedUsers(prev => prev.filter(u => u.uid !== uid));
   };
 
-  const handleCreateGroup = async () => {
-    if (!groupName.trim() || selectedUsers.length === 0) return;
-  
-    const groupData = {
-      name: groupName,
-      emoji: groupEmoji,
-      members: [...selectedUsers.map(u => u.uid), currentUser.uid],
-      createdBy: currentUser.uid,
-      createdAt: serverTimestamp()
-    };
+const handleCreateGroup = async () => {
+  if (!groupName || selectedFriends.length === 0) return;
 
-    const groupRef = await addDoc(collection(db, 'groupChats'), groupData);
-    setAddUserDialog(false);
-    setGroupDialog(false);
-    setSelectedUsers([]);
-    setGroupName('');
-    setGroupEmoji('💬');
-  };
+  const currentUser = auth.currentUser;
+  const allMembers = [...selectedFriends.map(f => f.uid), currentUser.uid];
+
+  try {
+    const groupRef = doc(collection(db, "groupChats")); // Auto-generates ID
+
+    await setDoc(groupRef, {
+      name: groupName,
+      description: groupDescription,
+      iconURL: groupIcon,
+      emoji: "", // If you want to support emojis later
+      members: allMembers,
+      createdBy: currentUser.uid,
+      createdAt: new Date().toISOString(),
+      inviteAccess: "all",
+    });
+
+    setGroupDialogOpen(false);
+    setGroupName("");
+    setGroupDescription("");
+    setGroupIcon("");
+    setSelectedFriends([]);
+
+    setSnackbar({ open: true, message: "Group created successfully!" });
+
+  } catch (error) {
+    console.error("Error creating group:", error);
+    setSnackbar({ open: true, message: "Failed to create group." });
+  }
+};
+
 
 useEffect(() => {
   if (!currentUser) return;
@@ -590,7 +689,7 @@ useEffect(() => {
 }, [userGroups, currentUser]);
 
   const goBack = () => {
-    history(-1);
+    history("/");
   };
 
 
@@ -866,7 +965,7 @@ const combinedChats = [
       <ThemeProvider theme={theme}>
         <DeviceGuard>
                   <BetaAccessGuard>
-          <div style={{ padding: '10px', backgroundColor: '#02020200' }}>
+          <div style={{ padding: '20px', backgroundColor: '#02020200' }}>
       <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
       <IconButton onClick={goBack} sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
         <ArrowBackIcon />
@@ -877,23 +976,37 @@ const combinedChats = [
 
       <Typography variant="h4" style={{ color: '#FFFFFF', fontWeight: "bolder", marginBottom: 12, mr: 2 }}>Chats</Typography>
 
-      <input
+    <Box
+      sx={{
+        position: "sticky",
+        top: 0,
+        zIndex: 999,
+        background: "linear-gradient(to bottom, #0c0c0c, #0c0c0ce3, #0c0c0c00)",
+        py: 2,
+      }}
+    >
+            <TextField
+        fullWidth
         type="text"
         placeholder="Search users or groups..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         style={{
-          padding: '14px 10px',
-          width: '93%',
           marginBottom: '20px',
           borderRadius: '12px',
           backgroundColor: '#101010',
           color: '#fff',
-          border: '1px solid rgb(24, 24, 24)',
         }}
         LabelInputProps={{ style: { color: '#fff' } }}
-        InputProps={{ style: { color: '#fff' } }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon sx={{ color: "#777" }} />
+            </InputAdornment>
+          ),
+        }}
       />
+    </Box>
 
       {notification && (
         <div
@@ -1041,112 +1154,404 @@ const combinedChats = [
         </Box>
       </div>
 
-      <Dialog open={groupDialog} backgroundColor="#000000" onClose={() => setGroupDialog(false)} fullWidth maxWidth="sm">
-  <Box sx={{ bgcolor: '#0c0c0c', border: '1px solid 101010', p: 3 }}>
-    <Typography variant="h6" color="#fff" sx={{ mb: 2 }}>Group Details</Typography>
+<Drawer
+  anchor="bottom"
+  open={groupDialogOpen}
+  onClose={() => setGroupDialogOpen(false)}
+  PaperProps={{
+    sx: {
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      p: 3,
+      backgroundColor: "#121212",
+      height: "75vh",
+    },
+  }}
+>
+  <Typography variant="h6" fontWeight="bold" mb={2}>
+    Create New Group
+  </Typography>
 
-    <TextField
-      fullWidth
-      label="Group Name"
-      value={groupName}
-      onChange={(e) => setGroupName(e.target.value)}
-      sx={{ input: { color: '#fff', backgroundColor: '#1a1a1a', borderRadius: '10px' }, label: { color: '#fff' }, mb: 2 }}
-    />
+  <TextField
+    label="Group Name"
+    fullWidth
+    value={groupName}
+    onChange={(e) => setGroupName(e.target.value)}
+    placeholder="Enter group name"
+    sx={{ mb: 2 }}
+  />
 
+  <TextField
+    label="Group Icon (Emoji or Image URL)"
+    fullWidth
+    value={groupIcon}
+    onChange={(e) => setGroupIcon(e.target.value)}
+    placeholder="e.g. 😊 or https://img.com/icon.png"
+    sx={{ mb: 2 }}
+  />
 
-<Typography color="#fff" sx={{ ml: 2 }}>Group Emoji</Typography>
-    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-      <EmojiEmotionsIcon sx={{ color: '#fff', mr: 1 }} />
-      <TextField
-        value={groupEmoji}
-        onChange={(e) => setGroupEmoji(e.target.value)}
-        sx={{ width: 60, input: { color: '#fff', backgroundColor: '#1a1a1a', borderRadius: '10px', width: '300px' } }}
-      />
-    </Box>
+  <TextField
+    label="Group Description"
+    fullWidth
+    multiline
+    rows={2}
+    value={groupDescription}
+    onChange={(e) => setGroupDescription(e.target.value)}
+    placeholder="What’s this group about?"
+    sx={{ mb: 3 }}
+  />
 
-    <Typography variant="subtitle2" color="#fff">Members:</Typography>
-    {selectedUsers.map(user => (
-      <Box key={user.uid} sx={{ display: 'flex', alignItems: 'center', my: 1 }}>
-        <Avatar src={user.photoURL} sx={{ mr: 1 }} />
-        <Typography color="#fff">{user.username}</Typography>
+  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+    Members ({selectedFriends.length})
+  </Typography>
+
+  <Box
+    sx={{
+      maxHeight: 180,
+      overflowY: "auto",
+      mb: 3,
+      pr: 1,
+      display: "flex",
+      flexDirection: "column",
+      gap: 1,
+    }}
+  >
+    {selectedFriends.map((friend) => (
+      <Box
+        key={friend.uid}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          p: 1,
+          bgcolor: "#1E1E1E",
+          borderRadius: 2,
+        }}
+      >
+        <Avatar src={friend.photoURL || ""} />
+        <Box>
+          <Typography>{friend.name || friend.username}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            @{friend.username}
+          </Typography>
+        </Box>
       </Box>
     ))}
-
-    <Button
-      variant="contained"
-      fullWidth
-      sx={{ mt: 3, bgcolor: buttonWeatherBg, color: '#000' }}
-      onClick={handleCreateGroup}
-    >
-      Confirm & Create Group
-    </Button>
   </Box>
-</Dialog>
 
+  <Button
+    variant="contained"
+    color="primary"
+    fullWidth
+    sx={{ py: 1.4, borderRadius: 2, fontWeight: "bold" }}
+    onClick={handleCreateGroup}
+    disabled={!groupName || selectedFriends.length === 0}
+  >
+    Create Group
+  </Button>
+</Drawer>
 
-<Dialog
-  fullScreen
+<SwipeableDrawer
+  anchor="bottom"
+  open={membDialogOpen}
+  onClose={() => setMembDialogOpen(false)}
+  PaperProps={{
+    sx: {
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      p: 3,
+      backgroundColor: "#00000000",
+      backdropFilter: "blur(40px)",
+      height: "75vh",
+    },
+  }}
+>
+      <>
+        <TextField
+          fullWidth
+          placeholder="Search by username"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{
+            input: { color: "#fff" },
+            backgroundColor: "#3131314d",
+            borderRadius: 1,
+            mb: 2,
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#2A2A2A",
+            },
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ color: "#777" }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        <Box sx={{ overflowY: "auto", flex: 1 }}>
+          {searchResults.map((user) => (
+            <Box
+              key={user.uid}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                bgcolor: "#1a1a1a3a",
+                borderRadius: 2,
+                px: 2,
+                py: 1.5,
+                mb: 1,
+              }}
+            >
+              <Box display="flex" alignItems="center">
+                <Avatar src={user.photoURL} sx={{ width: 40, height: 40, mr: 2 }} />
+                <Typography color="white">{user.username}</Typography>
+              </Box>
+
+              <Button
+                variant="outlined"
+                size="small"
+                sx={{
+                  color: buttonWeatherBg,
+                  borderColor: buttonWeatherBg,
+                  bgcolor: WeatherBgdrop,
+                  borderRadius: 2,
+                  px: 2,
+                }}
+                onClick={() => handleAddFriend(user)}
+              >
+                <PersonAddIcon sx={{ mr: 1 }} fontSize="small" />
+                Add
+              </Button>
+            </Box>
+          ))}
+        </Box>
+      </>
+</SwipeableDrawer>
+
+<Drawer
+  anchor="bottom"
   open={addUserDialog}
   onClose={() => setAddUserDialog(false)}
-  TransitionComponent={Slide}
+  transitionDuration={400}
+  PaperProps={{
+    sx: {
+      bgcolor: "#00000000",
+      backdropFilter: "blur(40px)",
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      height: "100vh",
+    },
+  }}
 >
-  <Box sx={{ bgcolor: '#0c0c0c', height: '100vh', p: 3 }}>
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-      <Typography variant="h6" fontSize="28px" color="white"><strong>Start New Group</strong></Typography>
-      <IconButton sx={{bgcolor: '#2c2c2c', width: '45px' }} onClick={() => setAddUserDialog(false)}><CloseIcon sx={{ color: '#fff' }} /></IconButton>
+  <Box sx={{ p: 3, height: "100%", display: "flex", flexDirection: "column" }}>
+    {/* Header */}
+    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+      <Typography variant="h5" fontWeight="bold" color="white">
+        Start Chat
+      </Typography>
+      <IconButton onClick={() => setAddUserDialog(false)} sx={{ bgcolor: "#1F1F1F" }}>
+        <CloseIcon sx={{ color: "#fff" }} />
+      </IconButton>
     </Box>
 
-    <TextField
-      fullWidth
-      placeholder="Search by username"
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-      sx={{ mb: 2, input: { color: '#fff' },
-      padding: '1px 10px',
-      width: '93%',
-      marginBottom: '20px',
-      borderRadius: '12px',
-      backgroundColor: '#101010',
-      border: '1px solid rgb(24, 24, 24)', }}
-    />
+<Box mt={3}>
+  <TextField
+  fullWidth
+  placeholder="Search friends by name or username"
+  value={searchFriend}
+  onChange={(e) => setSearchFriend(e.target.value)}
+  sx={{
+    mb: 2,
+    input: { color: "#fff" },
+    backgroundColor: "#1010104d",
+    borderRadius: "12px",
+    "& fieldset": { borderColor: "#222" },
+  }}
+  InputProps={{
+    startAdornment: (
+      <InputAdornment position="start">
+        <SearchIcon sx={{ color: "#777" }} />
+      </InputAdornment>
+    ),
+  }}
+/>
 
-    {searchResults.map(user => (
-      <Box key={user.uid} sx={{ display: 'flex', alignItems: 'center', mb: 1, bgcolor: '#131313', padding: '10px', borderRadius: '20px' }}>
-        <Avatar src={user.photoURL} sx={{ mr: 2 }} />
-        <Typography color="#fff" sx={{ flex: 1 }}>{user.username}</Typography>
-        <Button variant="outlined" sx={{ mr: 1, color: buttonWeatherBg, backgroundColor: WeatherBgdrop, borderColor: buttonWeatherBg, borderRadius: '10px' }} onClick={() => handleAddUser(user)}>Group</Button>
-        <Button
-          variant="outlined"
-          sx={{ mr: 1, color: buttonWeatherBg, backgroundColor: WeatherBgdrop, borderColor: buttonWeatherBg, borderRadius: '10px' }}
-          onClick={() => handleAddFriend(user)}
-        >
-          Add Friend
-        </Button>
+{!creatingGroup && (
+  <Button
+    variant="contained"
+    fullWidth
+    onClick={() => setCreatingGroup(true)}
+    sx={{ 
+      mb: 2,
+      backgroundColor: "rgba(51, 51, 51, 0.23)",
+      boxShadow: "none",
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "left",
+      gap: 2,
+      color: "#ffffff"
+    }}
+  >
+    <GroupAddIcon sx={{ p: 1.5, backgroundColor: buttonWeatherBg, borderRadius: 4, color: "#000000" }} />
+    Create Group
+  </Button>
+)}
+
+  <Button
+    variant="contained"
+    fullWidth
+    onClick={() => setMembDialogOpen(true)}
+    sx={{ 
+      mb: 2,
+      backgroundColor: "rgba(51, 51, 51, 0.23)",
+      boxShadow: "none",
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "left",
+      gap: 2,
+      color: "#ffffff"
+    }}
+  >
+    <PersonAddIcon sx={{ p: 1.5, backgroundColor: buttonWeatherBg, borderRadius: 4, color: "#000000" }} />
+    New Contact
+  </Button>
+
+  <Typography variant="subtitle1" color="#fff" gutterBottom>
+    Your Friends
+  </Typography>
+
+{filteredFriends.map((friend) => {
+  const isSelected = selectedGroupMembers.some((u) => u.uid === friend.uid);
+
+  return (
+    <Box
+      key={friend.uid}
+      onClick={() => {
+        if (!creatingGroup) return;
+
+        setSelectedGroupMembers((prev) =>
+          isSelected
+            ? prev.filter((u) => u.uid !== friend.uid)
+            : [...prev, friend]
+        );
+      }}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 2,
+        px: 2,
+        py: 1,
+        mb: 1,
+        borderRadius: 1.5,
+        backgroundColor: isSelected ? WeatherBgdrop : "#24242401",
+        color: isSelected ? "#000" : "#fff",
+        cursor: creatingGroup ? "pointer" : "default",
+      }}
+    >
+      <Avatar src={friend.photoURL} />
+      <Box>
+        <Typography color="white" fontWeight={500}>
+          {friend.name || friend.username}
+        </Typography>
+        <Typography color="text.secondary" variant="caption">
+          @{friend.username}
+        </Typography>
       </Box>
-    ))}
-
-    <Box sx={{ mt: 2 }}>
-      <Typography color="#fff" variant="subtitle1">Selected Users:</Typography>
-      {selectedUsers.map(user => (
-        <Box key={user.uid} sx={{ display: 'flex', alignItems: 'center', my: 1, bgcolor: '#131313', padding: '10px', borderRadius: '20px' }}>
-          <Avatar src={user.photoURL} sx={{ mr: 1 }} />
-          <Typography color="#fff" sx={{ flex: 1 }}>{user.username}</Typography>
-          <IconButton onClick={() => handleRemoveUser(user.uid)}><CloseIcon sx={{ color: buttonWeatherBg, backgroundColor: WeatherBgdrop, borderColor: buttonWeatherBg, borderRadius: '10px' }} /></IconButton>
-        </Box>
-      ))}
+      {creatingGroup && isSelected && (
+        <CheckCircleIcon sx={{ ml: "auto", color: buttonWeatherBg }} />
+      )}
     </Box>
+  );
+})}
+
+</Box>
+
+{creatingGroup && (
+  <>
+    <Button
+      fullWidth
+      variant="contained"
+      disabled={selectedGroupMembers.length === 0}
+      onClick={() => {
+        setSelectedFriends([...selectedGroupMembers]);
+        setGroupDialogOpen(true);
+        setAddUserDialog(false);
+      }}
+      sx={{
+        mt: 2,
+        py: 1.5,
+        borderRadius: 2,
+        bgcolor: buttonWeatherBg,
+        color: "#000",
+        fontWeight: "bold",
+      }}
+    >
+      Continue to Create Group
+    </Button>
 
     <Button
-      variant="contained"
-      sx={{ mt: 4, bgcolor: buttonWeatherBg, color: '#000' }}
-      onClick={() => setGroupDialog(true)}
-      disabled={selectedUsers.length === 0}
+      fullWidth
+      variant="outlined"
+      onClick={() => {
+        setCreatingGroup(false);
+        setSelectedGroupMembers([]); // Optional: clear selected
+      }}
+      sx={{
+        mt: 1.5,
+        py: 1.3,
+        borderRadius: 2,
+        backgroundColor: "#ff000010",
+        color: "#ff8080ff",
+        borderColor: "#ff8080ff",
+      }}
     >
-      Create Group Chat
+      Cancel
     </Button>
-  </Box>
-</Dialog>
+  </>
+)}
 
+  </Box>
+</Drawer>
+
+<Snackbar
+  open={snackbar.open}
+  autoHideDuration={3000}
+  onClose={handleCloseSnackbar}
+  anchorOrigin={{ vertical: "top", horizontal: "center" }}
+>
+  <MuiAlert
+    elevation={6}
+    variant="filled"
+    onClose={handleCloseSnackbar}
+    severity={snackbar.severity}
+    sx={{ width: "100%" }}
+  >
+    {snackbar.message}
+  </MuiAlert>
+</Snackbar>
+
+<Divider sx={{ mt: 4 }} />
+<Box
+  sx={{
+    mt: 2,
+    mb: 4,
+    alignContent: "center",
+    alignItems: "center",
+    textAlign: "center",
+    opacity: 0.5,
+    fontSize: "0.75rem",
+    userSelect: "none",
+  }}
+>
+  <Typography variant="caption" color="text.secondary">
+    Your Messages are end-to-end encrypted
+  </Typography>
+</Box>
           </div>
         </BetaAccessGuard>
         </DeviceGuard>

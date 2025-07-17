@@ -3,18 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { auth, db, firestore } from "../firebase";
 import packageJson from '../../package.json'; 
 import {
-  AppBar,
-  Toolbar,
   Typography,
   Container,
   Box,
   Avatar,
-  Menu,
-  MenuItem,
-  Grid,
   Card,
-  CardContent,
-  CardMedia,
   CircularProgress,
   ThemeProvider,
   createTheme,
@@ -33,9 +26,8 @@ import {
   DialogTitle,
   DialogActions,
   Button,
-  Backdrop,
-  Skeleton,
   FormControlLabel,
+  Stack,
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -44,12 +36,11 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';   
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 
 import { signOut, updateProfile } from "firebase/auth";
 import { doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
-import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
+import { weatherColors } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
 import { useSettings } from "../contexts/SettingsContext";
 
@@ -249,70 +240,95 @@ const ProfilePic = () => {
     setUserData(prev => ({ ...prev, ...newData }));
   };
 
-  const [features] = useState([
-    {
-      name: "User Authentication",
-      detail: "Secure login and registration system with email/password and OAuth support."
-    },
-    {
-      name: "Edit Profile",
-      detail: "Update your profile details including avatar, display name, and contact info."
-    },
-    {
-      name: "Real-time Chat",
-      detail: "Send and receive instant messages with friends or groups with online presence."
-    },
-    {
-      name: "Push Notifications",
-      detail: "Receive timely notifications about new messages, mentions, and app updates."
-    },
-    {
-      name: "Dark Mode",
-      detail: "Switch between light and dark themes to reduce eye strain and save battery."
-    },
-    {
-      name: "Group Chats",
-      detail: "Create and manage group conversations with multiple participants."
-    },
-    {
-      name: "Message Reactions",
-      detail: "React to messages with emojis to express your feelings quickly."
-    },
-    {
-      name: "File Sharing",
-      detail: "Send images, documents, and other files seamlessly in chats."
-    },
-    {
-      name: "Search Messages",
-      detail: "Easily search through your chat history to find important messages."
-    },
-    {
-      name: "Custom Status",
-      detail: "Set a custom status message to let others know what you're up to."
-    }
-  ]);
+const [features] = useState([
+  {
+    name: "Trip Creation",
+    detail: "Create new trips with names, dates, destinations, and invite members by email or username."
+  },
+  {
+    name: "Trip Dashboard",
+    detail: "View trip summary including destination, dates, group icon, checklist, members, and budget."
+  },
+  {
+    name: "Checklist Manager",
+    detail: "Add, edit, and mark tasks as complete using a swipeable drawer UI for trip planning."
+  },
+  {
+    name: "Group Chat per Trip",
+    detail: "Real-time chat with trip members powered by Firestore, automatically created with each trip."
+  },
+  {
+    name: "Standalone Group Chats",
+    detail: "Create custom group chats with friends, add emoji/icon, and manage members in a drawer UI."
+  },
+  {
+    name: "Notes and Media",
+    detail: "Add text notes with optional media to your trips; keep private or share with group."
+  },
+  {
+    name: "Reminders & Notifications",
+    detail: "Set and manage reminders linked to tasks or notes with local notifications support."
+  },
+  {
+    name: "Trip Budgeting",
+    detail: "Assign individual contributions, auto-calculate total budget, and sync with all contributors."
+  },
+  {
+    name: "Expense Tracking",
+    detail: "Log and categorize expenses for each trip, view real-time updates on usage."
+  },
+  {
+    name: "Join via Invite Link",
+    detail: "Accept or reject invites to trips or groups using a preview-based JoinTrip page."
+  },
+  {
+    name: "Profile Management",
+    detail: "Update your username, avatar, and contact info via a swipeable profile drawer."
+  },
+  {
+    name: "Authentication",
+    detail: "Secure login and registration using Supabase with persistent sessions."
+  },
+  {
+    name: "Trip Weather Forecast",
+    detail: "View current and upcoming weather for your trip location directly on the Trips screen."
+  },
+  {
+    name: "Google Maps Integration",
+    detail: "View trip route with full navigation support using external Google Maps link."
+  },
+  {
+    name: "Dark Mode UI",
+    detail: "Sleek, minimal dark-themed interface for chats, JoinTrip screen, and core UI."
+  }
+]);
+
 
 
     const changelogs = [
-    {
-      version: "1.0.0",
-      date: "2025-06-01",
-      changes: [
-        "Initial public release",
-        "User authentication implemented",
-        "Real-time chat with groups and file sharing",
-        "Dark mode support",
-      ],
-    },
-    {
-      version: "1.1.0",
-      date: "2025-06-05",
-      changes: [
-        "Added message reactions",
-        "Improved search messages feature",
-        "Bug fixes and performance improvements",
-      ],
-    }
+{
+  version: "2.1.14.0.07(Beta1)",
+  date: "2025-07-20",
+  changes: [
+    "Initial beta release of BunkMate",
+    "User authentication using Supabase",
+    "Create and manage trips with members",
+    "Trip dashboard with weather, route link, and checklist",
+    "Real-time group chat per trip with Firestore",
+    "Custom group chat creation with emoji/icon support",
+    "Notes system with text and media attachments",
+    "Reminders with local notification support",
+    "Per-member budget contribution and auto-calculated totals",
+    "Expense tracking system per trip",
+    "Invite members via email or join link with preview screen",
+    "User profile management with swipeable drawer",
+    "Google Maps redirection for trip routes",
+    "Current weather display on Trips page",
+    "Dark mode interface for main screens",
+    "Firestore-based real-time syncing of trips, budgets, and chats"
+  ]
+}
+
   ];
 
   // Fetch user data on drawer open or when editProfile page is shown
@@ -604,11 +620,11 @@ sx={{
           </ListItem>
 
           <ListItem>
-            <ListItemButton onClick={() => setConfirmLogout(true)} sx={{ backgroundColor: "#ff000036", borderRadius: 1.7, py: 2.2, '&:hover': { bgcolor: '#ff000086', color: '#ff000046'}}}>
+            <ListItemButton onClick={() => setConfirmLogout(true)} sx={{ backgroundColor: "#ff191982", borderRadius: 1.7, py: 2.2, '&:hover': { bgcolor: '#ff000086', color: '#ff000046'}}}>
               <ListItemIcon>
-                <LogoutIcon sx={{ color: "#ff0000" }} />
+                <LogoutIcon sx={{ color: "#ffd4d4" }} />
               </ListItemIcon>
-              <Typography sx={{ color: "#ff0000" }}>Logout</Typography>
+              <Typography sx={{ color: "#ffd4d4" }}>Logout</Typography>
             </ListItemButton>
           </ListItem>
         </List>
@@ -618,14 +634,7 @@ sx={{
     {/* Edit Profile Page */}
     {drawerPage === "editProfile" && (
       <Container sx={{ mt: 1, mb: 2, color: "#fff" }}>
-        <Typography variant="h5" gutterBottom>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => setDrawerPage("main")}
-            sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}
-          />
-          <h2>Edit Profile</h2>
-        </Typography>
+
         {/* Your edit profile form here */}
         {/* ... */}
       </Container>
@@ -701,111 +710,131 @@ sx={{
 )}
 
 {drawerPage === "about" && (
-  <Container sx={{ mt: 1, mb: 2 }}>
+  <Container sx={{ mt: 2, mb: 4 }}>
+    {/* Back Button */}
     <Button
       startIcon={<ArrowBackIcon />}
       onClick={() => setDrawerPage("main")}
-      sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}
-    />
-    <Typography variant="h5" gutterBottom><h2>App Version & About</h2></Typography>
-
-          <Typography
-            variant="body1"
-            sx={{ mb: 2, backgroundColor: '#f1f1f111', fontSize: 18, py: 1, px: 2, borderRadius: 1, cursor: "pointer" }}
-            onClick={() => setDrawerPage("featuresChangelog")}
-          >
-            Version: <strong>{packageJson.version || "N/A"}</strong>
-          </Typography>
-
-    <Typography variant="body2" sx={{ mb: 2, color: "#aaa" }}>
-      Made with ❤️ In India!
-    </Typography>
-
-    <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Licenses & Credits</Typography>
-    <Typography variant="body2" sx={{ mb: 1 }}>
-      - React.js: MIT License<br />
-      - Material-UI: MIT License<br />
-      - Firebase: Apache 2.0 License<br />
-      {/* Add more licenses as relevant */}
-    </Typography>
-
-    <Typography variant="body2" sx={{ mb: 1 }}>
-      Special thanks to all contributors and open-source projects that made this app possible.
-    </Typography>
-
-    {/* --- New Features to Add --- */}
-
-    {/* 2. Privacy Policy */}
-    <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Privacy Policy</Typography>
-    <Typography variant="body2" sx={{ mb: 2, color: "#aaa" }}>
-      Learn how we collect, use, and protect your data.
-    </Typography>
-    <Button
-      variant="outlined"
-      onClick={() => window.open('https://yourapp.com/privacy-policy', '_blank')}
-      sx={{ mb: 3, backgroundColor: '#f1f1f111', color: '#fff', border: 'transparent' }}
+      sx={{
+        mb: 2,
+        borderRadius: 2,
+        color: "#fff",
+        backgroundColor: "#f1f1f111",
+        '&:hover': { backgroundColor: "#f1f1f121" },
+      }}
     >
-      Read Privacy Policy
+      Back
     </Button>
 
-    {/* 3. Terms of Service */}
-    <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Terms of Service</Typography>
-    <Typography variant="body2" sx={{ mb: 2, color: "#aaa" }}>
-      Review the rules and guidelines for using this app.
+    {/* Header */}
+    <Typography variant="h5" fontWeight="bold" sx={{ mb: 1 }}>
+      App Version & About
     </Typography>
-    <Button
-      variant="outlined"
-      onClick={() => window.open('https://yourapp.com/terms', '_blank')}
-      sx={{ mb: 3, backgroundColor: '#f1f1f111', color: '#fff', border: 'transparent' }}
-    >
-      View Terms
-    </Button>
 
-    {/* 4. Contact Info / Social Links */}
-    <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Contact & Social</Typography>
-    <Typography variant="body2" sx={{ mb: 1, color: "#aaa" }}>
-      Have questions or want to follow us? Connect via:
-    </Typography>
-    <Box sx={{ display: 'flex', gap: 2 }}>
-      <Button
-        variant="contained"
-        sx={{ mb: 3, backgroundColor: '#f1f1f111', color: '#fff', border: 'transparent', boxShadow: 'none' }}
-        onClick={() => window.open('mailto:support@yourapp.com')}
-      >
-        <MailOutlinedIcon />
-      </Button>
-      {/* <Button
-        variant="contained"
-        color="secondary"
-        onClick={() => window.open('https://twitter.com/yourapp')}
-      >
-        Twitter
-      </Button>
-      <Button
-        variant="contained"
-        sx={{ backgroundColor: '#0077b5', '&:hover': { backgroundColor: '#005582' } }}
-        onClick={() => window.open('https://linkedin.com/company/yourapp')}
-      >
-        LinkedIn
-      </Button> */}
+    {/* Version Card */}
+    <Box
+      sx={{
+        backgroundColor: "#1e1e1e71",
+        p: 2,
+        borderRadius: 2,
+        mb: 3,
+        mt: 3,
+        boxShadow: "none",
+      }}
+      onClick={() => setDrawerPage("featuresChangelog")}
+    >
+      <Typography variant="subtitle1" fontWeight="bold">
+        Version
+      </Typography>
+      <Typography variant="body2" sx={{ color: "#ccc" }}>
+        {packageJson.version || "N/A"}
+      </Typography>
     </Box>
 
-    {/* 5. Open Source Link (if applicable) */}
-    <Box sx={{ backgroundColor: '#f1f1f111', px: 3, py: 1, borderRadius: 2 }}>
-      <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Open Source</Typography>
-    <Typography variant="body2" sx={{ mb: 2, color: "#aaa" }}>
-      Our source code is available on GitHub for transparency and contributions.
+    {/* About Text */}
+    <Typography variant="body1" sx={{ mb: 3, color: "#aaa" }}>
+      This app is designed to simplify your group trip planning experience — chat, split expenses, manage tasks, and discover places together. 
+      Built with ❤️ in India.
     </Typography>
-    <Button
-      variant="outlined"
-      onClick={() => window.open('https://github.com/yourapp', '_blank')}
-      sx={{ mb: 3, backgroundColor: '#f1f1f111', color: '#fff', border: 'transparent' }}
-    >
-      View on GitHub
-    </Button>
+
+    {/* Credits / Licenses */}
+    <Box sx={{ mb: 4 }}>
+      <Typography variant="h6" gutterBottom>Licenses & Credits</Typography>
+        <Typography variant="body2" sx={{ color: "#bbb", lineHeight: 1.8 }}>
+          • React.js — MIT License<br />
+          • Firebase (Auth, Firestore, Messaging) — Apache License 2.0<br />
+          • Material UI (v5) — MIT License<br />
+          • OpenWeatherMap API — CC BY-SA 4.0 (Attribution Required)<br />
+          • Google Fonts — SIL Open Font License 1.1<br />
+          • Material Icons — Apache License 2.0<br />
+          • Additional Libraries — MIT/Apache Licensed Open Source
+        </Typography>
+    </Box>
+
+    {/* Policy Links */}
+    <Box sx={{ mb: 4 }}>
+      <Typography variant="h6" sx={{ mb: 1 }}>Legal & Policy</Typography>
+
+      <Button
+        fullWidth
+        variant="outlined"
+        sx={{ mb: 2, backgroundColor: "#f1f1f111", color: "#fff", border: "1px solid #333" }}
+        onClick={() => window.open('/privacy-policy', '_blank')}
+      >
+        Privacy Policy
+      </Button>
+
+      <Button
+        fullWidth
+        variant="outlined"
+        sx={{ mb: 2, backgroundColor: "#f1f1f111", color: "#fff", border: "1px solid #333" }}
+        onClick={() => window.open('/terms', '_blank')}
+      >
+        Terms of Service
+      </Button>
+    </Box>
+
+    {/* Contact / Social */}
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="h6" sx={{ mb: 1 }}>Connect With Us</Typography>
+
+      <Stack direction="row" spacing={2}>
+        <Button
+          variant="contained"
+          sx={{ backgroundColor: "#f1f1f111", color: "#fff", minWidth: 48 }}
+          onClick={() => window.open('mailto:jayendrachoudhary.am@gmail.com')}
+        >
+          <MailOutlinedIcon />
+        </Button>
+        {/* Add social buttons here if needed */}
+      </Stack>
+    </Box>
+
+    {/* Open Source Link */}
+    <Box sx={{ mt: 4, backgroundColor: "#f1f1f111", px: 3, py: 3, borderRadius: 2 }}>
+      <Typography variant="h6" gutterBottom>Open Source</Typography>
+      <Typography variant="body2" sx={{ color: "#aaa", mb: 2 }}>
+        Our source code is available on GitHub. Feel free to contribute, report issues, or fork it.
+      </Typography>
+      <Button
+        variant="outlined"
+        fullWidth
+        sx={{ color: "#000", borderColor: "#555" }}
+      >
+        Providing Soon...
+      </Button>
+      {/* <Button
+        variant="outlined"
+        fullWidth
+        onClick={() => window.open('https://github.com/yourapp', '_blank')}
+        sx={{ color: "#000", borderColor: "#555" }}
+      >
+        View on GitHub
+      </Button> */}
     </Box>
   </Container>
 )}
+
 
       {drawerPage === "featuresChangelog" && (
         <Container sx={{ mt: 1, mb: 2 }}>
@@ -830,18 +859,17 @@ sx={{
           {/* Changelog Section */}
           <Box>
             <Typography variant="h6" gutterBottom>Changelog</Typography>
-            {changelogs.map(({ version, date, changes }, idx) => (
-              <Box key={idx} sx={{ mb: 3, pl: 2, borderLeft: '3px solid rgba(0, 122, 0, 0.79)' }}>
-                <Typography variant="subtitle1" fontWeight="bold">
-                  Version {version} <Typography component="span" variant="body2" color="text.secondary">({date})</Typography>
-                </Typography>
-                <ul>
-                  {changes.map((change, cidx) => (
-                    <li key={cidx}><Typography variant="body2">{change}</Typography></li>
-                  ))}
-                </ul>
-              </Box>
-            ))}
+{changelogs.map(({ version, date, changes }) => (
+  <Card sx={{ my: 2, p: 2, boxShadow: "none", backgroundColor: "#f1f1f111" }}>
+    <Typography variant="subtitle1" fontWeight="bold">
+      Version {version} – <span style={{ color: "#aaa" }}>{date}</span>
+    </Typography>
+    <ul style={{ paddingLeft: 20 }}>
+      {changes.map((c, i) => <li key={i}><Typography variant="body2">{c}</Typography></li>)}
+    </ul>
+  </Card>
+))}
+
           </Box>
         </Container>
       )}
@@ -851,52 +879,57 @@ sx={{
     <Button
       startIcon={<ArrowBackIcon />}
       onClick={() => setDrawerPage("main")}
-      sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}
-    />
+      sx={{
+        mb: 1,
+        borderRadius: 2,
+        color: "#fff",
+        backgroundColor: "#f1f1f111",
+        '&:hover': { backgroundColor: "#f1f1f121" },
+      }}
+    >
+      Back
+    </Button>
     <Typography variant="h5" gutterBottom><h2>Support & Help</h2></Typography>
 
     <Typography variant="body1" sx={{ mb: 3 }}>
       We're here to help you! If you encounter any issues, have questions, or need assistance, please explore the following resources or get in touch with us directly.
     </Typography>
 
-    <List sx={{ mb: 3 }}>
-      <ListItem>
-        <ListItemText
-          primary={
-            <a href="/faq" style={{ color: "#00f721", textDecoration: "none" }} target="_blank" rel="noopener noreferrer">
-              Support & Help
-            </a>
-          }
-        />
-        </ListItem>
-        <ListItem>
-        <ListItemText
-          primary={
-            <a href="/faq" style={{ color: "#00f721", textDecoration: "none" }} target="_blank" rel="noopener noreferrer">
-              Frequently Asked Questions (FAQ)
-            </a>
-          }
-        />
-      </ListItem>
-      <ListItem>
-        <ListItemText
-          primary={
-            <a href="mailto:support@example.com" style={{ color: "#00f721", textDecoration: "none" }}>
-              Contact Us: support@example.com
-            </a>
-          }
-        />
-      </ListItem>
-      <ListItem>
-        <ListItemText
-          primary={
-            <a href="/terms-and-conditions" style={{ color: "#00f721", textDecoration: "none" }} target="_blank" rel="noopener noreferrer">
-              Terms & Conditions
-            </a>
-          }
-        />
-      </ListItem>
-    </List>
+    <Stack spacing={2} sx={{ mb: 4 }}>
+    {/* <Card sx={{ px: 2, py: 1, backgroundColor: "#f1f1f111", boxShadow: "none" }}>
+      <ListItemText
+        primary="Support & Help"
+        secondary="Support for any issues or questions"
+      />
+    </Card> */}
+    <Card
+      onClick={() => window.open("/terms-and-conditions", "_blank")}
+      sx={{ px: 2, py: 1, backgroundColor: "#f1f1f111", boxShadow: "none" }}
+    >
+      <ListItemText
+        primary="Terms & Conditions"
+        secondary="Terms of service and usage policies"
+      />
+    </Card>
+    {/* <Card
+      onClick={() => window.open("/faq", "_blank")}
+      sx={{ px: 2, py: 1, backgroundColor: "#f1f1f111", boxShadow: "none" }}
+    >
+      <ListItemText
+        primary="Frequently Asked Questions"
+        secondary="Find answers to common questions"
+      />
+    </Card> */}
+    <Card
+      onClick={() => window.open("mailto:jayendrachoudhary.am@gmail.com")} 
+      sx={{ px: 2, py: 1, backgroundColor: "#f1f1f111", boxShadow: "none" }}
+    >
+      <ListItemText
+        primary="Contact Support"
+        secondary="Email us at jayendrachoudhary.am@gmail.com"
+      />
+    </Card>
+</Stack>
 
     <Button
       variant="contained"
@@ -914,102 +947,111 @@ sx={{
 )}
 
 
-      {drawerPage === "editProfile" && (
-        <Container sx={{ mt: 1, mb: 2 }}>
+{drawerPage === "editProfile" && (
+  <Container sx={{ mt: 2, mb: 4 }}>
+    {/* Back Button */}
+    <Button
+      startIcon={<ArrowBackIcon />}
+      onClick={() => setDrawerPage("main")}
+      sx={{
+        mb: 3,
+        borderRadius: 2,
+        color: "#fff",
+        backgroundColor: "#f1f1f111",
+        '&:hover': { backgroundColor: "#f1f1f121" },
+      }}
+    >
+      Back
+    </Button>
 
-          {loading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 5, color: buttonWeatherBg }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <>
-              {/* Profile Picture */}
-<Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3 }}>
-  <Avatar
-    alt={userData.name}
-    src={userData.photoURL || ""}
-    sx={{ width: 140, height: 140, mb: 1 }}
-  />
-</Box>
+    {/* Header */}
+    <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>
+      Edit Profile
+    </Typography>
 
+    {loading || !firestoreDataLoaded ? (
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
+        <CircularProgress />
+      </Box>
+    ) : (
+      <>
+        {/* Avatar */}
+        <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+          <Avatar
+            src={userData.photoURL || ""}
+            alt={userData.name}
+            sx={{ width: 120, height: 120 }}
+          />
+        </Box>
 
-              {/* Name */}
-              <TextField
-                fullWidth
-                label="Name"
-                value={userData.name}
-                onChange={(e) => setUserData({ ...userData, name: e.target.value })}
-                margin="normal"
-                disabled={isSaving}
-              />
+        {/* Grouped Fields */}
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <TextField
+            fullWidth
+            label="Full Name"
+            value={userData.name}
+            onChange={(e) => setUserData({ ...userData, name: e.target.value })}
+            disabled={isSaving}
+          />
+          <TextField
+            fullWidth
+            label="Username"
+            value={userData.username}
+            onChange={(e) => setUserData({ ...userData, username: e.target.value })}
+            disabled={isSaving}
+          />
+          <TextField
+            fullWidth
+            label="Email"
+            value={userData.email}
+            disabled
+          />
+          <TextField
+            fullWidth
+            label="Mobile Number"
+            value={userData.mobile}
+            onChange={(e) => setUserData({ ...userData, mobile: e.target.value })}
+            disabled={isSaving}
+          />
+          <TextField
+            fullWidth
+            label="Bio"
+            value={userData.bio}
+            onChange={(e) => setUserData({ ...userData, bio: e.target.value })}
+            multiline
+            minRows={3}
+            disabled={isSaving}
+          />
+        </Box>
 
-              {/* Username */}
-              <TextField
-                fullWidth
-                label="Username"
-                value={userData.username}
-                onChange={(e) => setUserData({ ...userData, username: e.target.value })}
-                margin="normal"
-                disabled={isSaving}
-              />
+        {/* Action Buttons */}
+        <Box sx={{ mt: 4, display: "flex", justifyContent: "space-between" }}>
+          <Button
+            variant="outlined"
+            onClick={() => setDrawerPage("main")}
+            sx={{
+              backgroundColor: "#f1f1f111",
+              color: "#fff",
+              borderColor: "#555",
+            }}
+            disabled={isSaving}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={isSaving}
+            sx={{ backgroundColor: buttonWeatherBg }}
+          >
+            {isSaving ? <CircularProgress size={24} /> : "Save Changes"}
+          </Button>
+        </Box>
+      </>
+    )}
+  </Container>
+)}
 
-              {/* Email */}
-              <TextField fullWidth label="Email" value={userData.email} disabled margin="normal" />
-
-              {/* Mobile */}
-              <TextField
-                fullWidth
-                label="Mobile"
-                value={userData.mobile}
-                onChange={(e) => setUserData({ ...userData, mobile: e.target.value })}
-                margin="normal"
-                disabled={isSaving}
-              />
-              
-              {/* Bio */}
-              <TextField
-                fullWidth
-                label="Bio"
-                value={userData.bio}
-                onChange={(e) => setUserData({ ...userData, bio: e.target.value })}
-                margin="normal"
-                multiline
-                rows={4}
-                disabled={isSaving}
-              />
-
-              {/* Skeleton loaders while Firestore data is loading */}
-              {!firestoreDataLoaded && (
-                <>
-                  <Skeleton variant="text" width="80%" height={40} />
-                  <Skeleton variant="text" width="80%" height={40} />
-                  <Skeleton variant="text" width="80%" height={40} />
-                  <Skeleton variant="text" width="80%" height={40} />
-                </>
-              )}
-
-              <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => setDrawerPage("main")}
-                  sx={{ mr: 1, backgroundColor: '#f1f1f111', color: '#fff', border: 'transparent' }}
-                  disabled={isSaving}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={handleSave}
-                  disabled={isSaving || !firestoreDataLoaded}
-                  sx={{ backgroundColor: buttonWeatherBg }}
-                >
-                  {isSaving ? <CircularProgress size={24} /> : "Save Changes"}
-                </Button>
-              </Box>
-            </>
-          )}
-        </Container>
-      )}
 
   </SwipeableDrawer>
 
@@ -1048,8 +1090,8 @@ sx={{
     <Button
       variant="contained"
       sx={{
-        backgroundColor: '#ff000056',
-        color: '#ff1b1bff',
+        backgroundColor: '#ff000046',
+        color: '#ffbfbfff',
         p: 1.5,
         '&:hover': {
           backgroundColor: '#ff000088',

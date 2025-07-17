@@ -48,6 +48,11 @@ const darkTheme = createTheme({
   },
 });
 
+function setCookie(name, value, days = 7) {
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/';
+}
+
 const Login = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -94,6 +99,8 @@ const Login = () => {
       );
       const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
       if (userDoc.exists()) {
+  const userType = userDoc.data().type || "";
+        setCookie("bunkmate_usertype", userType, 30);
         saveUserDataToLocalStorage(userCredential.user);
         setUser(userCredential.user);
         navigate("/");
@@ -111,6 +118,8 @@ const Login = () => {
       const user = result.user;
       const userDoc = await getDoc(doc(db, "users", user.uid));
       if (userDoc.exists()) {
+        const userType = userDoc.data().type || "";
+        setCookie("bunkmate_usertype", userType, 30);
         saveUserDataToLocalStorage(user);
         setUser(user);
         navigate("/");

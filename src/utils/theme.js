@@ -6,7 +6,7 @@ const theme = createTheme({
   palette: {
     mode: 'light', // You can switch to 'dark' mode if preferred
     primary: {
-      main: teal[500], // Minimal and soft color for the primary action
+      main: grey[500], // Minimal and soft color for the primary action
     },
     secondary: {
       main: indigo[500], // Secondary action color

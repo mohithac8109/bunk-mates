@@ -15,9 +15,15 @@ import Waitlist from "./pages/Wishlist";
 import { UserProvider } from './contexts/UserContext';
 import Chatroom from "./components/Chatroom";
 import GroupChat from "./components/GroupChat";
+import Trips from "./pages/Trips";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { WeatherProvider } from "./contexts/WeatherContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
+import TripDetails from "./components/TripDetails";
+import JoinTrip from "./pages/JoinTrip"
+import PrivacyPolicy from "./components/PrivacyPolicy";
+import TermsAndConditions from "./components/TermsAndConditions";
+import CommunityPage from "./components/CommunityPage";
 
 const vapidKey = 'BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs'; // From Firebase console
 
@@ -56,7 +62,13 @@ function App() {
             <Route path="/budget-mngr" element={<Budgetmngr />}/>
             <Route path="/reminders" element={<Reminders />} />
             <Route path="/notes" element={<Notes />} />
+            <Route path="/trips" element={<Trips />} />
+            <Route path="/trips/:id" element={<TripDetails />} />
+            <Route path="/join" element={<JoinTrip />} />
             <Route path="/waitlist" element={<Waitlist />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsAndConditions />} />
+            <Route path="/community" element={<CommunityPage />} />
             <Route path="/" element={
           <ProtectedRoute>
             <Home />

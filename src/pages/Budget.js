@@ -1266,7 +1266,7 @@ const canEditExpenses = (() => {
             </Button>
             <ProfilePic />
           </Box>
-          <Typography variant="h4" sx={{ mb: 3, fontWeight: "bold" }}>
+          <Typography variant="h4" sx={{ mb: 0, fontWeight: "bold" }}>
             Budget Manager
           </Typography>
         </Box>
@@ -1277,10 +1277,11 @@ const canEditExpenses = (() => {
           mb={2} 
           sx={{ 
             position: "sticky", 
-            top: 17, 
+            top: 0,
+            paddingTop: "25px", 
             zIndex: 1,
             pb: 3,
-            background: "linear-gradient(to bottom, #000000, #000000, #00000030)",
+            background: "linear-gradient(to bottom, #0c0c0c, #0c0c0c, #0c0c0c, #0c0c0c, #0c0c0c90, #0c0c0c00)",
           }}
         >
           <TextField
@@ -1656,20 +1657,29 @@ const canEditExpenses = (() => {
     No expenses recorded for this budget.
   </Typography>
 )}
+
+
                       </Box>
                     ) : (
                       <Typography sx={{ color: "#ccc", textAlign: "center", mt: 4 }}>
                         Please select a budget to view details.
                       </Typography>
                     )}
-                  </Box>
-                </Box>
-                <Fab
-  color="success"
+
+<Grid
+  justifyContent={"right"}
+  container
   sx={{
-    position: 'fixed',
+    position: "sticky",
     bottom: 20,
     right: 20,
+  }}
+>
+<Fab
+  color="success"
+  sx={{
+    mb: 2.5,
+    mr: 0.5,
     width: '70px',
     height: '70px',
     bgcolor: buttonWeatherBg,
@@ -1687,7 +1697,9 @@ const canEditExpenses = (() => {
 >
   <AddIcon />
 </Fab>
-
+</Grid>
+                  </Box>
+                </Box>
 
 
                 <SwipeableDrawer
@@ -1966,25 +1978,7 @@ const canEditExpenses = (() => {
           </Box>
         )}
 
-        <Fab
-          color="success"
-          onClick={() => setDrawerOpen(true)}
-          sx={{
-            position: 'fixed',
-            bottom: 20,
-            right: 20,
-            width: '70px',
-            height: '70px',
-            bgcolor: buttonWeatherBg,
-            borderRadius: '15px',
-            fontSize: '38px',
-            color: '#000',
-            zIndex: 998,
-            '&:hover': { bgcolor: '#00f721' }
-          }}
-        >
-          <AddIcon />
-        </Fab>
+
 
         <Drawer
           anchor="bottom"
@@ -2184,6 +2178,34 @@ const canEditExpenses = (() => {
           </Stack>
         </Drawer>
       </Box>
+<Grid
+  justifyContent={"right"}
+  container
+  sx={{
+    position: "sticky",
+    bottom: 20,
+    right: 20,
+    mr: 1.5,
+    mt: 2
+  }}
+>
+        <Fab
+          color="success"
+          onClick={() => setDrawerOpen(true)}
+          sx={{
+            width: '70px',
+            height: '70px',
+            bgcolor: buttonWeatherBg,
+            borderRadius: '15px',
+            fontSize: '38px',
+            color: '#000',
+            zIndex: 998,
+            '&:hover': { bgcolor: '#00f721' }
+          }}
+        >
+          <AddIcon />
+        </Fab>
+</Grid>      
       </BetaAccessGuard>
       </DeviceGuard>
     </ThemeProvider>
