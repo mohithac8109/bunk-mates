@@ -63,7 +63,14 @@ import {
   Menu,
   Switch,
   InputAdornment,
+  Card,
+  AvatarGroup,
+  LinearProgress,
+  CardContent,
 } from '@mui/material';
+import {
+  LocationOn, AccessTime,
+} from "@mui/icons-material";
 import EmojiPicker from 'emoji-picker-react';
 import Popover from '@mui/material/Popover';
 import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
@@ -82,6 +89,8 @@ import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import CheckIcon from '@mui/icons-material/Check';
+import RemoveIcon from '@mui/icons-material/Remove';
+
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 
 
@@ -338,6 +347,17 @@ function GroupChat() {
   const [memberSearch, setMemberSearch] = useState("");
   const [searchMembersText, setSearchMembersText] = useState("");
   const [showSearchBar, setShowSearchBar] = useState(false);
+  const [tripInfo, setTripInfo] = useState(null);
+  const [tripMembers, setTripMembers] = useState([]);
+  const [timelineStats, setTimelineStats] = useState(null);
+  const [tripBudget, setTripBudget] = useState(null);
+  const [moreAnchorEl, setMoreAnchorEl] = useState(null);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [checklist, setChecklist] = useState([]);
+  const [timeline, setTimeline] = useState([]);
+  const [showPollDialog, setShowPollDialog] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOptions, setPollOptions] = useState(["", ""]);
 
 
   const addedBy = user?.displayName || user?.email || "Someone";
@@ -352,6 +372,117 @@ useEffect(() => {
 
   return () => unsubscribe();
 }, []);
+
+useEffect(() => {
+  const fetchTrip = async () => {
+    if (!groupInfo?.tripId) return setTripInfo(null);
+    const tripRef = doc(db, "trips", groupInfo.tripId);
+    const tripSnap = await getDoc(tripRef);
+    setTripInfo(tripSnap.exists() ? { id: tripSnap.id, ...tripSnap.data() } : null);
+  };
+  fetchTrip();
+}, [groupInfo?.tripId]);
+
+useEffect(() => {
+  // Get tripId from groupInfo (if this is a trip group and msg.type === "checklist")
+  const tripId = groupInfo?.tripId;
+  if (!tripId) return setChecklist([]);
+  const q = collection(db, "trips", tripId, "checklist");
+  const unsubscribe = onSnapshot(q, (snap) =>
+    setChecklist(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
+  );
+  return () => unsubscribe();
+}, [groupInfo?.tripId]);
+
+useEffect(() => {
+  if (!tripInfo?.members) return setTripMembers([]);
+  Promise.all(
+    tripInfo.members.map(uid =>
+      getDoc(doc(db, "users", uid)).then(d =>
+        d.exists() ? { uid: d.id, ...(d.data() || {}) } : null
+      )
+    )
+  ).then(arr => setTripMembers(arr.filter(Boolean)));
+}, [tripInfo]);
+
+
+useEffect(() => {
+  if (!tripInfo?.id) return setTimelineStats(null);
+  getDocs(collection(db, "trips", tripInfo.id, "timeline")).then(snap => {
+    const events = snap.docs.map(d => d.data());
+    const total = events.length || 1;
+    const completed = events.filter(e => e.completed === true).length;
+    setTimelineStats({ completed, total, percent: Math.round((completed / total) * 100) });
+  });
+}, [tripInfo]);
+
+useEffect(() => {
+  if (!groupInfo?.tripId) return setTripBudget(null);
+  const fetch = async () => {
+    const budgetRef = doc(db, "budgets", groupInfo.tripId);
+    const budgetSnap = await getDoc(budgetRef);
+    setTripBudget(budgetSnap.exists() ? budgetSnap.data() : null);
+  };
+  fetch();
+}, [groupInfo?.tripId]);
+
+const handleToggleChecklistItem = async (itemId, checked) => {
+  if (!groupInfo?.tripId || !currentUser) return;
+  const itemRef = doc(db, "trips", groupInfo.tripId, "checklist", itemId);
+  await updateDoc(itemRef, {
+    checkedBy: checked
+      ? arrayUnion(currentUser.uid)
+      : arrayRemove(currentUser.uid),
+  });
+};
+
+
+const handleOptionChange = (index, value) => {
+  setPollOptions((options) => {
+    const newOptions = [...options];
+    newOptions[index] = value;
+    return newOptions;
+  });
+};
+
+const addOption = () => {
+  setPollOptions((options) => [...options, ""]);
+};
+
+const removeOption = (index) => {
+  setPollOptions((options) => options.filter((_, i) => i !== index));
+};
+
+
+// Fetch timeline from Firestore
+const fetchTripTimeline = async () => {
+  if (!groupInfo?.tripId) return [];
+  const timelineSnap = await getDocs(collection(db, "trips", groupInfo.tripId, "timeline"));
+  // Each doc: {text: "...", completed: true/false}
+  return timelineSnap.docs.map(doc => doc.data()).filter(Boolean);
+};
+
+// Fetch checklist from Firestore
+const fetchTripChecklist = async () => {
+  if (!groupInfo?.tripId) return [];
+  const checklistSnap = await getDocs(collection(db, "trips", groupInfo.tripId, "checklist"));
+  // Each doc: {text: "...", completed: true/false}
+  return checklistSnap.docs.map(doc => doc.data()).filter(Boolean);
+};
+
+useEffect(() => {
+  if (!groupInfo?.tripId) return setTimeline([]);
+  const q = collection(db, "trips", groupInfo.tripId, "timeline");
+  const unsub = onSnapshot(q, (snap) => {
+    setTimeline(
+      snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+    );
+  });
+  return () => unsub();
+}, [groupInfo?.tripId]);
 
 useEffect(() => {
   const fetchUsers = async () => {
@@ -700,6 +831,177 @@ const toggleAdminStatus = async (uid) => {
   }
 };
 
+const sendStructuredMessage = async (label, items) => {
+  if (!groupInfo?.tripId || !items?.length) {
+    setNotification(`No ${label.toLowerCase()} items found`);
+    return;
+  }
+
+  let listText = "";
+  if (label.toLowerCase() === "timeline") {
+    listText = items.map((item, idx) => {
+      // Format time and date
+      let dateObj;
+      // If you store a seconds (timestamp) field, prefer that
+      if (item.timestamp?.seconds) {
+        dateObj = new Date(item.timestamp.seconds * 1000);
+      } else if (item.datetime || item.time) {
+        // item.datetime can be an ISO string or item.time can be "09:00 AM"
+        dateObj = new Date(item.datetime || `${item.date || ""} ${item.time || ""}`.trim());
+      } else {
+        dateObj = null;
+      }
+
+      let formattedDateTime = "";
+      if (dateObj && !isNaN(dateObj.getTime())) {
+        formattedDateTime = dateObj.toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      } else if (item.time) {
+        formattedDateTime = item.time;
+      } else {
+        formattedDateTime = "—";
+      }
+
+      const title = item.title || item.text || "Untitled event";
+      const completed = item.completed ? "✅" : "🕒";
+      return `${completed} [${formattedDateTime}] ${title}`;
+    }).join('\n');
+  } else if (label.toLowerCase() === "checklist") {
+    listText = items.map((item, idx) => {
+      const completed = item.completed ? "✅" : "⬜";
+      const text = item.text || item.name || "Untitled task";
+      return `${completed} ${text}`;
+    }).join('\n');
+  }
+
+  const messageObject = {
+    text: `${listText}`,
+    senderId: currentUser.uid,
+    senderName: currentUser.displayName || "Anonymous",
+    photoURL: currentUser.photoURL || null,
+    timestamp: serverTimestamp(),
+    status: 'sent',
+    read: false,
+    type: label.toLowerCase(),
+  };
+
+  try {
+    await addDoc(collection(db, "groupChat", groupName, "messages"), messageObject);
+    setNotification(`✅ ${label} shared successfully`);
+  } catch (err) {
+    console.error(`Error sharing ${label}:`, err);
+    setNotification(`❌ Could not share ${label}`);
+  }
+};
+
+
+const now = new Date(); // Or use new Date("2025-07-20T00:06:00") for consistent testing
+
+// Sort timeline events in descending order (most recent first)
+const sortedTimeline = [...timeline].sort((a, b) => {
+  // Derive proper Date object from timestamp or datetime
+  const getDate = (event) => {
+    if (event.timestamp?.seconds)
+      return new Date(event.timestamp.seconds * 1000);
+    if (event.datetime)
+      return new Date(event.datetime);
+    return null;
+  };
+  const dateA = getDate(a);
+  const dateB = getDate(b);
+  // Descending order
+  return dateB - dateA;
+});
+
+let upcomingEventId = null;
+for (let i = sortedTimeline.length - 1; i >= 0; i--) { // start from soonest
+  const event = sortedTimeline[i];
+  const date = event.timestamp?.seconds
+    ? new Date(event.timestamp.seconds * 1000)
+    : event.datetime
+    ? new Date(event.datetime)
+    : null;
+  if (!event.completed && date && date >= now) {
+    upcomingEventId = event.id;
+    break;
+  }
+}
+
+const handleSendPoll = async () => {
+  const trimmedQuestion = pollQuestion.trim();
+  const validOptions = pollOptions.filter(opt => opt.trim() !== "");
+
+  if (!trimmedQuestion || validOptions.length < 2) {
+    setNotification("Please enter a question and at least 2 options.");
+    return;
+  }
+
+  const poll = {
+    type: "poll",
+    question: trimmedQuestion,
+    options: validOptions.map(text => ({ text, votes: [] })),
+    senderId: currentUser.uid,
+    senderName: currentUser.displayName || "Anonymous",
+    photoURL: currentUser.photoURL || null,
+    timestamp: serverTimestamp(),
+    status: "sent",
+    read: false,
+  };
+
+  try {
+    await addDoc(collection(db, "groupChat", groupName, "messages"), poll);
+    setPollQuestion("");
+    setPollOptions(["", ""]);
+    setShowPollDialog(false);
+    setNotification("✅ Poll sent");
+  } catch (err) {
+    console.error("Error sending poll:", err);
+    setNotification("❌ Failed to send poll");
+  }
+};
+
+const handleVote = async (msgId, optionIdx) => {
+  const msgRef = doc(db, "groupChat", groupName, "messages", msgId);
+  // Get the current poll message from Firestore
+  const snapshot = await getDoc(msgRef);
+  if (!snapshot.exists()) return;
+  const data = snapshot.data();
+  // Prevent duplicate voting
+  const alreadyVoted = (data.options || []).some(opt =>
+    Array.isArray(opt.votes) && opt.votes.includes(currentUser.uid)
+  );
+  if (alreadyVoted) return;
+
+  // Safely update ONLY the chosen option's votes array
+  const optionPath = `options.${optionIdx}.votes`;
+  await updateDoc(msgRef, {
+    [optionPath]: arrayUnion(currentUser.uid)
+  });
+};
+
+
+
+useEffect(() => {
+  const q = query(
+    collection(db, "groupChat", groupName, "messages"),
+    orderBy("timestamp", "asc")
+  );
+
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const msgs = [];
+    querySnapshot.forEach((doc) => {
+      msgs.push({ id: doc.id, ...doc.data() });
+    });
+    setMessages(msgs);
+    setLoading(false);
+  });
+
+  return () => unsubscribe();
+}, [groupName]);
 
 
 const handleBatchAddUsers = async () => {
@@ -888,6 +1190,8 @@ const sendMessage = async () => {
   }
 };
 
+
+
   const handleContextMenu = (event, message) => {
     event.preventDefault();
     setContextMenu({ visible: true, x: event.clientX, y: event.clientY, message });
@@ -918,11 +1222,15 @@ const sendMessage = async () => {
     setContextMenu({ ...contextMenu, visible: false });
   };
   
-  const handleDelete = (messageId) => {
-    // Implement actual delete logic here with Firebase
-    console.log(`Deleted message: ${messageId}`);
+const handleDelete = async (messageId) => {
+  if (!messageId || !groupName) return;
+  try {
+    await deleteDoc(doc(db, "groupChat", groupName, "messages", messageId));
     setContextMenu({ ...contextMenu, visible: false });
-  };
+  } catch (err) {
+    console.error("Failed to delete message:", err.message);
+  }
+};
 
   const handleLongPress = (e, message) => {
     e.preventDefault();
@@ -1303,7 +1611,7 @@ const getGroupedReactions = (msg, allUsers = {}) => {
                 <Typography variant="body2" sx={{ color: '#aaa', bgcolor: '#2b2b2b54', borderRadius: '15px', textAlign: 'center', marginBottom: '10px' }}>
                   {date}
                 </Typography>
-                {groupedMessages[date].map((msg) => {
+                {(groupedMessages?.[date] || []).map((msg) => {
 if (msg.type === "system") {
   return (
     <Box
@@ -1440,9 +1748,198 @@ if (msg.type === "system") {
                       >
                         {msg.senderName}
                       </Typography>
-                      <Typography variant="body2">
-                        {msg.text}
-                      </Typography>
+{msg.type === "poll" && Array.isArray(msg.options) && msg.options.length > 0 ? (
+  <Box>
+    <Typography variant="subtitle1" sx={{ color: "#00f721", fontWeight: 600 }}>
+      📊 {msg.question || "Untitled Poll"}
+    </Typography>
+
+    <List>
+      {msg.options.map((opt, i) => {
+        const votes = Array.isArray(opt.votes) ? opt.votes : [];
+        const hasVoted = votes.includes(currentUser.uid);
+        const userHasVoted = msg.options.some(o =>
+          Array.isArray(o.votes) && o.votes.includes(currentUser.uid)
+        );
+
+        return (
+          <ListItemButton
+            key={i}
+            disabled={userHasVoted}
+            onClick={() => handleVote(msg.id, i)}
+            sx={{
+              bgcolor: hasVoted ? "#00f72144" : "transparent",
+              mb: 0.5,
+              borderRadius: 2,
+            }}
+          >
+            <ListItemText
+              primary={opt.text || `Option ${i + 1}`}
+              sx={{
+                color: hasVoted ? "#00f721" : "#fff",
+                fontWeight: hasVoted ? 600 : 500,
+              }}
+            />
+            <Typography variant="body2" sx={{ color: "#b5ffca", minWidth: 35 }}>
+              {votes.length} vote{votes.length !== 1 ? "s" : ""}
+            </Typography>
+          </ListItemButton>
+        );
+      })}
+    </List>
+
+    <Typography variant="caption" sx={{ color: "#aaa", mt: 1, fontStyle: 'italic' }}>
+      Total votes: {msg.options.reduce((sum, opt) => sum + (opt.votes?.length || 0), 0)}
+    </Typography>
+  </Box>
+) : msg.type === "timeline" && groupInfo?.tripId ? (
+<Box sx={{ maxWidth: 420, minWidth: 310 }}>
+  <Typography
+    variant="subtitle1"
+    sx={{ color: "#fff", fontWeight: 700, mb: 1 }}
+  >
+    📅 Group Timeline
+  </Typography>
+  <List dense>
+    {sortedTimeline.length === 0 && (
+      <Typography sx={{ color: "#888", mb: 1 }}>
+        No timeline events yet.
+      </Typography>
+    )}
+{sortedTimeline.map((event, idx) => {
+  const dateObj = event.timestamp?.seconds
+    ? new Date(event.timestamp.seconds * 1000)
+    : event.datetime
+    ? new Date(event.datetime)
+    : null;
+  const isUpcoming = event.id === upcomingEventId;
+
+      let timeStr = "";
+      if (dateObj && !isNaN(dateObj.getTime())) {
+        timeStr = dateObj.toLocaleString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          weekday: "short",
+        });
+      } else if (event.time) {
+        timeStr = event.time;
+      } else {
+        timeStr = "—";
+      }
+      return (
+        <ListItem key={event.id || idx} disableGutters>
+          <Box
+            sx={{
+              bgcolor: isUpcoming
+                ? "#f794002a"
+                : event.completed
+                ? "transparent"
+                : "#ececec30",
+              border: isUpcoming ? "2px solid #f79400aa" : undefined,
+              px: 1.2,
+              py: 0.5,
+              borderRadius: 1,
+              display: "flex",
+              alignItems: "center",
+              minHeight: 34,
+              width: "80%",
+              boxShadow: isUpcoming ? "0 2px 12px #00f72100" : undefined,
+              transition: "background 0.2s, border 0.2s",
+            }}
+          >
+            <Typography
+              variant="body2"
+              sx={{
+                fontFamily: "monospace",
+                color: event.completed
+                  ? "#f7f7f7ff"
+                  : isUpcoming
+                  ? "#ffffffff"
+                  : "#b6b6b6ff",
+                fontWeight: 700,
+                minWidth: 30,
+              }}
+            >
+              {event.completed ? "✅" : isUpcoming ? "⏩" : "⏳"}
+            </Typography>
+            <Box ml={0}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: event.completed ? "#c5c5c5ff" : "#fff",
+                  fontWeight: 700,
+                  lineHeight: 1.1,
+                }}
+              >
+                {event.title || event.text || isUpcoming || "Untitled"}
+              </Typography>
+              <Typography variant="caption" sx={{ color: event.completed ? "#c5c5c5ff" : "#fff", fontWeight: isUpcoming ? 700 : 400 }}>
+                {timeStr}
+              </Typography>
+            </Box>
+          </Box>
+        </ListItem>
+      );
+    })}
+  </List>
+</Box>
+) : msg.type === "checklist" && groupInfo?.tripId ? (
+  <Box sx={{ maxWidth: 420, minWidth: 260 }}>
+    <Typography variant="subtitle1" sx={{ color: "#fff", fontWeight: 700 }}>
+      📝 Trip Checklist
+    </Typography>
+    <List dense>
+      {checklist.map((item) => {
+        const isChecked = item.checkedBy?.includes(currentUser.uid);
+        return (
+          <ListItem key={item.id} disableGutters sx={{ borderRadius: 2 }}>
+            <ListItemButton
+              onClick={() => handleToggleChecklistItem(item.id, !isChecked)}
+              sx={{ borderRadius: 2 }}
+            >
+              <Checkbox
+                edge="start"
+                checked={isChecked}
+                tabIndex={-1}
+                sx={{
+                  color: "#00f721",
+                  '&.Mui-checked': { color: "#00f721" },
+                }}
+              />
+              <ListItemText
+                primary={item.text || "Untitled"}
+                sx={{
+                  color: isChecked ? "#9affd3" : "#fff",
+                  textDecoration: isChecked ? "line-through" : "none",
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        );
+      })}
+    </List>
+    <Typography variant="caption" sx={{ color: "#aaa", mt: 1 }}>
+      Only you see your own progress
+    </Typography>
+  </Box>
+) : (
+  <Typography
+  variant="body2"
+  sx={{
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    color: '#fff',
+    fontSize: '15px'
+  }}
+>
+  {msg.text}
+</Typography>
+
+)}
+
                       
                       
 {msg.reactions && (
@@ -1834,93 +2331,254 @@ if (msg.type === "system") {
     }
 
     return (
-      <>
-        <TextField
-          value={editingMsg ? editText : newMsg}
-          onChange={(e) =>
-            editingMsg ? setEditText(e.target.value) : setNewMsg(e.target.value)
+<Box
+  sx={{
+    mx: "auto",
+    p: 1,
+    display: 'flex',
+    justifyContent: "space-around",
+    position: 'fixed',
+    width: '97vw',
+    bottom: 0,
+    left: 0,
+    zIndex: '1200',
+    alignItems: 'center',
+    borderTop: '0px solid #5e5e5e81',
+    background: 'linear-gradient(to top, #000000, #00000090, #00000000)',
+  }}
+>
+  
+<Box
+sx={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-around",
+    px: 0.5,
+    backgroundColor: "rgba(0, 0, 0, 0.17)",
+    border: "1px solid #757575ff",
+      borderRadius: '40px',
+      backdropFilter: "blur(30px)",
+      mr: 0.7
+}}>
+    <Button
+    sx={{
+      display: editingMsg ? "none" : "flex",
+      backgroundColor: '#f1f1f11c',
+      backdropFilter: "blur(80px)",
+      height: '40px',
+      px: 0,
+      minWidth: '40px',
+      borderRadius: 40,
+    }}
+    onClick={(e) => setMoreAnchorEl(e.currentTarget)}
+  >
+    <AddIcon sx={{ color: '#ffffffff', fontSize: 24 }} />
+  </Button>
+
+  <TextField
+    value={editingMsg ? editText : newMsg}
+    onChange={(e) =>
+      editingMsg ? setEditText(e.target.value) : setNewMsg(e.target.value)
+    }
+    placeholder={editingMsg ? "Edit message..." : "Type a message..."}
+    size="small"
+    fullWidth
+    sx={{
+      zIndex: '1500',
+      mr: 0,
+      input: {
+        color: '#FFFFFF',
+        height: '30px',
+        width: "53vw",
+        borderRadius: '40px'
+      },
+      '& .MuiOutlinedInput-root': {
+        '& fieldset': {
+          borderColor: '#5e5e5e00',
+          borderRadius: '40px'
+        },
+        '&:hover fieldset': {
+          borderColor: '#75757500',
+          borderRadius: '40px'
+        },
+        '&.Mui-focused fieldset': {
+          borderColor: '#75757500',
+          borderRadius: '40px'
+        },
+      },
+      '& .MuiInputBase-input::placeholder': {
+        color: '#757575'
+      }
+    }}
+  />
+</Box>
+
+  {editingMsg ? (
+    <>
+      <Button
+        sx={{ backgroundColor: '#430400ff', height: '50px', width: '50px', borderRadius: 40, mr: 1 }}
+        onClick={() => {
+          setEditingMsg(null);
+          setEditText("");
+        }}
+      >
+        <CloseIcon sx={{ color: '#ffd2cfff' }} />
+      </Button> 
+      <Button
+        sx={{ backgroundColor: '#ffffffff', height: '50px', width: '50px', borderRadius: 40 }}
+        onClick={async () => {
+          try {
+            const msgRef = doc(
+              db,
+              "groupChat",
+              groupName,
+              "messages",
+              editingMsg.id
+            );
+            await updateDoc(msgRef, {
+              text: editText,
+              edited: true,
+              timestamp: serverTimestamp(), // optional
+            });
+            setEditingMsg(null);
+            setEditText("");
+          } catch (err) {
+            console.error("❌ Failed to update message:", err.message);
           }
-          placeholder={editingMsg ? "Edit message..." : "Type a message..."}
-          variant="outlined"
-          size="small"
+        }}
+      >
+        <CheckIcon sx={{ color: '#000' }} />
+      </Button>
+
+    </>
+  ) : (
+    <>
+    <Button
+      sx={{ backgroundColor: '#ffffffff', height: '50px', width: '50px', borderRadius: 40 }}
+      onClick={sendMessage}
+    >
+      <SendIcon sx={{ color: '#000' }} />
+    </Button>
+  </>
+  )}
+
+  {/* --- More Options Menu --- */}
+  <Menu
+    anchor="bottom"
+    top={0}
+    position={"fixed"}
+    anchorEl={moreAnchorEl}
+    open={Boolean(moreAnchorEl)}
+    onClose={() => setMoreAnchorEl(null)}
+    PaperProps={{
+      sx: {
+        bgcolor: "#2323231b",
+        color: "#fff",
+        borderRadius: 1,
+        maxWidth: 370,
+        backdropFilter: "blur(40px)",
+        width: 370,
+        position: "static",
+        margin: "auto",
+        marginTop: "177%",
+      }
+    }}
+  >
+  <MenuItem
+    onClick={async () => {
+      const items = await fetchTripTimeline();
+      await sendStructuredMessage("Timeline", items);
+      setMoreAnchorEl(null);
+    }}
+  >
+    📅 Send Timeline
+  </MenuItem>
+
+  <MenuItem
+    onClick={async () => {
+      const items = await fetchTripChecklist();
+      await sendStructuredMessage("Checklist", items);
+      setMoreAnchorEl(null);
+    }}
+  >
+    ✅ Send Checklist
+  </MenuItem>
+{/* 
+    <MenuItem onClick={() => { setShowPollDialog(true); setMoreAnchorEl(null); }}>
+    📊 Create Poll
+  </MenuItem> */}
+  </Menu>
+
+<Dialog
+  open={showPollDialog}
+  onClose={() => setShowPollDialog(false)}
+  fullWidth
+  maxWidth="sm"
+  PaperProps={{
+    sx: {
+      bgcolor: "#121212",
+      borderRadius: 4,
+      p: 2
+    }
+  }}
+>
+  <DialogTitle sx={{ color: "#fff", fontWeight: "bold" }}>
+    📊 Create Poll
+  </DialogTitle>
+
+  <DialogContent>
+    <TextField
+      label="Poll Question"
+      fullWidth
+      value={pollQuestion}
+      onChange={(e) => setPollQuestion(e.target.value)}
+      variant="outlined"
+      sx={{ mb: 3 }}
+      InputLabelProps={{ style: { color: '#aaa' } }}
+      InputProps={{ style: { color: '#fff' } }}
+    />
+
+    {pollOptions.map((option, index) => (
+      <Box key={index} sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+        <TextField
           fullWidth
-          sx={{
-            zIndex: '1500',
-            mr: 1,
-            borderRadius: '40px',
-            backdropFilter: "blur(30px)",
-            input: {
-              color: '#FFFFFF',
-              height: '30px',
-              borderRadius: '40px'
-            },
-            '& .MuiOutlinedInput-root': {
-              '& fieldset': {
-                borderColor: '#5E5E5E',
-                borderRadius: '40px'
-              },
-              '&:hover fieldset': {
-                borderColor: '#757575',
-                borderRadius: '40px'
-              },
-              '&.Mui-focused fieldset': {
-                borderColor: '#757575',
-                borderRadius: '40px'
-              },
-            },
-            '& .MuiInputBase-input::placeholder': {
-              color: '#757575'
-            }
-          }}
+          placeholder={`Option ${index + 1}`}
+          value={option}
+          onChange={(e) => handleOptionChange(index, e.target.value)}
+          InputLabelProps={{ style: { color: '#aaa' } }}
+          InputProps={{ style: { color: '#fff' } }}
         />
+        <IconButton
+          onClick={() => removeOption(index)}
+          disabled={pollOptions.length <= 2}
+          sx={{ ml: 1, color: "#ff5555" }}
+        >
+          <RemoveIcon />
+        </IconButton>
+      </Box>
+    ))}
 
-        {editingMsg ? (
-          <>
-            <Button
-              sx={{ backgroundColor: '#4a0500ff', height: '50px', width: '50px', borderRadius: 40, mr: 1 }}
-              onClick={() => {
-                setEditingMsg(null);
-                setEditText("");
-              }}
-            >
-              <CloseIcon sx={{ color: '#ffd1d4' }} />
-            </Button>
+    <Button
+      onClick={addOption}
+      startIcon={<AddIcon />}
+      sx={{ color: "#00f721" }}
+    >
+      Add Option
+    </Button>
+  </DialogContent>
 
-            <Button
-              sx={{ backgroundColor: '#ffffffff', height: '50px', width: '50px', borderRadius: 40 }}
-              onClick={async () => {
-                try {
-                  const msgRef = doc(
-                    db,
-                    "groupChat",
-                    groupName,
-                    "messages",
-                    editingMsg.id
-                  );
-                  await updateDoc(msgRef, {
-                    text: editText,
-                    edited: true,
-                    timestamp: serverTimestamp(),
-                  });
-                  setEditingMsg(null);
-                  setEditText("");
-                } catch (err) {
-                  console.error("❌ Failed to update message:", err.message);
-                }
-              }}
-            >
-              <CheckIcon sx={{ color: '#000' }} />
-            </Button>
-          </>
-        ) : (
-          <Button
-            sx={{ backgroundColor: '#fff', height: '50px', width: '50px', borderRadius: 40 }}
-            onClick={sendMessage}
-          >
-            <SendIcon sx={{ color: '#000' }} />
-          </Button>
-        )}
-      </>
+  <DialogActions>
+    <Button onClick={() => setShowPollDialog(false)} sx={{ color: "#ccc" }}>
+      Cancel
+    </Button>
+    <Button onClick={handleSendPoll} variant="contained" sx={{ bgcolor: "#00f721", color: "#000" }}>
+      Send Poll
+    </Button>
+  </DialogActions>
+</Dialog>
+
+</Box>
+
     );
   })()}
 </Box>
@@ -2066,6 +2724,56 @@ if (msg.type === "system") {
               )}
             </Box>
 
+{tripInfo && (
+  <Card
+    sx={{
+      background: `url(${groupInfo.iconURL})`,
+      backgroundSize: "cover",
+      backgroundColor: "#f1f1f101",
+      backgroundPosition: "center",
+      color: "#fff",
+      borderRadius: 1,
+    }}
+  >
+
+    <CardContent sx={{ backdropFilter: "blur(20px)" }}>
+    <Box display="flex" alignItems="start" gap={2} mb={1}>  
+      <Box>
+        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>
+          {tripInfo.name}
+        </Typography>
+        <Typography variant="body2" sx={{ color: "#ffffffff", display: "flex", alignItems: "center" }}>
+          <LocationOn sx={{ fontSize: 16, mr: 1 }} /> {tripInfo.from} → {tripInfo.location}
+        </Typography>
+        {tripInfo.date && (
+          <Typography variant="body2" sx={{ color: "#e7e7e7ff", display: "flex", alignItems: "center" }}>
+           <AccessTime sx={{ fontSize: 16, mr: 1 }} /> {tripInfo.startDate} → {tripInfo.date}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+
+    {timelineStats && (
+      <Box mb={1}>
+        <Typography variant="caption" sx={{ color: "#cbcbcbff" }}>
+          Timeline Progress: {timelineStats.completed} / {timelineStats.total} complete
+        </Typography>
+        <LinearProgress
+          value={timelineStats.percent}
+          variant="determinate"
+          sx={{
+            mt: 0.5, borderRadius: 20, height: 7, bgcolor: "#ffffff36",
+            "& .MuiLinearProgress-bar": { bgcolor: "#ffffffff" }
+          }}
+        />
+      </Box>
+    )}
+    </CardContent>
+  </Card>
+)}
+
+
+
               <Box
                 sx={{
                   display: "flex",
@@ -2121,7 +2829,7 @@ if (msg.type === "system") {
              <Typography
               variant="body2"
               sx={{
-                color: '#00e676',
+                color: '#a5a5a5ff',
                 fontWeight: 500,
                 p: 1
               }}
@@ -2156,6 +2864,7 @@ if (msg.type === "system") {
           alignItems="center"
           justifyContent="space-between"
           sx={{ background: "#f1f1f111", p: 1, borderRadius: 1 }}
+          onClick={() => window.location.href=`/chat/${memberUid}`}
         >
           <Box display="flex" alignItems="center" gap={1}>
             <Avatar src={member?.photoURL} sx={{ width: 40, height: 40, mr: 1 }} />
@@ -2183,19 +2892,21 @@ if (msg.type === "system") {
                 </IconButton>
               ) : null}
             </Tooltip>
-            {/* Show "Remove" button only if admin AND not removing self */}
-            {memberUid !== user?.uid && !isOwner && !isAdmin && (
-              <Tooltip title="Remove User From Group">
-                <IconButton
-                  onClick={() => {
-                    setSelectedMemberToRemove(memberUid);
-                    setConfirmDialogOpen(true);
-                  }}
-                  sx={{ color: "#fbb", backgroundColor: "#ff000030", padding: 1 }}
-                >
-                  <RemoveCircleOutlineIcon />
-                </IconButton>
-              </Tooltip>
+            {(groupInfo?.createdBy === user?.uid || (groupInfo?.admins || []).includes(user?.uid)) &&
+              memberUid !== groupInfo?.createdBy &&
+              !(groupInfo?.admins || []).includes(memberUid) &&
+              memberUid !== user?.uid && (
+                <Tooltip title="Remove User From Group">
+                  <IconButton
+                    onClick={() => {
+                      setSelectedMemberToRemove(memberUid);
+                      setConfirmDialogOpen(true);
+                    }}
+                    sx={{ color: "#fbb", backgroundColor: "#ff000030", padding: 1 }}
+                  >
+                    <RemoveCircleOutlineIcon />
+                  </IconButton>
+                </Tooltip>
             )}
           </Box>
         </Box>
@@ -2370,6 +3081,7 @@ if (msg.type === "system") {
                 p: 1,
                 borderRadius: 1,
               }}
+              onClick={() => window.location.href=`/chat/${memberUid}`}
             >
               <Box display="flex" alignItems="center" gap={1}>
                 <Avatar src={member?.photoURL} sx={{ width: 40, height: 40, mr: 1 }} />
@@ -2386,6 +3098,36 @@ if (msg.type === "system") {
                   <Typography variant='body2'>{member?.username || memberUid.slice(0, 6)}</Typography>
                 </Box>
               </Box>
+              
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Tooltip title="Call">
+              {member?.mobile ? (
+                <IconButton
+                  onClick={() => window.open(`tel:${member.mobile}`, '_self')}
+                  sx={{ color: "#fff", backgroundColor: "#f1f1f111", padding: 1 }}
+                >
+                  <PhoneOutlinedIcon />
+                </IconButton>
+              ) : null}
+            </Tooltip>
+
+            {(groupInfo?.createdBy === user?.uid || (groupInfo?.admins || []).includes(user?.uid)) &&
+              memberUid !== groupInfo?.createdBy &&
+              !(groupInfo?.admins || []).includes(memberUid) &&
+              memberUid !== user?.uid && (
+                <Tooltip title="Remove User From Group">
+                  <IconButton
+                    onClick={() => {
+                      setSelectedMemberToRemove(memberUid);
+                      setConfirmDialogOpen(true);
+                    }}
+                    sx={{ color: "#fbb", backgroundColor: "#ff000030", padding: 1 }}
+                  >
+                    <RemoveCircleOutlineIcon />
+                  </IconButton>
+                </Tooltip>
+            )}
+          </Box>
             </Box>
           )
         })}
