@@ -66,6 +66,8 @@ import {
   updateDoc,
   getDoc,
   setDoc,
+  arrayUnion,
+  onSnapshot
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { Navigate } from "react-router-dom";
@@ -78,8 +80,7 @@ import DeviceGuard from "../components/DeviceGuard";
 
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie =
-    name + "=" + encodeURIComponent(value) + "; expires=" + expires + "; path=/";
+  document.cookie = name + "=" + encodeURIComponent(value) + "; expires=" + expires + "; path=/";
 }
 
 function getCookie(name) {
@@ -88,6 +89,7 @@ function getCookie(name) {
     return parts[0] === name ? decodeURIComponent(parts[1]) : r;
   }, "");
 }
+
 
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(20px);}
@@ -102,7 +104,7 @@ const theme = createTheme({
       paper: "#232526",
     },
     primary: {
-      main: "#00f721",
+      main: "#ffffffff",
       contrastText: "#000",
     },
     secondary: {
@@ -114,9 +116,9 @@ const theme = createTheme({
       disabled: "#f0f0f0",
     },
     action: {
-      hover: "#00f721",
+      hover: "#212121ff",
       selected: "#131313",
-      disabledBackground: "rgba(0,155,89,0.16)",
+      disabledBackground: "rgba(152, 152, 152, 0.16)",
       disabled: "#BDBDBD",
     },
     divider: "rgb(24, 24, 24)",
@@ -146,10 +148,10 @@ const theme = createTheme({
     MuiFab: {
       styleOverrides: {
         root: {
-          backgroundColor: "#00f721",
+          backgroundColor: "#ffffffff",
           color: "#000",
           "&:hover": {
-            backgroundColor: "#00f721",
+            backgroundColor: "#a4a4a4ff",
             color: "#000",
           },
         },
@@ -219,6 +221,7 @@ const Notes = () => {
   const [collaboratorInput, setCollaboratorInput] = useState("");
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
   const [addCollaboratorDrawerOpen, setAddCollaboratorDrawerOpen] = useState(false);
+  const [addCollabDrawerOpen, setAddCollabDrawerOpen] = useState(false);
   const [addLabelDrawerOpen, setAddLabelDrawerOpen] = useState(false);
   const [newCollaboratorUsername, setNewCollaboratorUsername] = useState("");
   const [newLabel, setNewLabel] = useState("");
@@ -227,6 +230,7 @@ const Notes = () => {
   const [selectedLabelFilter, setSelectedLabelFilter] = useState(() => localStorage.getItem("noteLabelFilter") || "All");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState(null);
+
   const history = useNavigate();
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   
@@ -240,25 +244,27 @@ const Notes = () => {
     ? weatherbgColors[weather.main]
     : weatherbgColors.Default;
 
-    useEffect(() => {
-      if (!weather) {
-        let cachedWeather = null;
-        try {
-          const local = localStorage.getItem(WEATHER_STORAGE_KEY);
-          if (local) cachedWeather = JSON.parse(local);
-          if (!cachedWeather) {
-            const cookieWeather = document.cookie
-              .split("; ")
-              .find((row) => row.startsWith(WEATHER_STORAGE_KEY + "="))
-              ?.split("=")[1];
-            if (cookieWeather) cachedWeather = JSON.parse(decodeURIComponent(cookieWeather));
-          }
-        } catch {}
-        if (cachedWeather) {
-          setWeather(cachedWeather);
-        }
+useEffect(() => {
+  if (!weather) {
+    let cachedWeather = null;
+    try {
+      const local = localStorage.getItem(WEATHER_STORAGE_KEY);
+      if (local) cachedWeather = JSON.parse(local);
+      if (!cachedWeather) {
+        const cookieWeather = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith(WEATHER_STORAGE_KEY + "="))
+          ?.split("=")[1];
+        if (cookieWeather) cachedWeather = JSON.parse(decodeURIComponent(cookieWeather));
       }
-    }, [weather, setWeather]);
+    } catch {}
+
+    if (cachedWeather) {
+      setWeather(cachedWeather);
+    }
+  }
+}, []); // ✅ keep this
+
 
 useEffect(() => {
   const savedSort = localStorage.getItem("noteSortOption");
@@ -285,9 +291,15 @@ useEffect(() => {
 
 
 useEffect(() => {
-  const u = getUserFromStorage();
-  setUser(u);
+  if (!user) {
+    const u = getUserFromStorage();
+    if (u) {
+      setUser(u);
+    }
+  }
+  // Do NOT include `user` in dependencies
 }, []);
+
 
 const fetchNotes = async (currentUser) => {
   setLoading(true);
@@ -322,15 +334,48 @@ const fetchNotes = async (currentUser) => {
   setLoading(false);
 };
 
-  useEffect(() => {
-    if (user && user.uid) {
-      fetchNotes(user);
-    } else {
-      setNotes([]);
-      setLoading(false);
-    }
-    // eslint-disable-next-line
-  }, [user]);
+useEffect(() => {
+  if (!user || !user.uid) {
+    setNotes([]);
+    return;
+  }
+
+  const q = query(
+    collection(db, "notes"),
+    where("owners", "array-contains", user.uid)
+  );
+
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const data = [];
+    querySnapshot.forEach((doc) => {
+      const note = { id: doc.id, ...doc.data() };
+      data.push(note);
+    });
+
+    // ✅ Add "shared" label if user is not an owner
+    const processed = data.map((note) => {
+      const isNotOwner = !note.owners?.includes(user.uid);
+      const labelSet = new Set(note.labels || []);
+      if (isNotOwner) labelSet.add("shared");
+      return {
+        ...note,
+        labels: Array.from(labelSet),
+      };
+    });
+
+    // ✅ Sort notes by time
+    processed.sort((a, b) => {
+      const aTime = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+      const bTime = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+      return bTime - aTime;
+    });
+
+    setNotes(processed);
+    setLoading(false);
+  });
+
+  return () => unsubscribe();
+}, [user]);
 
 useEffect(() => {
   const labelSet = new Set();
@@ -384,23 +429,50 @@ useEffect(() => {
     setCollaborators(prev => prev.filter(id => id !== uid));
   };
 
-    const handleAddCollaboratorFromDrawer = async () => {
-    if (!newCollaboratorUsername.trim()) return;
-    const q = query(collection(db, "users"), where("username", "==", newCollaboratorUsername.trim()));
+const handleAddCollaboratorFromDrawer = async () => {
+  if (!newCollaboratorUsername.trim()) return;
+
+  try {
+    const q = query(
+      collection(db, "users"),
+      where("username", "==", newCollaboratorUsername.trim())
+    );
     const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
+
+    if (!snapshot.empty && selectedNote?.id) {
       const userDoc = snapshot.docs[0];
       const shareUid = userDoc.id;
-      if (!collaborators.includes(shareUid) && shareUid !== user.uid) {
+
+      if (shareUid === user.uid) {
+        setError("You cannot share with yourself.");
+        return;
+      }
+
+      const noteRef = doc(db, "notes", selectedNote.id);
+
+      // Add both the current user and collaborator to owners and sharedWith
+      await updateDoc(noteRef, {
+        sharedWith: arrayUnion(shareUid),
+        owners: arrayUnion(user.uid, shareUid)
+      });
+
+      // Update local state
+      if (!collaborators.includes(shareUid)) {
         setCollaborators(prev => [...prev, shareUid]);
       }
+
       setNewCollaboratorUsername("");
       setAddCollaboratorDrawerOpen(false);
+      setAddCollabDrawerOpen(false);
       setError("");
     } else {
-      setError("User not found!");
+      setError("User not found or no note selected.");
     }
-  };
+  } catch (error) {
+    console.error("Error adding collaborator:", error);
+    setError("Something went wrong. Please try again.");
+  }
+};
 
   // --- Label add/remove logic for add/edit ---
   const handleToggleLabel = (label) => {
@@ -457,7 +529,7 @@ useEffect(() => {
       labels: noteLabels,
     });
     setEditDrawerOpen(false);
-    setSelectedNote(null);
+    setSelectedNote(true);
     setSaving(false);
     fetchNotes(user);
   };
@@ -504,20 +576,22 @@ useEffect(() => {
     }
   };
 
-const filteredNotes = notes.filter((note) => {
-  const matchesSearch =
-    note.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    note.content?.toLowerCase().includes(searchTerm.toLowerCase());
+const filteredNotes = notes.filter(note => {
+  if (selectedLabelFilter === "All") return true;
 
-  const matchesLabel =
-    selectedLabelFilter === "All"
-      ? true
-      : selectedLabelFilter === "Pinned"
-      ? note.pinned === true
-      : (note.labels || []).includes(selectedLabelFilter);
+  if (selectedLabelFilter === "Pinned") {
+    return note.pinned === true;
+  }
 
-  return matchesSearch && matchesLabel;
+  if (selectedLabelFilter === "Shared") {
+    // Note is shared with user but user is not an owner
+    return note.sharedWith?.includes(user?.uid) && !note.owners?.includes(user?.uid);
+  }
+
+  // 🔍 Filter by label
+  return note.labels?.includes(selectedLabelFilter);
 });
+
 
   const applyFormat = (format) => {
   const textarea = noteContentRef.current;
@@ -765,52 +839,29 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
 </ToggleButtonGroup>
 </Box>
 
-<Stack direction="row" spacing={1} sx={{ overflowX: "auto", mb: 2, color: "#fff" }}>
-<Button
-  onClick={() => setSelectedLabelFilter("All")}
-  sx={{
-    color: selectedLabelFilter === "All" ? "#000" : "#fff",
-    backgroundColor: selectedLabelFilter === "All" ? buttonWeatherBg : "#f1f1f111",
-    borderRadius: 24,
-    backdropFilter: "blur(80px)"
-  }}
->
-  All
-</Button>
 
-<Button
-  onClick={() => setSelectedLabelFilter("Pinned")}
-  sx={{
-    color: selectedLabelFilter === "Pinned" ? "#000" : "#fff",
-    backgroundColor: selectedLabelFilter === "Pinned" ? buttonWeatherBg : "#f1f1f111",
-    borderRadius: 24,
-    backdropFilter: "blur(80px)"
-  }}
->
-  📌 Pinned
-</Button>
-
-{labels.map((label) => (
-  <Button
-    key={label}
-    onClick={() => setSelectedLabelFilter(label)}
-    sx={{
-      color: selectedLabelFilter === label ? "#000" : "#fff",
-      backgroundColor: selectedLabelFilter === label ? buttonWeatherBg : "#f1f1f111",
-      borderRadius: 24,
-    backdropFilter: "blur(80px)"
-    }}
-  >
-    {label}
-  </Button>
-))}
+<Stack direction="row" spacing={1} sx={{ overflowX: "auto", mb: 2 }}>
+  {["All", "Pinned", "Shared", ...labels].map((label) => (
+    <Chip
+      key={label}
+      label={label === "Pinned" ? "📌 Pinned" : label}
+      clickable
+      color={selectedLabelFilter === label ? "primary" : "default"}
+      onClick={() => setSelectedLabelFilter(label)}
+      sx={{
+        borderRadius: 2,
+        backdropFilter: "blur(80px)",
+        color: selectedLabelFilter === label ? "#000" : "#fff",
+        backgroundColor: selectedLabelFilter === label ? buttonWeatherBg : "#f1f1f111",
+      }}
+    />
+  ))}
 </Stack>
-
 
 
         </Box>
           <Box sx={{ mb: 2, backgroundColor: "transparent", height: "auto" }}>
-          <CardContent sx={{ mb: 2, padding: 0, backgroundColor: "transparent" }}>
+          <CardContent sx={{ mb: 8, padding: 0, backgroundColor: "transparent" }}>
             {loading ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
                 <CircularProgress color="inherit" />
@@ -824,7 +875,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             ) : (
 <Box>
   {viewMode === "list" ? (
-    <Stack spacing={2}>
+    <Stack spacing={1.3}>
       {[...pinnedNotes, ...unpinnedNotes].map((note, idx) => (
         <>
                   <Card
@@ -942,7 +993,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                               <MenuItem
                                 onClick={() => {
                                   handleShareNote(note);
-                                  setAddCollaboratorDrawerOpen(true);
+                                  setAddCollabDrawerOpen(true);
                                   handleMenuClose();
                                 }}
                               >
@@ -981,7 +1032,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
       sx={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(30vw, 1fr))",
-        gap: 2,
+        gap: 1,
       }}
     >
       {[...pinnedNotes, ...unpinnedNotes].map((note, idx) => (
@@ -990,7 +1041,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           key={note.id}
           sx={{
             background: "#191919",
-            borderRadius: 2,
+            borderRadius: 1.4,
             boxShadow: "0 1px 4px #0003",
             color: "#fff",
             cursor: "pointer",
@@ -1036,32 +1087,34 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                           </Box>
                         </Box>
                         {/* Labels */}
-                        {note.labels && note.labels.length > 0 && (
-                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                            {note.labels.map(label => (
-                              <Chip
-                                key={label}
-                                icon={<LabelIcon sx={{ color: "#00f721" }} />}
-                                label={label}
-                                size="small"
-                                sx={{
-                                  fontSize: "0.7rem",
-                                  borderRadius: '10px',
-                                  color: '#fff',
-                                  background: "#f4f4f436",
-                                }}
-                              />
-                            ))}
-                          </Stack>
-                        )}
-                        {/* Shared users */}
+{(note.labels?.length > 0 || (note.owners && !note.owners.includes(user?.uid))) && (
+  <Stack direction="row" sx={{ mt: 1, flexWrap: "wrap", gap: 0.1 }}>
+    {/* Labels */}
+{note.labels?.map(label => (
+  <Chip
+    key={label}
+    label={label}
+    size="small"
+    icon= {<LabelIcon sx={{ color: "#fff" }} />}
+    sx={{
+      fontSize: "0.7rem",
+      borderRadius: '10px',
+      color: "#fff",
+      background: label === "shared" ? "#ff9800" : WeatherBgdrop,
+    }}
+  />
+))}
+
+
+    {/* Shared Chip */}
                         <Box sx={{ mt: 1 }}>
+                          {/* Show "Shared with you" if you are not the creator */}
                           {note.owners && note.owners[0] !== user?.uid && (
                             <Chip
                               label="Shared with you"
                               size="small"
                               sx={{
-                                ml: 0,
+                                marginLeft: 0,
                                 background: buttonWeatherBg,
                                 color: "#000",
                                 fontWeight: 600,
@@ -1071,6 +1124,9 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                             />
                           )}
                         </Box>
+  </Stack>
+)}
+
           </CardContent>
         </Card>
 
@@ -1105,7 +1161,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                               <MenuItem
                                 onClick={() => {
                                   handleShareNote(note);
-                                  setAddCollaboratorDrawerOpen(true);
+                                  setAddCollabDrawerOpen(true);
                                   handleMenuClose();
                                 }}
                               >
@@ -1281,21 +1337,28 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
       ))}
 
 
-      <Tooltip title="Add Collaborator">
-        <IconButton
-          onClick={() => setAddCollaboratorDrawerOpen(true)}
-          size="small"
-          sx={{
-            color: "#fff",
-            borderRadius: 2,
-            px: 0.6,
-            height: 36,
-            backgroundColor: "#ffffff11"
-          }}
-        >
-          <PersonAddIcon />
-        </IconButton>
-      </Tooltip>
+<Tooltip title="Add Collaborator">
+  <IconButton
+    onClick={() => {
+      if (editDrawerOpen) {
+        setAddCollabDrawerOpen(true);
+      } else {
+        setAddCollaboratorDrawerOpen(true);
+      }
+    }}
+    size="small"
+    sx={{
+      color: "#fff",
+      borderRadius: 2,
+      px: 0.6,
+      height: 36,
+      backgroundColor: "#ffffff11"
+    }}
+  >
+    <PersonAddIcon />
+  </IconButton>
+</Tooltip>
+
       <Tooltip title="Add Label">
         <IconButton
           onClick={() => setAddLabelDrawerOpen(true)}
@@ -1545,7 +1608,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               <IconButton
                 onClick={() => {
                   handleShareNote(selectedNote);
-                  setViewDrawerOpen(false);
+                  setAddCollabDrawerOpen(true);
                 }}
                 sx={{ color: "#fff", backgroundColor: "#b9b9b911", padding: 1 }}
               >
@@ -1590,6 +1653,63 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           </Box>
 
         </SwipeableDrawer>
+
+        <SwipeableDrawer
+          anchor="bottom"
+          open={addCollabDrawerOpen}
+          onClose={() => setAddCollabDrawerOpen(false)}
+          onOpen={() => {}}
+          disableSwipeToOpen={true}
+          disableDiscovery={true}
+          PaperProps={{
+            sx: {
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              backgroundColor: "#0c0c0c00",
+              backdropFilter: "blur(80px)",
+              p: 3,
+              maxWidth: 400,
+              mx: "auto",
+              zIndex: 999,
+            },
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+            Add Collaborator11
+          </Typography>
+          <Stack spacing={2}>
+            <TextField
+              label="Username"
+              value={newCollaboratorUsername}
+              onChange={e => setNewCollaboratorUsername(e.target.value)}
+              fullWidth
+              variant="outlined"
+              InputProps={{ style: { color: "#fff" } }}
+              InputLabelProps={{ style: { color: "#aaa" } }}
+            />
+            {error && (
+              <Typography color="error" sx={{ mt: 1 }}>
+                {error}
+              </Typography>
+            )}
+            <Button
+              variant="contained"
+              sx={{
+                borderRadius: 4,
+                px: 2,
+                py: 1,
+                color: "#000",
+                background: buttonWeatherBg,
+                fontWeight: "bold",
+              }}
+              onClick={handleAddCollaboratorFromDrawer}
+              fullWidth
+            >
+              Add Collaborator
+            </Button>
+          </Stack>
+        </SwipeableDrawer>
+
 
 <Dialog
   open={deleteDialogOpen}

@@ -1,6 +1,6 @@
 {
   "name": "bunk-mates",
-  "version": "2.1.14.0.07(Beta1)",
+  "version": "1.07.1.152(Beta1)",
   "private": true,
   "scripts": {
     "start": "react-scripts start",

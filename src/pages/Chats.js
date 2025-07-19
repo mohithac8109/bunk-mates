@@ -1008,7 +1008,7 @@ const combinedChats = [
       />
     </Box>
 
-      {notification && (
+      {/* {notification && (
         <div
           style={{
             position: 'fixed',
@@ -1031,7 +1031,7 @@ const combinedChats = [
         >
           <Avatar src={notification.photoURL} style={{marginRight: '20px'}}></Avatar><div><strong style={{color: '#fff', fontSize: '16px'}}>{notification.user}</strong> <br></br> {notification.message}</div>
         </div>
-      )}
+      )} */}
 
       <div>
         
@@ -1047,7 +1047,7 @@ const combinedChats = [
               borderRadius: '18px',
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: chat.unreadCount > 0 ? WeatherBgdrop : '#00000000',
+              backgroundColor: '#00000000',
               cursor: 'pointer',
               transition: 'background-color 0.3s',
             }}
@@ -1153,6 +1153,86 @@ const combinedChats = [
 
         </Box>
       </div>
+<SwipeableDrawer
+  anchor="bottom"
+  open={membDialogOpen}
+  onClose={() => setMembDialogOpen(false)}
+  PaperProps={{
+    sx: {
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      p: 3,
+      backgroundColor: "#00000000",
+      backdropFilter: "blur(40px)",
+      height: "75vh",
+      zIndex: 999,
+    },
+  }}
+>
+      <>
+        <TextField
+          fullWidth
+          placeholder="Search by username"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{
+            input: { color: "#fff" },
+            backgroundColor: "#3131314d",
+            borderRadius: 1,
+            mb: 2,
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#2A2A2A",
+            },
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ color: "#777" }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        <Box sx={{ overflowY: "auto", flex: 1 }}>
+          {searchResults.map((user) => (
+            <Box
+              key={user.uid}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                bgcolor: "#1a1a1a3a",
+                borderRadius: 2,
+                px: 2,
+                py: 1.5,
+                mb: 1,
+              }}
+            >
+              <Box display="flex" alignItems="center">
+                <Avatar src={user.photoURL} sx={{ width: 40, height: 40, mr: 2 }} />
+                <Typography color="white">{user.username}</Typography>
+              </Box>
+
+              <Button
+                variant="outlined"
+                size="small"
+                sx={{
+                  color: buttonWeatherBg,
+                  borderColor: buttonWeatherBg,
+                  bgcolor: WeatherBgdrop,
+                  borderRadius: 2,
+                  px: 2,
+                }}
+                onClick={() => handleAddFriend(user)}
+              >
+                <PersonAddIcon sx={{ mr: 1 }} fontSize="small" />
+                Add
+              </Button>
+            </Box>
+          ))}
+        </Box>
+      </>
+</SwipeableDrawer>
 
 <Drawer
   anchor="bottom"
@@ -1251,86 +1331,6 @@ const combinedChats = [
   </Button>
 </Drawer>
 
-<SwipeableDrawer
-  anchor="bottom"
-  open={membDialogOpen}
-  onClose={() => setMembDialogOpen(false)}
-  PaperProps={{
-    sx: {
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      p: 3,
-      backgroundColor: "#00000000",
-      backdropFilter: "blur(40px)",
-      height: "75vh",
-    },
-  }}
->
-      <>
-        <TextField
-          fullWidth
-          placeholder="Search by username"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{
-            input: { color: "#fff" },
-            backgroundColor: "#3131314d",
-            borderRadius: 1,
-            mb: 2,
-            "& .MuiOutlinedInput-notchedOutline": {
-              borderColor: "#2A2A2A",
-            },
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: "#777" }} />
-              </InputAdornment>
-            ),
-          }}
-        />
-
-        <Box sx={{ overflowY: "auto", flex: 1 }}>
-          {searchResults.map((user) => (
-            <Box
-              key={user.uid}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                bgcolor: "#1a1a1a3a",
-                borderRadius: 2,
-                px: 2,
-                py: 1.5,
-                mb: 1,
-              }}
-            >
-              <Box display="flex" alignItems="center">
-                <Avatar src={user.photoURL} sx={{ width: 40, height: 40, mr: 2 }} />
-                <Typography color="white">{user.username}</Typography>
-              </Box>
-
-              <Button
-                variant="outlined"
-                size="small"
-                sx={{
-                  color: buttonWeatherBg,
-                  borderColor: buttonWeatherBg,
-                  bgcolor: WeatherBgdrop,
-                  borderRadius: 2,
-                  px: 2,
-                }}
-                onClick={() => handleAddFriend(user)}
-              >
-                <PersonAddIcon sx={{ mr: 1 }} fontSize="small" />
-                Add
-              </Button>
-            </Box>
-          ))}
-        </Box>
-      </>
-</SwipeableDrawer>
-
 <Drawer
   anchor="bottom"
   open={addUserDialog}
@@ -1350,7 +1350,7 @@ const combinedChats = [
     {/* Header */}
     <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
       <Typography variant="h5" fontWeight="bold" color="white">
-        Start Chat
+        New Chat
       </Typography>
       <IconButton onClick={() => setAddUserDialog(false)} sx={{ bgcolor: "#1F1F1F" }}>
         <CloseIcon sx={{ color: "#fff" }} />
@@ -1404,7 +1404,10 @@ const combinedChats = [
   <Button
     variant="contained"
     fullWidth
-    onClick={() => setMembDialogOpen(true)}
+    onClick={() => 
+      {setMembDialogOpen(true);
+      setAddUserDialog(false);}
+    }
     sx={{ 
       mb: 2,
       backgroundColor: "rgba(51, 51, 51, 0.23)",
