@@ -1933,7 +1933,7 @@ if (msg.type === "system") {
       exit={{ y: '100%' }}
       transition={{ type: 'spring', stiffness: 120, damping: 20 }}
     >
-      <SwipeableDrawer
+      <Drawer
         anchor="bottom"
         open={profileOpen}
         onClose={() => setProfileOpen(false)}
@@ -1962,29 +1962,19 @@ if (msg.type === "system") {
         }}
       >
         <Box sx={{ p: 3, height: '100%', position: "relative", overflowY: 'auto' }}>
-          {/* Drag Indicator */}
-        
-        <Box>
-                    <Box
-            sx={{
-              width: 40,
-              height: 5,
-              backgroundColor: '#666',
-              borderRadius: 3,
-              mx: 'auto',
-              mb: 2,
-              opacity: 0.7,
-            }}
-          />
 
-          {/* Close Button */}
+        <Box display="flex" alignItems="center">
           <IconButton
             onClick={() => setProfileOpen(false)}
-            sx={{ color: '#ccc', position: "absolute", top: 10, right: 10 }}
+            sx={{ color: '#ccc' }}
           >
-            <CloseIcon />
+            <ArrowBackIcon />
           </IconButton>
+          <Typography variant="h6">
+            Group Info
+          </Typography>
         </Box>
+
 
           {/* Profile Content */}
           <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', mt: 6 }}>
@@ -2411,7 +2401,7 @@ if (msg.type === "system") {
 </SwipeableDrawer>
 
 
-<SwipeableDrawer
+<Drawer
   anchor="bottom"
   fullHeight
   open={groupSettingsOpen}
@@ -2423,12 +2413,15 @@ if (msg.type === "system") {
       color: "#fff",
       maxWidth: 480,
       mx: "auto",
+      height: "95vh"
     },
   }}
 >
-  <Box display="flex" flexDirection="column" gap={3}>
 
-<Box display="flex" alignItems="center" mb={2}>
+
+  <Box display="flex" flexDirection="column" gap={3} maxHeight={"93vh"} overflowY={"auto"} mb={2}>
+
+  <Box display="flex" alignItems="center">
   <IconButton onClick={() => setGroupSettingsOpen(false)} sx={{ color: "#fff", mr: 1 }}>
     <ArrowBackIcon />
   </IconButton>
@@ -2436,7 +2429,6 @@ if (msg.type === "system") {
     Group Settings
   </Typography>
 </Box>
-
 
     {/* Section: Permission Toggles */}
     <Box>
@@ -2531,7 +2523,7 @@ if (msg.type === "system") {
     </Box>
 
     {/* Section: Member List and Admin Toggle */}
-<Box mt={3}>
+<Box mt={3} mb={3}>
   <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
     <Typography variant="h6">Members & Admins</Typography>
     <Button
@@ -2572,7 +2564,7 @@ if (msg.type === "system") {
     />
   )}
 
-  <Stack spacing={1} sx={{ maxHeight: "45vh", overflowY: "auto" }}>
+  <Stack spacing={1} sx={{ maxHeight: "47vh", overflowY: "auto" }}>
     {(groupInfo?.members || [])
       .filter((uid) => {
         const m = memberInfo[uid];
@@ -2662,7 +2654,7 @@ if (msg.type === "system") {
 </Box>
 
   </Box>
-</SwipeableDrawer>
+</Drawer>
 
 <SwipeableDrawer
   anchor="bottom"
@@ -2984,7 +2976,7 @@ if (msg.type === "system") {
 
 
         </Box>
-      </SwipeableDrawer>
+      </Drawer>
     </motion.div>
   )}
 </Box>
