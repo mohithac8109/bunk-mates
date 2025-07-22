@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
   Box, Button, Avatar, Typography, TextField, IconButton, CircularProgress,
   AppBar, Toolbar, Paper, Menu, MenuItem, Slide, Dialog, Divider, SwipeableDrawer, Stack, Chip, useTheme, keyframes, createTheme,
-  ThemeProvider
+  ThemeProvider, Card, CardActionArea, CardContent, Grid, List, ListItemText, ListItemAvatar, LinearProgress, InputAdornment, Drawer
 } from '@mui/material';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { X, Phone, Video, MoreVertical, ArrowDownToDotIcon } from 'lucide-react';
@@ -17,6 +17,7 @@ import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
 import EmojiPicker from 'emoji-picker-react';
 import Popover from '@mui/material/Popover';
 import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   collection, addDoc, query, orderBy, onSnapshot,
@@ -29,6 +30,9 @@ import TextFieldsIcon from '@mui/icons-material/TextFields';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
+import {
+  LocationOn, AccessTime,
+} from "@mui/icons-material";
 import { v4 as uuidv4 } from 'uuid'; // For notification message id
 import { messaging } from "../firebase";
 import { getToken, onMessage } from "firebase/messaging";
@@ -68,7 +72,7 @@ const theme = createTheme({
       paper: "#0c0c0c", // deep black for dialogs/paper
     },
     primary: {
-      main: "#00f721", // bright green solid for buttons and accents
+      main: "#ffffffff", // bright green solid for buttons and accents
       contrastText: "#000000", // black text on bright green buttons
     },
     secondary: {
@@ -80,7 +84,7 @@ const theme = createTheme({
       disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
     },
     action: {
-      hover: "#00f721", // bright green hover for interactive elements
+      hover: "#c0c0c0ff", // bright green hover for interactive elements
       selected: "#131313", // dark black for selected states
       disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
       disabled: "#BDBDBD",
@@ -211,6 +215,15 @@ function ChatRoom() {
   const [addNicknameDrawerOpen, setAddNicknameDrawerOpen] = useState(false);
   const [sharedBudgets, setSharedBudgets] = useState([]);
   const muiTheme = useTheme();
+  const [groupMembersInfo, setGroupMembersInfo] = useState({});
+  const [allCommonGroupsDrawerOpen, setAllCommonGroupsDrawerOpen] = useState(false);
+  const [groupSearch, setGroupSearch] = useState("");
+  const [checklist, setChecklist] = useState([]);
+  const [timelineStatsMap, setTimelineStatsMap] = useState([]);
+  const [showAllTripsDrawer, setShowAllTripsDrawer] = useState(false);
+  const [tripSearch, setTripSearch] = useState("");
+  const visibleTrips = commonTrips.slice(0, 1);
+  const moreCount = commonTrips.length - 1;
 
   const scrollContainerRef = useRef(null);
   const chatId = currentUser && friendId ? [currentUser.uid, friendId].sort().join('_') : null;
@@ -341,24 +354,6 @@ useEffect(() => {
     fetchNickname();
   }, [currentUser, friendId]);
 
-  // --- Fetch shared budgets ---
-  useEffect(() => {
-    const fetchBudgets = async () => {
-      if (!currentUser || !friendId) return;
-      const q = query(collection(db, "budgets"), where("contributors", "array-contains", currentUser.uid));
-      const snapshot = await getDocs(q);
-      const shared = [];
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.contributors.includes(friendId)) {
-          shared.push({ ...data, id: docSnap.id });
-        }
-      });
-      setSharedBudgets(shared);
-    };
-    fetchBudgets();
-  }, [currentUser, friendId]);
-
   // --- Remove user from friends ---
   const handleRemoveFriend = async () => {
     if (!window.confirm("Are you sure you want to remove this user from your friends?")) return;
@@ -462,28 +457,145 @@ useEffect(() => {
   }, []);
 
 
-const fetchCommonGroupsAndTrips = async () => {
-  if (!currentUser || !friendDetails.uid) return;
+const fetchCommonGroupsAndTrips = async (currentUser, friendId) => {
+  if (!currentUser?.uid || !friendId) return;
 
-  // Fetch groups where currentUser is a member
+  // --- Fetch Groups where currentUser is a member ---
   const groupQuery = query(
     collection(db, 'groupChats'),
     where('members', 'array-contains', currentUser.uid)
   );
   const groupSnapshot = await getDocs(groupQuery);
 
-  // Match groups where friend is also a member
   const matchedGroups = groupSnapshot.docs
-    .filter(doc => doc.data().members.includes(friendDetails.uid))
+    .filter(doc => {
+      const members = doc.data().members || [];
+      // member arrays can be mixed, make sure elements are string
+      return members.map(String).includes(String(friendId));
+    })
     .map(doc => ({
       id: doc.id,
-      name: doc.data().name,
-      iconURL: doc.data().iconURL,
-      emoji: doc.data().emoji,
+      name: doc.data().name ?? "",
+      iconURL: doc.data().iconURL ?? "",
+      emoji: doc.data().emoji ?? "",
+      members: doc.data().members || [],
     }));
 
   setCommonGroups(matchedGroups);
+
+  // --- Fetch Trips where currentUser is a member ---
+  const tripQuery = query(
+    collection(db, 'trips'),
+    where('members', 'array-contains', currentUser.uid)
+  );
+  const tripSnapshot = await getDocs(tripQuery);
+
+  const matchedTrips = tripSnapshot.docs
+    .filter(doc => {
+      const members = doc.data().members || [];
+      return members.map(String).includes(String(friendId));
+    })
+    .map(doc => ({
+      id: doc.id,
+      name: doc.data().name ?? "",
+      from: doc.data().from ?? "",
+      location: doc.data().location ?? "",
+      startDate: doc.data().startDate ?? "",
+      endDate: doc.data().endDate ?? "",
+      iconURL: doc.data().iconURL ?? ""
+    }));
+
+  setCommonTrips(matchedTrips);
 };
+
+useEffect(() => {
+  if (currentUser && friendDetails?.uid) {
+    fetchCommonGroupsAndTrips({
+      currentUser,
+      friendDetails,
+      setCommonGroups,
+      setCommonTrips,
+    });
+  }
+}, [currentUser, friendDetails]);
+
+useEffect(() => {
+  // Get all unique member UIDs for all common groups
+  const allUids = [...new Set(commonGroups.flatMap(g => g.members || []))];
+  if (allUids.length === 0) {
+    setGroupMembersInfo({});
+    return;
+  }
+  const fetchMembers = async () => {
+    const map = {};
+    await Promise.all(
+      allUids.map(async uid => {
+        const snap = await getDoc(doc(db, "users", uid));
+        if (snap.exists()) map[uid] = snap.data();
+      })
+    );
+    setGroupMembersInfo(map);
+  };
+  fetchMembers();
+}, [commonGroups]);
+
+useEffect(() => {
+  if (!commonTrips || commonTrips.length === 0) return;
+
+  // Reset when trips change
+  setTimelineStatsMap({});
+
+  commonTrips.forEach(async (trip) => {
+    const snap = await getDocs(collection(db, "trips", trip.id, "timeline"));
+    const events = snap.docs.map(d => d.data());
+    const total = events.length || 1;
+    const completed = events.filter(e => e.completed === true).length;
+    const percent = Math.round((completed / total) * 100);
+    setTimelineStatsMap(prev => ({
+      ...prev,
+      [trip.id]: { completed, total, percent }
+    }));
+  });
+}, [commonTrips]);
+
+
+useEffect(() => {
+  const fetchSharedBudgets = async () => {
+    if (!currentUser?.uid || !friendId) return;
+
+    // 1. Get all budgets.
+    const q = collection(db, "budgets");
+    const snap = await getDocs(q);
+
+    // 2. Filter for budgets where both users are contributors.
+    const shared = snap.docs
+      .filter(doc => {
+        const contributors = Array.isArray(doc.data().contributors) ? doc.data().contributors : [];
+        // Defensive: Check for .uid property in contributor objects
+        const contributorUids = contributors
+          .map(c => typeof c === "object" && c && c.uid ? String(c.uid) : null)
+          .filter(Boolean);
+        return contributorUids.includes(String(currentUser.uid)) &&
+               contributorUids.includes(String(friendId));
+      })
+      .map(doc => ({
+        id: doc.id,
+        name: doc.data().name || doc.data().tripName,
+        total: doc.data().total || "N/A",
+        contributors: doc.data().contributors || [],
+      }));
+
+    setSharedBudgets(shared);
+  };
+  fetchSharedBudgets();
+}, [currentUser, friendId]);
+
+// Usage in your component
+useEffect(() => {
+  if (currentUser && friendId) {
+    fetchCommonGroupsAndTrips(currentUser, friendId);
+  }
+}, [currentUser, friendId]);
 
 
   useEffect(() => {
@@ -525,7 +637,8 @@ const fetchCommonGroupsAndTrips = async () => {
     setIsSending(true);
     if (editMessageId) {
       await updateDoc(doc(db, "chats", chatId, "messages", editMessageId), {
-        text: input.trim() + " (edited)",
+        text: input.trim(),
+        edited: true,
         timestamp: serverTimestamp()
       });
       setEditMessageId(null);
@@ -547,7 +660,7 @@ const fetchCommonGroupsAndTrips = async () => {
   };
 
   const handleEdit = (msg) => {
-    setInput(msg.text.replace(" (edited)", ""));
+    setInput(msg.text || "");
     setEditMessageId(msg.id);
   };
 
@@ -589,6 +702,19 @@ const fetchCommonGroupsAndTrips = async () => {
     setReactionMsg(null);
     handleMenuClose();
   };
+
+const removeUserReaction = async (msg, emoji) => {
+  if (!msg || !msg.reactions) return;
+  const userId = currentUser.uid;
+  // Keep all reactions except the one with this emoji and user
+  const updated = msg.reactions.filter(
+    r => !(r.emoji === emoji && r.user === userId)
+  );
+  await updateDoc(doc(db, "chats", chatId, "messages", msg.id), {
+    reactions: updated
+  });
+};
+
 
   const getMessageDate = (timestamp) => {
     const date = new Date(timestamp?.toDate());
@@ -783,6 +909,7 @@ const fetchCommonGroupsAndTrips = async () => {
                           mb: 1,
                           bgcolor: '#2b2b2b',
                           borderRadius: 1,
+                          zIndex: 9999
                         }}
                       >
                         <Typography variant="caption" color="primary">
@@ -814,8 +941,17 @@ const fetchCommonGroupsAndTrips = async () => {
                         minute: '2-digit',
                       })}
 
+
                       {isOwn && (
-                        <Box sx={{ textAlign: 'right' }}>
+                        <Box sx={{ textAlign: 'right', display: "flex", alignItems: "center", gap: 1 }}>
+                      {msg.edited && (
+                        <Typography
+                        variant="caption"
+                        sx={{ color: "#888", ml: 1, fontStyle: "italic" }}
+                        >
+                          edited
+                        </Typography>
+                      )}
                           <DoneAllIcon
                             fontSize="small"
                             sx={{ color: msg.isRead ? '#0099ff' : '#BDBDBD' }}
@@ -958,7 +1094,7 @@ const fetchCommonGroupsAndTrips = async () => {
             }
           }}
         />
-        <Button type="submit" sx={{ backgroundColor: '#00f721', height: '50px', width: '50px', borderRadius: 4, }} disabled={isSending}>
+        <Button type="submit" sx={{ backgroundColor: '#ffffffff', height: '50px', width: '50px', borderRadius: 4, }} disabled={isSending}>
           {isSending ? <CircularProgress size={24} sx={{ color: '#000' }} /> : <SendIcon sx={{ color: '#000' }} />}
         </Button>
       </Box>
@@ -1088,31 +1224,45 @@ const fetchCommonGroupsAndTrips = async () => {
   )}
 </Menu>
 
-      <Menu
-        anchorEl={reactionAnchorEl}
-        open={Boolean(reactionAnchorEl) && !showEmojiPicker}
-        onClose={() => {
-          setReactionAnchorEl(null);
-          setReactionMsg(null);
-        }}
-        PaperProps={{
-          sx: {
-            minWidth: 120,
-            borderRadius: 2,
-            bgcolor: "#181818",
-            color: "#fff",
-            boxShadow: "0 4px 24px #000a",
-            p: 0.5,
-          },
-        }}
-      >
-        {reactionMsg &&
-          Object.entries(getGroupedReactions(reactionMsg)).map(([emoji, users]) => (
-            <MenuItem key={emoji}>
-              {emoji} {users.includes(currentUser.uid) ? "(You)" : friendDetails.name}
-            </MenuItem>
-          ))}
-      </Menu>
+<Menu
+  anchorEl={reactionAnchorEl}
+  open={Boolean(reactionAnchorEl) && !showEmojiPicker}
+  onClose={() => {
+    setReactionAnchorEl(null);
+    setReactionMsg(null);
+  }}
+  PaperProps={{
+    sx: {
+      minWidth: 120,
+      borderRadius: 2,
+      bgcolor: "#181818",
+      color: "#fff",
+      boxShadow: "0 4px 24px #000a",
+      p: 0.5,
+    },
+  }}
+>
+  {reactionMsg &&
+    Object.entries(getGroupedReactions(reactionMsg)).map(([emoji, users]) => (
+      <MenuItem key={emoji} sx={{ display: "flex", justifyContent: "space-between" }}>
+        {users.includes(currentUser?.uid) ? (
+        <span
+            onClick={async () => {
+              await removeUserReaction(reactionMsg, emoji);
+              setReactionAnchorEl(null);
+              setReactionMsg(null);
+            }}>
+          {emoji} {users.includes(currentUser?.uid) ? "You" : ""}
+        </span>
+        ) : (
+        <span>
+          {emoji} {users.includes(currentUser?.uid) ? "" : friendDetails?.name}
+        </span>
+        )}
+      </MenuItem>
+    ))}
+</Menu>
+
 
       <Popover
         open={showEmojiPicker}
@@ -1175,223 +1325,535 @@ const fetchCommonGroupsAndTrips = async () => {
           exit={{ y: '100%' }}
           transition={{ type: 'spring', stiffness: 100 }}
         >
-          <SwipeableDrawer
-            anchor="bottom"
-            open={openProfile}
-            onClose={() => setOpenProfile(false)}
-            onOpen={() => {}}
-            PaperProps={{
-              sx: {
-                height: '80vh',
-                border: "transparent",
-                borderTopLeftRadius: 25,
-                borderTopRightRadius: 25,
-                backgroundColor: '#0c0c0c0a',
-                backdropFilter: 'blur(70px)',
-                color: '#fff',
-                maxWidth: 470,
-                mx: "auto"
-              }
-            }}
-          >
-            <Box sx={{ p: 3, position: 'relative', height: '100%', overflowY: 'auto' }}>
-              {/* Drag Indicator */}
-              <Box sx={{ width: 40, height: 5, backgroundColor: '#555', borderRadius: 3, mx: 'auto', mb: 2 }} />
+<Drawer
+  anchor="bottom"
+  open={openProfile}
+  onClose={() => setOpenProfile(false)}
+  onOpen={() => {}}
+  fullHeight
+  PaperProps={{
+    sx: {
+      border: 'transparent',
+      backgroundColor: '#0c0c0c0a',
+      backdropFilter: 'blur(70px)',
+      color: '#fff',
+      maxWidth: 470,
+      mx: 'auto',
+    },
+  }}
+>
+  <Box sx={{ p: 3, position: 'relative', height: '100%', overflowY: 'auto' }}>
 
-              {/* Close Button */}
-              <IconButton
-                onClick={() => setOpenProfile(false)}
-                sx={{ position: 'absolute', top: 10, right: 10, color: '#ccc' }}
+    <Button
+      startIcon={<ArrowBackIcon />}
+      onClick={() => setOpenProfile(false)}
+      sx={{
+        mb: 0,
+        borderRadius: 2,
+        color: "#fff",
+        backgroundColor: "#f1f1f111",
+        '&:hover': { backgroundColor: "#f1f1f121" },
+      }}
+    >
+      Back
+    </Button>
+
+    {/* Profile Section */}
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 2 }}>
+      <Avatar src={friendDetails.photoURL} sx={{ width: 90, height: 90, mb: 2 }} />
+      <Typography variant="h6" fontWeight="bold">{friendDetails.name}</Typography>
+      <Typography variant="subtitle1" sx={{ color: '#aaa' }}>@{friendDetails.username}</Typography>
+
+      <Typography
+        variant="body2"
+        sx={{
+          backgroundColor: "#f1f1f111",
+          px: 2,
+          py: 0.5,
+          borderRadius: 4,
+          color: '#aaa',
+        }}
+      >
+        {nickname || friendDetails.name}
+      </Typography>
+
+      {friendDetails.bio && (
+        <Box
+          sx={{
+            bgcolor: '#f1f1f111',
+            color: '#aaa',
+            borderRadius: 0.7,
+            py: 1.4,
+            px: 2,
+            display: 'flex',
+            justifyContent: 'left',
+            gap: 1.5,
+            mt: 1,
+          }}
+        >
+          <Typography variant="body2" textAlign="justify">
+            <strong>Bio:</strong> {friendDetails.bio}
+          </Typography>
+        </Box>
+      )}
+    </Box>
+
+    
+    {/* Action Buttons */}
+    <Stack spacing={0.5} mt={3} mb={2} sx={{ backgroundColor: "#f1f1f100", borderRadius: 1, p: 1 }}>
+      <IconButton
+        onClick={() => window.open(`mailto:${friendDetails.email}`, '_blank')}
+        disabled={!friendDetails.email}
+        sx={{
+          bgcolor: '#f1f1f111',
+          color: '#fff',
+          py: 1.4,
+          px: 2,
+          borderRadius: "20px 20px 7px 7px",
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'left',
+          gap: 1.5,
+        }}
+      >
+        <EmailOutlinedIcon />
+        <Typography variant="body1" sx={{ fontSize: 16, color: '#aaa' }}>
+          {friendDetails.email || 'Email not available'}
+        </Typography>
+      </IconButton>
+
+      {friendDetails.mobile && (
+        <IconButton
+          onClick={() => window.open(`tel:${friendDetails.mobile}`, '_blank')}
+          sx={{
+            bgcolor: '#f1f1f111',
+            color: '#fff',
+            py: 1.4,
+            px: 2,
+            borderRadius: "7px",
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'left',
+            gap: 1.5,
+          }}
+        >
+          <PhoneOutlinedIcon />
+          <Typography variant="body1" sx={{ fontSize: 16, color: '#aaa' }}>
+            {friendDetails.mobile}
+          </Typography>
+        </IconButton>
+      )}
+
+
+      <IconButton
+        onClick={() => setOpenProfile(false)}
+        sx={{
+          bgcolor: '#f1f1f111',
+          color: '#fff',
+          py: 1.4,
+          px: 2,
+          borderRadius: "7px",
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'left',
+          gap: 1.5,
+        }}
+      >
+        <ChatOutlinedIcon />
+        <Typography variant="body1" sx={{ fontSize: 16, color: '#aaa' }}>
+          Send a Message
+        </Typography>
+      </IconButton>
+
+      <IconButton
+        onClick={() => {
+          setAddNicknameDrawerOpen(true);
+          setEditNickname(true);
+        }}
+        sx={{
+          bgcolor: '#f1f1f111',
+          color: '#fff',
+          py: 1.4,
+          px: 2,
+          borderRadius: "7px 7px 20px 20px",
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'left',
+          gap: 1.5,
+        }}
+      >
+        <TextFieldsIcon />
+        <Typography variant="body1" sx={{ fontSize: 16, color: '#aaa' }}>
+          Add a Nickname
+        </Typography>
+      </IconButton>
+
+
+    {/* Common Groups */}
+<Box>
+  <Typography variant="subtitle1" fontWeight="bold" mt={3} mb={0.5}>Common Groups</Typography>
+  <Grid container spacing={0.5} mb={2}>
+    {(commonGroups.slice(0,3)).map(group => (
+      <Grid item xs={12} sm={6} md={4} key={group.id}>
+        <Card sx={{ bgcolor: '#f1f1f106', color: '#fff', borderRadius: "10px", overflow: 'hidden' }}>
+          <CardActionArea onClick={() => history(`/group/${group.id}`)}>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar
+                src={group.iconURL}
+                sx={{ bgcolor: '#fff', color: '#111' }}
               >
-                <CloseIcon />
-              </IconButton>
+                {group.emoji || group.name?.charAt(0)}
+              </Avatar>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body1" color="#fff" fontWeight={"bolder"} noWrap>
+                  {group.name}
+                </Typography>
+                <Box
+                  sx={{
+                    width: '100%',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    textOverflow: 'ellipsis',
+                    fontSize: 13,
+                    color: '#ccc',
+                  }}
+                >
+                  {(group.members ?? [])
+                    .map(uid => groupMembersInfo[uid]?.name)
+                    .filter(Boolean)
+                    .join(", ") ||
+                    <Typography variant="caption" sx={{ color: "#ccc" }}>Loading...</Typography>
+                  }
+                </Box>
+              </Box>
+            </CardContent>
+          </CardActionArea>
+        </Card>
+      </Grid>
+    ))}
+    {(commonGroups.length > 3) && (
+        <Button
+          variant="contained"
+          fullWidth
+          sx={{ color: '#ffffffff', backgroundColor: "#f1f1f121", borderRadius: 1, fontWeight: 600, boxShadow: "none" }}
+          onClick={() => setAllCommonGroupsDrawerOpen(true)}
+        >
+          {commonGroups.length - 3} more group{commonGroups.length - 3 > 1 ? "s" : ""}
+        </Button>
+    )}
+  </Grid>
+</Box>
 
-              {/* Profile Content */}
-              <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', mt: 2 }}>
-                <Avatar
-                  src={friendDetails.photoURL}
-                  sx={{ width: 90, height: 90, mb: 2 }}
-                />
-                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                  {friendDetails.name}
+<Box mb={4}>
+  <Typography variant="subtitle1" fontWeight="bold" mb={1}>Common Trips</Typography>
+  <List>
+    {visibleTrips.map(trip => (
+      <Card key={trip.id}
+        sx={{
+          background: `url(${trip?.iconURL})`,
+          backgroundSize: "cover",
+          backgroundColor: "#f1f1f111",
+          backgroundPosition: "center",
+          color: "#fff",
+          borderRadius: "20px 20px 7px 7px",
+          boxShadow: "none",
+          mb: 0.5,
+        }}
+      >
+        <CardContent sx={{ backdropFilter: "blur(20px)", backgroundColor: "#0c0c0c21" }}>
+          <Box display="flex" alignItems="start" gap={2} py="0">
+            <Box py="0">
+              <Box sx={{
+                display: "flex", width: "75vw", flexDirection: "row",
+                alignItems: "center", justifyContent: "space-between", gap: 1
+              }}>
+                <Typography variant="h6"
+                  sx={{
+                    width: '100%', fontWeight: 800, mb: 1,
+                    overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis'
+                  }}>
+                  {trip.name}
                 </Typography>
-                <Typography variant="subtitle1" sx={{ color: '#aaa', mb: 0.5 }}>
-                  @{friendDetails.username}
-                </Typography>
-                  <Typography variant="body2" sx={{ backgroundColor: "#f1f1f111", px: 2, py: 0.5, borderRadius: 4, color: '#aaa', mb: 0.5 }}>
-                    {nickname ? nickname : friendDetails.name}
-                  </Typography>
-                {friendDetails.bio && (
-                  <Box sx={{ bgcolor: '#f1f1f111', color: '#fff', borderRadius: 0.7, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5, mt: 1 }}>
-                    <Typography variant="body2" sx={{ textAlign: "justify" ,color: '#aaa', mb: 0.5 }}>
-                    <strong>Bio:</strong> {friendDetails.bio}
-                  </Typography>
+                {timelineStatsMap?.[trip.id] && (
+                  <Box mb={1} minWidth={110}>
+                    <Typography variant="caption" sx={{ color: "#cbcbcbff" }}>
+                      {timelineStatsMap[trip.id]?.completed} / {timelineStatsMap[trip.id]?.total} complete
+                    </Typography>
+                    <LinearProgress
+                      value={timelineStatsMap[trip.id]?.percent}
+                      variant="determinate"
+                      sx={{
+                        mt: 0.5, borderRadius: 20, height: 7, bgcolor: "#ffffff36",
+                        "& .MuiLinearProgress-bar": { bgcolor: "#ffffffff" }
+                      }}
+                    />
                   </Box>
                 )}
+              </Box>
+              <Typography variant="body2" sx={{ color: "#ffffffff", display: "flex", alignItems: "center" }}>
+                <LocationOn sx={{ fontSize: 16, mr: 1 }} /> {trip.from} → {trip.location}
+              </Typography>
+              <Typography variant="body2" sx={{ color: "#e7e7e7ff", display: "flex", alignItems: "center" }}>
+                <AccessTime sx={{ fontSize: 16, mr: 1 }} /> {trip.startDate} → {trip.endDate}
+              </Typography>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+    ))}
+    {moreCount > 0 && (
+      <Button
+        variant="contained"
+        fullWidth
+        sx={{
+          color: '#ffffffff', backgroundColor: "#f1f1f121", borderRadius: "7px 7px 20px 20px", fontWeight: 600, boxShadow: "none",
+          fontWeight: 600, py: 1, px: 2,
+        }}
+        onClick={() => setShowAllTripsDrawer(true)}
+      >
+        {moreCount} more trip{moreCount > 1 ? "s" : ""}
+      </Button>
+    )}
+  </List>
+</Box>
 
-                {/* Show common groups and trips if available */}
-{commonGroups?.length > 0 && (
-  <Box sx={{ width: '100%', mt: 2 }}>
-    <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>
-      Common Groups:
-    </Typography>
 
-    <Stack direction="row" spacing={1} flexWrap="wrap">
-      {commonGroups.map((group) => (
-        <Chip
-          key={group.id}
-          avatar={
-            <Avatar src={group.iconURL}>
-              {group.emoji || group.name?.[0]}
-            </Avatar>
-          }
-          label={group.name}
-          size="small"
-          sx={{
-            bgcolor: '#222',
-            color: '#fff',
-            maxWidth: '200px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        />
-      ))}
+    {/* Shared Budgets */}
+    {/* {sharedBudgets.length > 0 && (
+      <>
+        <Typography variant="subtitle2" fontWeight="bold" mt={2} mb={1}>Shared Budgets</Typography>
+        <List>
+          {sharedBudgets.map(budget => (
+            <Card key={budget.id} sx={{ bgcolor: '#232323', color: '#fff', mb: 2, borderRadius: 3 }}>
+              <CardActionArea onClick={() => history(`/budgets/${budget.id}`)}>
+                <CardContent sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Avatar sx={{ bgcolor: "#00f721", color: '#000', mr: 2 }}>
+                    <CreditCardIcon />
+                  </Avatar>
+                  <Box flex={1}>
+                    <Typography variant="h6">{budget.name}</Typography>
+                    <Typography variant="body2" sx={{ color: "#BBB" }}>
+                      Total: {budget.total ?? "—"}
+                    </Typography>
+                  </Box>
+                </CardContent>
+              </CardActionArea>
+            </Card>
+          ))}
+        </List>
+      </>
+    )} */}
+
+    <Box></Box>
+
+      <IconButton
+        onClick={handleClearChat}
+        sx={{
+          bgcolor: '#f1f1f111',
+          color: '#ff6767',
+          py: 1.4,
+          px: 2,
+          borderRadius: "20px 20px 7px 7px",
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'left',
+          gap: 1.5,
+          mt: 2
+        }}
+      >
+        <DeleteOutlineIcon />
+        <Typography variant="body1" sx={{ fontSize: 16, color: '#ff6767' }}>
+          Delete Chat
+        </Typography>
+      </IconButton>
+      <IconButton
+        onClick={handleRemoveFriend}
+        sx={{
+          bgcolor: '#f1f1f111',
+          color: '#ff6767',
+          py: 1.4,
+          px: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          gap: 1.5,
+          borderRadius: "7px 7px 20px 20px",
+        }}
+      >
+        <RemoveCircleOutlineIcon sx={{ color: '#ff6767' }} />
+        <Typography variant="body1" sx={{ fontSize: 16, color: '#ff6767' }}>
+          Remove from Friend
+        </Typography>
+      </IconButton>
     </Stack>
   </Box>
-)}
 
- {commonTrips?.length > 0 && (
-  <Box sx={{ width: '100%', mt: 2 }}>
-    
-    {commonTrips?.length > 0 && (
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>
-          Common Trips:
-        </Typography>
-        <Stack direction="row" spacing={1} flexWrap="wrap">
-          {commonTrips.map((trip, i) => (
-            <Chip
-              key={i}
-              label={trip}
-              size="small"
-              sx={{ bgcolor: '#222', color: '#fff' }}
-            />
-          ))}
-        </Stack>
-      </Box>
-    )}
+  <SwipeableDrawer
+  anchor="bottom"
+  open={allCommonGroupsDrawerOpen}
+  onClose={() => setAllCommonGroupsDrawerOpen(false)}
+  onOpen={()=>{}}
+  PaperProps={{
+    sx: {
+      borderTopLeftRadius: 20, borderTopRightRadius: 20,
+      backgroundColor: "#0c0c0c0a",
+      backdropFilter: 'blur(70px)',
+      color: '#fff',
+      maxWidth: 470, mx: 'auto',
+      p: 2, height: '90vh'
+    }
+  }}
+>
 
-  </Box>
-)}
+    <Box sx={{ width: 40, height: 5, bgcolor: '#555', borderRadius: 3, mx: 'auto', mb: 2 }} />
 
-                {/* Shared Budgets */}
-                {sharedBudgets.length > 0 && (
-                  <Box sx={{ width: '100%', mt: 2 }}>
-                    <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>Shared Budgets:</Typography>
-                    <Stack direction="column" spacing={1}>
-                      {sharedBudgets.map(budget => (
-                        <Paper
-                          key={budget.id}
-                          sx={{
-                            bgcolor: '#1a1a1a',
-                            color: '#fff',
-                            p: 2,
-                            borderRadius: 2,
-                            display: 'flex',
-                            alignItems: 'center',
-                            cursor: 'pointer',
-                            '&:hover': { bgcolor: '#222' }
-                          }}
-                          onClick={() => handleBudgetClick(budget.id)}
-                          elevation={2}
-                        >
-                          <CreditCardIcon sx={{ mr: 2, color: '#00f721' }} />
-                          <Box>
-                            <Typography variant="subtitle1" sx={{ color: '#fff' }}>{budget.name}</Typography>
-                            <Typography variant="body2" sx={{ color: '#aaa' }}>
-                              Contributors: {budget.contributors.length}
-                            </Typography>
-                          </Box>
-                        </Paper>
-                      ))}
-                    </Stack>
-                  </Box>
-                )}
-
-                {/* Action Buttons */}
-                <Stack direction="column" spacing={0.5} sx={{ mt: 3, mb: 2, backgroundColor: "#f1f1f100", borderRadius: 1, width: "100%", padding: 1 }}>
-                  <IconButton
-                    sx={{ bgcolor: '#f1f1f111', color: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomLeftRadius: 7, borderBottomRightRadius: 7, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5 }}
-                    onClick={() => window.open(`mailto:${friendDetails.email}`, '_blank')}
-                    disabled={!friendDetails.email}
-                  >
-                    <EmailOutlinedIcon />
-                      {friendDetails.email && (
-                        <Typography variant="body1" sx={{ fontSize: 16, color: '#aaa' }}>
-                          {friendDetails.email}
-                        </Typography>
-                      )}
-                  </IconButton>
-                  <IconButton
-                    sx={{ bgcolor: '#f1f1f111', color: '#fff', borderRadius: 0.5, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5 }}
-                    onClick={() => window.open(`tel:${friendDetails.mobile}`, '_blank')}
-                    disabled={!friendDetails.mobile}
-                  >
-                    <PhoneOutlinedIcon />
-                {friendDetails.mobile && (
-                  <Typography variant="body1" sx={{ fontSize: 16, color: '#aaa' }}>
-                    {friendDetails.mobile}
+  <Box sx={{ mb: 2, position: 'relative' }}>
+    <Typography variant="h6" sx={{ mb: 2, textAlign: "center", fontWeight: 700 }}>All Common Groups</Typography>
+    <TextField
+      value={groupSearch}
+      onChange={e => setGroupSearch(e.target.value)}
+      placeholder="Search groups..."
+      fullWidth
+      size="small"
+      variant="outlined"
+      InputProps={{
+        style: { color: "#fafafa", borderRadius: 8 },
+        startAdornment: (
+          <InputAdornment position="start">
+            <SearchIcon sx={{ color: "#777" }} />
+          </InputAdornment>
+        ),
+      }}
+      sx={{ mb: 2 }}
+    />
+    <Box sx={{ maxHeight: "75vh", overflowY: "auto", pr: 1 }}>
+      {commonGroups
+        .filter(g =>
+          !groupSearch.trim() ||
+          g.name?.toLowerCase().includes(groupSearch.toLowerCase()) ||
+          (g.members ?? []).some(uid => (groupMembersInfo[uid]?.name || "").toLowerCase().includes(groupSearch.toLowerCase()))
+        )
+        .map(group => (
+          <Card key={group.id}
+            sx={{ bgcolor: '#0c0c0c21', color: '#fff', borderRadius: 2, mb: 1, overflow: "hidden" }}>
+            <CardActionArea onClick={() => {
+              setAllCommonGroupsDrawerOpen(false);
+              history(`/group/${group.id}`);
+            }}>
+              <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Avatar
+                  src={group.iconURL}
+                  sx={{ bgcolor: '#fff', color: '#111' }}
+                >
+                  {group.emoji || group.name?.charAt(0)}
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="body1" color="#fff" fontWeight="bolder" noWrap>
+                    {group.name}
                   </Typography>
-                )}
-                  </IconButton>
-                  <IconButton
-                    sx={{ bgcolor: '#f1f1f111', color: '#fff', fontSize: 16, borderRadius: 0.5, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5 }}
-                    onClick={() => setOpenProfile(false)}
+                  <Box
+                    sx={{
+                      minWidth: 0,
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
+                      fontSize: 13,
+                      color: '#ccc',
+                    }}
                   >
-                    <ChatOutlinedIcon />
-                    <Typography variant="body1" sx={{ fontSize: 16, color: '#aaa' }}>
-                      Send a Message
-                    </Typography>
-                  </IconButton>
-                  <IconButton
-                      onClick={() => {
-                        setAddNicknameDrawerOpen(true);
-                        setEditNickname(true);
-                      }}
-                      size="small"
-                      sx={{ bgcolor: '#f1f1f111', color: '#fff', borderRadius: 0.5, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5 }}
-                    >
-                      <TextFieldsIcon />
-                      <Typography variant="body1" sx={{ fontSize: 16, color: '#aaa' }}>
-                        Add a Nickname
-                      </Typography>
-                    </IconButton>
-                  <IconButton
-                    color="error"
-                    sx={{ bgcolor: '#f1f1f111', color: '#ff6767', fontSize: 16, borderRadius: 0.5, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5 }}
-                    onClick={handleClearChat}
-                  >
-                    <DeleteOutlineIcon />
-                    <Typography variant="body1" sx={{ fontSize: 16, color: '#ff6767' }}>
-                      Delete Chat
-                    </Typography>
-                  </IconButton>
-                  <IconButton
-                    color="error"
-                    sx={{ bgcolor: '#f1f1f111', color: '#ff6767', fontSize: 16, borderTopLeftRadius: 7, borderTopRightRadius: 7, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5 }}
-                    onClick={handleRemoveFriend}
-                  >
-                    <RemoveCircleOutlineIcon />
-                    <Typography variant="body1" sx={{ fontSize: 16, color: '#ff6767' }}>
-                      Remove from Friend
-                    </Typography>
-                  </IconButton>
-                </Stack>
-              </Box>
-            </Box>
-          </SwipeableDrawer>
+                    {(group.members ?? [])
+                      .map(uid => groupMembersInfo[uid]?.name)
+                      .filter(Boolean)
+                      .join(", ") ||
+                      <Typography variant="caption" sx={{ color: "#ccc" }}>Loading...</Typography>
+                    }
+                  </Box>
+                </Box>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        ))}
+    </Box>
+  </Box>
+  </SwipeableDrawer>
 
-          
+<SwipeableDrawer
+  anchor="bottom"
+  open={showAllTripsDrawer}
+  onClose={() => setShowAllTripsDrawer(false)}
+  onOpen={() => {}}
+  PaperProps={{
+    sx: { borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: "#0c0c0c0a", backdropFilter: 'blur(70px)', color: '#fff', maxWidth: 470, mx: 'auto', p: 2, height: '90vh' }
+  }}
+>
+      <Box sx={{ width: 40, height: 5, bgcolor: '#555', borderRadius: 3, mx: 'auto', mb: 2 }} />
+
+  <Box>
+    <Typography variant="h6" sx={{ mb: 2, mt: 1, fontWeight: 700, textAlign: "center" }}>All Common Trips</Typography>
+    <TextField
+      value={tripSearch}
+      onChange={e => setTripSearch(e.target.value)}
+      placeholder="Search trips..."
+      fullWidth
+      size="small"
+      variant="outlined"
+      sx={{ mb: 2 }}
+      InputProps={{ style: { borderRadius: 8, color: "#fafafa" },
+        startAdornment: (
+          <InputAdornment position="start">
+            <SearchIcon sx={{ color: "#777" }} />
+          </InputAdornment>
+        ),
+      }}
+    />
+    <Box sx={{ maxHeight: "75vh", overflowY: "auto", pr: 1 }}>
+      {commonTrips.filter(trip =>
+        !tripSearch.trim() ||
+        trip.name?.toLowerCase().includes(tripSearch.toLowerCase()) ||
+        (trip.location || "").toLowerCase().includes(tripSearch.toLowerCase())
+      ).map(trip => (
+        <Card key={trip.id} sx={{
+          background: `url(${trip.iconURL})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          color: "#fff",
+          borderRadius: 2,
+          mb: 1, overflow: "hidden",
+        }}>
+          <CardContent sx={{ backdropFilter: "blur(20px)", backgroundColor: "#0c0c0c21" }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: '100%' }}>
+              <Typography variant="h6" noWrap>{trip.name}</Typography>
+              {timelineStatsMap?.[trip.id] && (
+                <Box minWidth={110}>
+                  <Typography variant="caption" sx={{ color: "#cbcbcbff" }}>
+                    {timelineStatsMap[trip.id]?.completed} / {timelineStatsMap[trip.id]?.total} complete
+                  </Typography>
+                  <LinearProgress
+                    value={timelineStatsMap[trip.id]?.percent}
+                    variant="determinate"
+                    sx={{
+                      mt: 0.5, borderRadius: 20, height: 7, bgcolor: "#ffffff36",
+                      "& .MuiLinearProgress-bar": { bgcolor: "#ffffffff" }
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+            <Typography variant="body2" sx={{ color: "#fff" }}>
+              <LocationOn sx={{ fontSize: 14, mr: 1 }} />
+              {trip.from} → {trip.location}
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#e7e7e7" }}>
+              <AccessTime sx={{ fontSize: 14, mr: 1 }} />
+              {trip.startDate} → {trip.endDate}
+            </Typography>
+          </CardContent>
+        </Card>
+      ))}
+    </Box>
+  </Box>
+</SwipeableDrawer>
+
                   <SwipeableDrawer
                     anchor="bottom"
                     open={addNicknameDrawerOpen}
@@ -1412,7 +1874,7 @@ const fetchCommonGroupsAndTrips = async () => {
                     }}
                   >
                   <Typography variant="subtitle2" sx={{ color: '#fff', mb: 0.5 }}>Add a Nickname</Typography>
-                  {editNickname ? (
+                  {editNickname && (
                     <Box sx={{ display: 'flex', mt: 2, flexDirection: "column", alignItems: 'center', gap: 1 }}>
                       <TextField
                         value={nickname}
@@ -1456,7 +1918,7 @@ const fetchCommonGroupsAndTrips = async () => {
                           borderRadius: 14, 
                         }}  
                         onClick={() => { 
-                          setEditNickname(false); 
+                          setAddNicknameDrawerOpen(false); 
                           setNickname(nickname);
                         }}>
                           Close
@@ -1476,12 +1938,12 @@ const fetchCommonGroupsAndTrips = async () => {
                         </Button>
                       </Box>
                     </Box>
-                  ) : (
-                    <Typography>
-                      Unable to edit Nickname
-                    </Typography>
                   )}
                   </SwipeableDrawer>
+
+</Drawer>
+       
+
         </motion.div>
       </Box>
     </Box>

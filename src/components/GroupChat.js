@@ -90,6 +90,11 @@ import SearchIcon from "@mui/icons-material/Search";
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import CheckIcon from '@mui/icons-material/Check';
 import RemoveIcon from '@mui/icons-material/Remove';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import ShareIcon from "@mui/icons-material/Share";
+
+import { QRCodeCanvas } from 'qrcode.react';
 
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 
@@ -358,7 +363,7 @@ function GroupChat() {
   const [showPollDialog, setShowPollDialog] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
-
+  const [inviteDrawerOpen, setInviteDrawerOpen] = useState(false);
 
   const addedBy = user?.displayName || user?.email || "Someone";
   
@@ -1190,6 +1195,24 @@ const sendMessage = async () => {
   }
 };
 
+const inviteLink = `${window.location.origin}/group-invite/${groupName}`; // or groupInfo.inviteToken
+
+const handleShare = async () => {
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'Join my group!',
+        text: 'Here’s an invite to our group:',
+        url: inviteLink
+      });
+    } catch (err) {
+      // handle user cancellation or error
+    }
+  } else {
+    navigator.clipboard.writeText(inviteLink);
+    setNotification("📤 Link shared!");
+  }
+};
 
 
   const handleContextMenu = (event, message) => {
@@ -2772,8 +2795,6 @@ sx={{
   </Card>
 )}
 
-
-
               <Box
                 sx={{
                   display: "flex",
@@ -2840,7 +2861,7 @@ sx={{
 {canAddMembers && (
   <Button
     variant="contained"
-    onClick={() => setAddUserDialogOpen(true)}
+    onClick={() => setInviteDrawerOpen(true)}
     sx={{ mt: 0, backgroundColor: "#f1f1f111", boxShadow: "none", color: "#fff", justifyContent: "left", alignItems: "center", borderRadius: 1, gap: 1, px: 1, display: "flex" }}
   >
     <AddIcon sx={{ backgroundColor: "#fff", color: "#000", padding: 1, borderRadius: 4 }} />
@@ -2864,9 +2885,8 @@ sx={{
           alignItems="center"
           justifyContent="space-between"
           sx={{ background: "#f1f1f111", p: 1, borderRadius: 1 }}
-          onClick={() => window.location.href=`/chat/${memberUid}`}
         >
-          <Box display="flex" alignItems="center" gap={1}>
+          <Box display="flex" alignItems="center" gap={1} onClick={() => window.location.href=`/chat/${memberUid}`}>
             <Avatar src={member?.photoURL} sx={{ width: 40, height: 40, mr: 1 }} />
             <Box>
               <Typography variant='body1'>
@@ -2996,6 +3016,128 @@ sx={{
 
 <SwipeableDrawer
   anchor="bottom"
+  open={inviteDrawerOpen}
+  onClose={() => setInviteDrawerOpen(false)}
+  onOpen={() => {}} // Required for SwipeableDrawer
+  PaperProps={{
+    sx: {
+      p: 3,
+      bgcolor: "#121212",
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      boxShadow: "0 -2px 20px rgba(0, 0, 0, 0.6)",
+    },
+  }}
+>
+
+                  <Box
+            sx={{
+              width: 40,
+              height: 5,
+              backgroundColor: '#666',
+              borderRadius: 3,
+              mx: 'auto',
+              mb: 2,
+              opacity: 0.7,
+            }}
+          />
+  
+  <Typography variant="h6" sx={{ color: "#fff", mb: 2 }}>
+    Invite to Group
+  </Typography>
+
+  {/* Add Members Button */}
+  <Button
+    variant="contained"
+    onClick={() => setAddUserDialogOpen(true)}
+    fullWidth
+    sx={{ mt: 0, backgroundColor: "#f1f1f111", boxShadow: "none", color: "#fff", justifyContent: "left", alignItems: "center", borderRadius: 1, gap: 1, px: 1, display: "flex" }}
+  >
+    <PersonAddIcon sx={{ backgroundColor: "#ffffffdc", color: "#000000", padding: 1, borderRadius: 4 }} />
+    Add Members
+  </Button>
+
+    {/* Divider */}
+  <Divider sx={{ my: 2, borderColor: "#444", color: "#aaa" }}>
+    Or add members directly
+  </Divider>
+
+  {/* Invite Link Section */}
+  <Box
+    sx={{ mb: 4, backgroundColor: "#f1f1f111", boxShadow: "none", color: "#fff", justifyContent: "left", alignItems: "center", borderRadius: 1, gap: 1, px: 1, py: 1, display: "flex" }}
+  >
+    <TextField
+      value={inviteLink}
+      fullWidth
+      variant="standard"
+      InputProps={{
+        disableUnderline: true,
+        sx: { color: "#fff", fontSize: 18 },
+        endAdornment: (
+          <IconButton
+            onClick={() => {
+              navigator.clipboard.writeText(inviteLink);
+              setNotification("🔗 Invite link copied!");
+            }}
+            sx={{ backgroundColor: "#f1f1f111", color: "#ffffffff" }}
+          >
+            <ContentCopyIcon />
+          </IconButton>
+        ),
+      }}
+    />
+  </Box>
+
+  {/* QR Code */}
+  <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+    <Box sx={{ p: 2, backgroundColor: "#ffffff", borderRadius: 1 }}>
+      <QRCodeCanvas value={inviteLink} size={180} />
+    </Box>
+  </Box>
+
+  {/* Share Button */}
+  <Button
+    variant="contained"
+    onClick={handleShare}
+    fullWidth
+    sx={{
+      bgcolor: "#ffffffff",
+      color: "#000",
+      fontWeight: 600,
+      borderRadius: 1,
+      py: 1.2,
+      mb: 3,
+      "&:hover": {
+        bgcolor: "#ccccccff",
+      },
+    }}
+  >
+    <ShareIcon sx={{ mr: 1, fontSize: 18 }} /> Share Invite Link
+  </Button>
+
+<Snackbar
+  open={Boolean(notification)}
+  autoHideDuration={2500}
+  onClose={() => setNotification(null)}
+  message={notification}
+  anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+  ContentProps={{
+    sx: {
+      bgcolor: "#fff",
+      color: "#000",
+      fontSize: 14,
+      px: 2,
+      py: 1.5,
+      borderRadius: 1,
+    },
+  }}
+/>
+
+</SwipeableDrawer>
+
+
+<SwipeableDrawer
+  anchor="bottom"
   open={membersDrawerOpen}
   onClose={() => setMembersDrawerOpen(false)}
   PaperProps={{
@@ -3081,9 +3223,8 @@ sx={{
                 p: 1,
                 borderRadius: 1,
               }}
-              onClick={() => window.location.href=`/chat/${memberUid}`}
             >
-              <Box display="flex" alignItems="center" gap={1}>
+              <Box display="flex" alignItems="center" gap={1} onClick={() => window.location.href=`/chat/${memberUid}`}>
                 <Avatar src={member?.photoURL} sx={{ width: 40, height: 40, mr: 1 }} />
                 <Box>
                   <Typography variant='body1'>

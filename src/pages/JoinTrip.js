@@ -84,12 +84,7 @@ export default function JoinTrip() {
           console.error("Invalid stored user:", err);
         }
       }
-
-      if (!currentUser) {
-        navigate("/login");
-        return;
-      }
-
+      
       if (!tripId) {
         setError("No trip ID provided.");
         setLoading(false);
