@@ -1,3 +1,4 @@
+import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { messaging } from './firebase';
 import { getToken, onMessage } from 'firebase/messaging';
@@ -25,6 +26,7 @@ import PrivacyPolicy from "./components/PrivacyPolicy";
 import TermsAndConditions from "./components/TermsAndConditions";
 import CommunityPage from "./components/CommunityPage";
 import GroupInvitePage from "./components/GroupInvitePage";
+import { ThemeToggleProvider, useThemeToggle } from './contexts/ThemeToggleContext';
 
 const vapidKey = 'BA3kLicUjBzLvrGk71laA_pRVYsf6LsGczyAzF-NTBWEmOE3r4_OT9YiVt_Mvzqm7dZCoPnht84wfX-WRzlaSLs'; // From Firebase console
 
@@ -48,8 +50,18 @@ onMessage(messaging, (payload) => {
   // Optional: show custom toast/notification UI here
 });
 
+function BodyBackgroundSetter() {
+  const { mode } = useThemeToggle();
+  useEffect(() => {
+    document.body.style.backgroundColor = mode === "dark" ? "#0c0c0c" : "#f1f1f1";
+  }, [mode]);
+  return null;
+}
+
 function App() {
   return (
+    <ThemeToggleProvider>
+    <BodyBackgroundSetter />
     <SettingsProvider>
       <WeatherProvider>
         <Router>
@@ -80,6 +92,7 @@ function App() {
     </Router>
     </WeatherProvider>
     </SettingsProvider>
+    </ThemeToggleProvider>
   );
 }
 

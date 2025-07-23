@@ -76,7 +76,8 @@ import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "
 import { useWeather } from "../contexts/WeatherContext";
 import BetaAccessGuard from "../components/BetaAccessGuard";
 import DeviceGuard from "../components/DeviceGuard";
-
+import { useThemeToggle } from "../contexts/ThemeToggleContext";
+import { getTheme } from "../theme";
 
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -95,70 +96,6 @@ const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(20px);}
   to { opacity: 1; transform: translateY(0);}
 `;
-
-const theme = createTheme({
-  palette: {
-    mode: "dark",
-    background: {
-      default: "#18191A",
-      paper: "#232526",
-    },
-    primary: {
-      main: "#ffffffff",
-      contrastText: "#000",
-    },
-    secondary: {
-      main: "#444444ea",
-    },
-    text: {
-      primary: "#fff",
-      secondary: "#BDBDBD",
-      disabled: "#f0f0f0",
-    },
-    action: {
-      hover: "#212121ff",
-      selected: "#131313",
-      disabledBackground: "rgba(152, 152, 152, 0.16)",
-      disabled: "#BDBDBD",
-    },
-    divider: "rgb(24, 24, 24)",
-  },
-  shape: { borderRadius: 12 },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#232526",
-          color: "#fff",
-          boxShadow: "none",
-          borderRadius: 16,
-          animation: `${fadeIn} 0.6s ease forwards`,
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-          fontWeight: 600,
-          borderRadius: "12px",
-        },
-      },
-    },
-    MuiFab: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#ffffffff",
-          color: "#000",
-          "&:hover": {
-            backgroundColor: "#a4a4a4ff",
-            color: "#000",
-          },
-        },
-      },
-    },
-  },
-});
 
 function getUserFromStorage() {
   try {
@@ -234,6 +171,9 @@ const Notes = () => {
   const history = useNavigate();
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   
+  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const theme = getTheme(mode, accent);
+
   const buttonWeatherBg =
   weather && weatherColors[weather.main]
     ? weatherColors[weather.main]
@@ -750,8 +690,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               <Box
         sx={{
           p: 3,
-          backgroundColor: "#00000000",
-          color: "#fff",
+          backgroundColor: theme.palette.background.default,
+          color: theme.palette.text.primary,
           Height: "auto",
           maxWidth: 700,
           mx: "auto",
@@ -766,14 +706,14 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               mb: 2
             }}
           >
-            <Button onClick={goBack} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
+            <Button onClick={goBack} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 8, height: '50px', color: mode === "dark" ?  "#fff" : "#000", backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0" , }}>
               <ArrowBackIcon />
             </Button>
             <ProfilePic />
           </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", mb: 0 }}>
-          <Typography variant="h4" fontWeight="bold" sx={{ flex: 1, color: "#fff" }}>
+          <Typography variant="h4" fontWeight="bold" sx={{ flex: 1, color: mode === "dark" ? "#fff" : "#000" }}>
             Notes
           </Typography>
         </Box>
@@ -784,7 +724,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             paddingTop: "25px", 
             zIndex: 1,
             pb: 3,
-            background: "linear-gradient(to bottom, #0c0c0c, #0c0c0c, #0c0c0c, #0c0c0c, #0c0c0c90, #0c0c0c00)",
+            background: `linear-gradient(to bottom, ${theme.palette.background.default}, ${theme.palette.background.default}, ${theme.palette.background.default}, ${theme.palette.background.default}, ${theme.palette.background.default}90, ${theme.palette.background.default}00)`,
           }}
         >
           <TextField
@@ -795,15 +735,14 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             onChange={e => setSearchTerm(e.target.value)}
             InputProps={{
               startAdornment: (
-                <SearchIcon sx={{ color: "#aaa", mr: 1 }} />
+                <SearchIcon sx={{ color: mode === "dark" ? "#aaa" : "#333", mr: 1 }} />
               ),
-              style: { color: buttonWeatherBg },
+              style: { color: mode === "dark" ? "#aaa" : "#333", borderRadius: 11 },
             }}
             sx={{
               width: "100%",
               mb: 2,
-              borderRadius: 2,
-              input: { color: buttonWeatherBg, borderColor: buttonWeatherBg },
+              input: { color: mode === "dark" ? "#aaa" : "#333", borderColor: theme.palette.primary.main },
             }}
           />
 
@@ -814,9 +753,9 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
   value={sortOption}
   onChange={(e) => setSortOption(e.target.value)}
   size="small"
-  sx={{ minWidth: 150, color: buttonWeatherBg }}
-  InputLabelProps={{ color: buttonWeatherBg }}
-  InputProps={{ color: buttonWeatherBg }}
+  sx={{ minWidth: 150, color: theme.palette.primary.main }}
+  InputLabelProps={{ color: theme.palette.primary.main, borderRadius: 12 }}
+  InputProps={{ color: theme.palette.primary.main, borderRadius: 12 }}
 >
   <MenuItem value="newest">Newest First</MenuItem>
   <MenuItem value="oldest">Oldest First</MenuItem>
@@ -829,12 +768,13 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
   exclusive
   onChange={(e, next) => next && setViewMode(next)}
   size="small"
+  borderRadius={12}
 >
   <ToggleButton value="list">
-    <ViewListIcon sx={{ color: buttonWeatherBg }} />
+    <ViewListIcon sx={{ color: mode === "dark" ? "#fff" : "#000" }} />
   </ToggleButton>
   <ToggleButton value="grid">
-    <ViewModuleIcon sx={{ color: buttonWeatherBg }} />
+    <ViewModuleIcon sx={{ color: mode === "dark" ? "#fff" : "#000" }} />
   </ToggleButton>
 </ToggleButtonGroup>
 </Box>
@@ -849,10 +789,10 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
       color={selectedLabelFilter === label ? "primary" : "default"}
       onClick={() => setSelectedLabelFilter(label)}
       sx={{
-        borderRadius: 2,
+        borderRadius: 5,
         backdropFilter: "blur(80px)",
-        color: selectedLabelFilter === label ? "#000" : "#fff",
-        backgroundColor: selectedLabelFilter === label ? buttonWeatherBg : "#f1f1f111",
+        color: selectedLabelFilter === label ? theme.palette.primary.main : theme.palette.text.secondary,
+        backgroundColor: selectedLabelFilter === label ? theme.palette.primary.bg : theme.palette.background.paper,
       }}
     />
   ))}
@@ -881,13 +821,13 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   <Card
           key={note.id}
           sx={{
-            background: "#191919",
-            borderRadius: 2,
-            boxShadow: "0 1px 4px #0003",
-            color: "#fff",
+            background: mode === "dark" ? "#262626" : "#ffffff00",
+            borderRadius: 5,
+            border: "1px solid #26262648",
+            boxShadow: "none",
+            color: theme.palette.text.primary,
             cursor: "pointer",
             transition: "background 0.2s",
-            "&:hover": { background: "#232526cc" },
             animation: `${fadeIn} 0.6s ease forwards`,
             position: "relative",
           }}
@@ -905,7 +845,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                                 <PushPinIcon fontSize="small" sx={{ ml: 1, color: "#00f721" }} />
                               )}
                             </Typography>
-                            <Typography variant="body2" sx={{ color: "#BDBDBD" }}>
+                            <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>
                               {note.content?.slice(0, 60) || ""}
                               {note.content?.length > 60 ? "..." : ""}
                             </Typography>
@@ -916,7 +856,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                                 e.stopPropagation();
                                 handleMenuOpen(e, idx);
                               }}
-                              sx={{ color: "#fff" }}
+                              sx={{ color: mode === "dark" ? "#fff" : "#000" }}
                             >
                               <MoreVertIcon />
                             </IconButton>
@@ -928,14 +868,14 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                             {note.labels.map(label => (
                               <Chip
                                 key={label}
-                                icon={<LabelIcon sx={{ color: buttonWeatherBg }} />}
+                                icon={<LabelIcon sx={{ color: theme.palette.text.primary }} />}
                                 label={label}
                                 size="small"
                                 sx={{
                                   fontSize: "0.7rem",
                                   borderRadius: '10px',
-                                  color: buttonWeatherBg,
-                                  background: WeatherBgdrop,
+                                  color: theme.palette.text.primary,
+                                  background: mode === "dark" ? "#3a3a3a" : "#bdbdbd83",
                                 }}
                               />
                             ))}
@@ -950,8 +890,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                               size="small"
                               sx={{
                                 ml: 0,
-                                background: buttonWeatherBg,
-                                color: "#000",
+                                background: theme.palette.primary.bgr,
+                                color: theme.palette.primary.main,
                                 fontWeight: 600,
                                 fontSize: "0.7rem",
                                 borderRadius: "10px",
@@ -1016,7 +956,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                                   handleMenuClose();
                                   setViewDrawerOpen(false);
                                 }}
-                                sx={{ color: "#f44336" }}
+                                sx={{ color: "#f44336", backgroundColor: "#f443361a" }}
                               >
                                 <DeleteOutlineIcon fontSize="small" sx={{ mr: 1 }} />
                                 Delete
@@ -1040,13 +980,13 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   <Card
           key={note.id}
           sx={{
-            background: "#191919",
-            borderRadius: 1.4,
-            boxShadow: "0 1px 4px #0003",
-            color: "#fff",
+            background: mode === "dark" ? "#262626" : "#ffffff00",
+            borderRadius: 3,
+            border: "1px solid #26262648",
+            boxShadow: "none",
+            color: theme.palette.text.primary,
             cursor: "pointer",
             transition: "background 0.2s",
-            "&:hover": { background: "#232526cc" },
             animation: `${fadeIn} 0.6s ease forwards`,
             position: "relative",
             height: "100%",
@@ -1074,13 +1014,13 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                                 e.stopPropagation();
                                 handleMenuOpen(e, idx);
                               }}
-                              sx={{ color: "#fff" }}
+                              sx={{ color: mode === "dark" ? "#fff" : "#000" }}
                             >
                               <MoreVertIcon />
                             </IconButton>
                           </Box>
                             </Box>
-                            <Typography variant="body2" sx={{ color: "#BDBDBD" }}>
+                            <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>
                               {note.content?.slice(0, 60) || ""}
                               {note.content?.length > 60 ? "..." : ""}
                             </Typography>
@@ -1095,12 +1035,12 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
     key={label}
     label={label}
     size="small"
-    icon= {<LabelIcon sx={{ color: "#fff" }} />}
+    icon= {<LabelIcon sx={{ color: theme.palette.text.primary, }} />}
     sx={{
       fontSize: "0.7rem",
       borderRadius: '10px',
-      color: "#fff",
-      background: label === "shared" ? "#ff9800" : WeatherBgdrop,
+      color: theme.palette.text.primary,
+      background: mode === "dark" ? "#3a3a3a" : "#bdbdbd83",
     }}
   />
 ))}
@@ -1115,8 +1055,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                               size="small"
                               sx={{
                                 marginLeft: 0,
-                                background: buttonWeatherBg,
-                                color: "#000",
+                                background: theme.palette.primary.bgr,
+                                color: theme.palette.primary.main,
                                 fontWeight: 600,
                                 fontSize: "0.7rem",
                                 borderRadius: "10px",
@@ -1184,7 +1124,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                                   handleMenuClose();
                                   setViewDrawerOpen(false);
                                 }}
-                                sx={{ color: "#f44336" }}
+                                sx={{ color: "#f44336", backgroundColor: "#f443361a" }}
                               >
                                 <DeleteOutlineIcon fontSize="small" sx={{ mr: 1 }} />
                                 Delete
@@ -1217,7 +1157,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               borderTopRightRadius: 0,
               borderBottomLeftRadius: 0,
               borderBottomRightRadius: 0,
-              backgroundColor: "#000000",
+              backgroundColor: theme.palette.background.default,
               p: 3,
               maxWidth: 480,
               height: "95vh",
@@ -1233,7 +1173,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
     }}
   >
     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-    <Typography variant="h6" fontWeight="bold">
+    <Typography variant="h6" fontWeight="bold" color={theme.palette.text.primary}>
       {editDrawerOpen ? "Edit Note" : ""}
     </Typography>
     <Button
@@ -1241,7 +1181,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
       onClick={editDrawerOpen ? handleEditNote : handleAddNote}
       disabled={saving}
       fullWidth
-      sx={{ borderRadius: 2, color: "#000", backgroundColor: buttonWeatherBg, fontWeight: "bold", width: "110px", boxShadow: "none" }}
+      sx={{ borderRadius: 4, color: "#000", backgroundColor: theme.palette.primary.bgr, fontWeight: "bold", width: "110px", boxShadow: "none" }}
     >
       {saving ? "Saving..." : editDrawerOpen ? "Save" : "Add Note"}
     </Button>
@@ -1259,7 +1199,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
         sx: {
           fontSize: 22,
           fontWeight: 600,
-          color: "#fff",
+          color: mode === "dark" ? "#fff" : "#000",
           mb: 1,
         },
       }}
@@ -1275,11 +1215,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           size="small"
           sx={{
             color: noteLabels.includes(label) ? "#000" : "#BDBDBD",
-            background: noteLabels.includes(label) ? "#f1f1f1" : "#f1f1f111",
-            "&hover": {
-              backgroundColor: "#f1f1f111",
-              color: "#fff"
-            },
+            background: noteLabels.includes(label) ? theme.palette.primary.bgr : "#f1f1f111",
           }}
         />
       ))}
@@ -1297,7 +1233,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
       inputRef={noteContentRef}
       InputProps={{
         disableUnderline: true,
-        sx: { color: "#fff", fontFamily: "inherit", fontSize: 16 },
+        sx: { color: mode === "dark" ? "#fff" : "#000", fontFamily: "inherit", fontSize: 16 },
       }}
       sx={{ flex: 1, mb: 2 }}
     />
@@ -1317,14 +1253,14 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
         alignItems: "center",
         justifyContent: "space-between",
         padding: 1,
-        backgroundColor: "#414141",
+        backgroundColor: theme.palette.primary.bgr,
         borderRadius: 4,
         backdropFilter: "blur(80px)"
     }}>
       
       {["bold", "italic", "underline", "ul", "code"].map((action) => (
         <Tooltip title={action.charAt(0).toUpperCase() + action.slice(1)} key={action}>
-          <IconButton onClick={() => applyFormat(action)} size="small" sx={{ color: "#fff", backgroundColor: "#ffffff11" }}>
+          <IconButton onClick={() => applyFormat(action)} size="small" sx={{ color: "#333", backgroundColor: "#ffffff11" }}>
             {{
               bold: <FormatBoldIcon />,
               italic: <FormatItalicIcon />,
@@ -1348,7 +1284,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
     }}
     size="small"
     sx={{
-      color: "#fff",
+      color: "#333",
       borderRadius: 2,
       px: 0.6,
       height: 36,
@@ -1364,7 +1300,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           onClick={() => setAddLabelDrawerOpen(true)}
           size="small"
           sx={{
-            color: "#fff",
+            color: "#333",
             borderRadius: 2,
             px: 0.6,
             height: 36,
@@ -1388,7 +1324,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             sx: {
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              backgroundColor: "#0c0c0c00",
+              backgroundColor: "${theme.palette.background.default}00",
               backdropFilter: "blur(80px)",
               p: 3,
               maxWidth: 400,
@@ -1406,8 +1342,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               onChange={e => setNewCollaboratorUsername(e.target.value)}
               fullWidth
               variant="outlined"
-              InputProps={{ style: { color: "#fff" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
+              InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+              InputLabelProps={{ style: { color: mode === "dark" ? "#aaa" : "#333" } }}
             />
             {error && (
               <Typography color="error" sx={{ mt: 1 }}>
@@ -1417,11 +1353,12 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             <Button
               variant="contained"
               sx={{
-                borderRadius: 4,
+                borderRadius: 5,
                 px: 2,
                 py: 1,
                 color: "#000",
-                background: buttonWeatherBg,
+                background: theme.palette.primary.bgr,
+                boxShadow: "none",
                 fontWeight: "bold",
               }}
               onClick={handleAddCollaboratorFromDrawer}
@@ -1444,7 +1381,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             sx: {
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              backgroundColor: "#0c0c0c00",
+              backgroundColor: "${theme.palette.background.default}00",
               backdropFilter: "blur(80px)",
               p: 3,
               maxWidth: 400,
@@ -1462,8 +1399,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               onChange={e => setNewLabel(e.target.value)}
               fullWidth
               variant="outlined"
-              InputProps={{ style: { color: "#fff" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
+              InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+              InputLabelProps={{ style: { color: mode === "dark" ? "#aaa" : "#333" } }}
             />
             <Button
               variant="contained"
@@ -1472,7 +1409,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 px: 2,
                 py: 1,
                 color: "#000",
-                background: buttonWeatherBg,
+                background: theme.palette.primary.bgr,
                 fontWeight: "bold",
               }}
               onClick={handleAddCustomLabel}
@@ -1493,7 +1430,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           disableDiscovery={true}
           PaperProps={{
             sx: {
-              backgroundColor: "#000000",
+              backgroundColor: mode === "dark" ? "#0c0c0c" : "#f1f1f1",
               p: 3,
               maxWidth: 480,
               height: "95vh",
@@ -1508,9 +1445,9 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 mr: 2,
                 height: 36,
                 minWidth: 0,
-                borderRadius: 2,
-                color: "#fff",
-                backgroundColor: "#f1f1f111",
+                borderRadius: 8,
+                color: mode === "dark" ? "#fff" : "#000",
+                backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0",
                 gap: 0.5,
               }}
             >
@@ -1519,7 +1456,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           </Box>
           
           <Box sx={{ mb: 2 }}>
-            <Typography variant="h4" fontWeight="bold" sx={{ flex: 1, borderBottom: "1px solid #f1f1f111", paddingBottom: 1, mb: 3 }}>
+            <Typography variant="h4" fontWeight="bold" sx={{ flex: 1, borderBottom: "1px solid #777777ff", paddingBottom: 1, mb: 3 }}>
               {selectedNote?.title || ""}
             </Typography>
 
@@ -1529,15 +1466,15 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
       {selectedNote.sharedWith.map((uid, i) => {
         const user = sharedUsersInfo[uid];
         return (
-          <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: "#171717", borderRadius: 2, px: 0.5, py: 0.5 }}>
+          <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: mode === "dark" ? "#171717" : "#acacac7e", borderRadius: 8, px: 0.5, py: 0.5 }}>
             <Avatar
               src={user?.photoURL || ""}
               alt={user?.username || "User"}
-              sx={{ width: 24, height: 24, fontSize: 14, bgcolor: buttonWeatherBg, color: "#000" }}
+              sx={{ width: 24, height: 24, fontSize: 14, bgcolor: theme.palette.primary.bg, color: "#000" }}
             >
               {user?.username ? user.username[0].toUpperCase() : "U"}
             </Avatar>
-            <Typography variant="body2" sx={{ color: "#BDBDBD", fontSize: 14, mr: 0.3 }}>
+            <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", fontSize: 14, mr: 0.3 }}>
               {user?.username || uid.slice(0, 6) + "..."}
             </Typography>
           </Box>
@@ -1554,14 +1491,14 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 {selectedNoteLabels.map(label => (
                   <Chip
                     key={label}
-                    icon={<LabelIcon sx={{ color: buttonWeatherBg }} />}
+                    icon={<LabelIcon sx={{ color: theme.palette.text.primary }} />}
                     label={label}
                     size="small"
                     sx={{
                       fontSize: "0.7rem",
                       borderRadius: '10px',
-                      color: buttonWeatherBg,
-                      background: WeatherBgdrop,
+                      color: theme.palette.text.primary,
+                      background: theme.palette.primary.bgr,
                     }}
                   />
                 ))}
@@ -1571,7 +1508,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
 
             <Box>
               <Box height={"-webkit-fill-available"}>
-                <Typography variant="body1" sx={{ mb: 2, color: "#fff", whiteSpace: "pre-line" }}>
+                <Typography variant="body1" sx={{ mb: 2, color: theme.palette.text.primary, whiteSpace: "pre-line" }}>
                 {selectedNote?.content}
               </Typography>
               </Box>
@@ -1584,7 +1521,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 position: "sticky",
                 right: 0,
                 bottom: 0,
-                backgroundColor: "#191919ff",
+                backgroundColor: mode === "dark" ? "#1e1e1eff" : "#e0e0e0",
                 justifyContent: "space-between",
                 borderRadius: 4,
                 alignContent: "center"
@@ -1599,7 +1536,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   setDrawerOpen(true);
                   setViewDrawerOpen(false);
                 }}
-                sx={{ color: "#fff", backgroundColor: "#b9b9b911", padding: 1 }}
+                sx={{ color: theme.palette.text.primary, backgroundColor: theme.palette.primary.bgr, padding: 1 }}
               >
                 <EditIcon />
               </IconButton>
@@ -1610,7 +1547,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   handleShareNote(selectedNote);
                   setAddCollabDrawerOpen(true);
                 }}
-                sx={{ color: "#fff", backgroundColor: "#b9b9b911", padding: 1 }}
+                sx={{ color: theme.palette.text.primary, backgroundColor: theme.palette.primary.bgr, padding: 1 }}
               >
                 <ShareIcon />
               </IconButton>
@@ -1619,8 +1556,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
               <IconButton
                 onClick={() => handlePinNote(selectedNote)}
                 sx={{ 
-                  color: selectedNote?.pinned ? "#00f721" : "#fff",
-                  backgroundColor: selectedNote?.pinned ? "#00f72121" : "#b9b9b911",
+                  color: selectedNote?.pinned ? "#00f721" : theme.palette.text.primary,
+                  backgroundColor: selectedNote?.pinned ? "#00f72121" : theme.palette.primary.bgr,
                   padding: 1,
                   transform: selectedNote?.pinned ? "rotate(30deg)" : "rotate(0deg)",
                  }}
@@ -1631,7 +1568,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             <Tooltip title="Note Details">
               <IconButton
                 onClick={() => setDetailsDrawerOpen(true)}
-                sx={{ color: "#fff", backgroundColor: "#b9b9b911", padding: 1 }}
+                sx={{ color: theme.palette.text.primary, backgroundColor: theme.palette.primary.bgr, padding: 1 }}
               >
                 <InfoOutlinedIcon />
               </IconButton>
@@ -1642,7 +1579,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   setNoteToDelete(selectedNote);
                   setDeleteDialogOpen(true);
                 }}
-                sx={{ color: "#fbb", backgroundColor: "#ff000030", padding: 1 }}
+                sx={{ color: mode === "dark" ? "#ffd4d4" : "#ff0000ff", backgroundColor: mode === "dark" ? "#ff0000" : "#ffd4d4", padding: 1 }}
               >
                 <DeleteOutlineIcon />
               </IconButton>
@@ -1665,7 +1602,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             sx: {
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              backgroundColor: "#0c0c0c00",
+              backgroundColor: "${theme.palette.background.default}00",
               backdropFilter: "blur(80px)",
               p: 3,
               maxWidth: 400,
@@ -1714,7 +1651,14 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
 <Dialog
   open={deleteDialogOpen}
   onClose={() => setDeleteDialogOpen(false)}
-  sx={{ padding: 2, borderRadius: "24px", }}
+  PaperProps={{
+    sx: {
+      backgroundColor: mode === "dark" ? "#00000000" : "#ffffff91",
+      backdropFilter: 'blur(10px)',
+      boxShadow: 'none',
+      borderRadius: 6,
+    }
+  }}
 >
   <DialogTitle variant="title">Delete Note</DialogTitle>
   <DialogContent>
@@ -1724,7 +1668,19 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
     </Typography>
   </DialogContent>
   <DialogActions sx={{ mb: 2, mr: 2 }}>
-    <Button onClick={() => setDeleteDialogOpen(false)} color="inherit">
+    <Button 
+      onClick={() => setDeleteDialogOpen(false)} 
+      color="inherit" 
+      variant="outlined" 
+      sx={{ 
+        color: "#000",
+        borderRadius: 4,
+        fontWeight: "bold",
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+        color: mode === "dark" ? "#fff" : "#000", 
+        boxShadow: "none",
+      }}
+    >
       Cancel
     </Button>
     <Button
@@ -1736,6 +1692,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
       }}
       color="error"
       variant="contained"
+      sx={{ backgroundColor: mode === "dark" ? "#700000ff" : "#ffd4d4", borderRadius: 4, color: mode === "dark" ? "#ffd4d4" : "#ff0000ff", boxShadow: "none", fontWeight: "bold" }}
     >
       Delete
     </Button>
@@ -1755,7 +1712,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             sx: {
               borderTopLeftRadius: 16,
               borderBottomLeftRadius: 16,
-              backgroundColor: "#00000000",
+              backgroundColor: mode === "dark" ? "#00000000" : "#ffffffda",
               backdropFilter: "blur(80px)",
               p: 3,
               maxWidth: 340,
@@ -1771,43 +1728,43 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
           {selectedNote && (
             <Stack spacing={2}>
               <Box>
-                <Typography variant="subtitle2" sx={{ color: "#BDBDBD" }}>Title:</Typography>
+                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Title:</Typography>
                 <Typography variant="title" sx={{ fontSize: "2rem" }}>{selectedNote.title || "Untitled"}</Typography>
               </Box>
               <Box>
-                <Typography variant="subtitle2" sx={{ color: "#BDBDBD" }}>Labels:</Typography>
+                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Labels:</Typography>
                 <Stack direction="row" spacing={1}>
                   {(selectedNote.labels || []).map(label => (
                     <Chip
                       key={label}
-                      icon={<LabelIcon sx={{ color: "#00f721" }} />}
+                      icon={<LabelIcon sx={{ color: "#000" }} />}
                       label={label}
                       size="small"
                       sx={{
                         fontSize: "0.7rem",
                         borderRadius: '10px',
-                        color: '#fff',
-                        background: "#f4f4f436",
+                        color: '#000',
+                        background: theme.palette.primary.bgr,
                       }}
                     />
                   ))}
                 </Stack>
               </Box>
               <Box>
-                <Typography variant="subtitle2" sx={{ color: "#BDBDBD" }}>Collaborators:</Typography>
+                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Collaborators:</Typography>
                 <Stack direction="row" spacing={1}>
                   {(selectedNote.sharedWith || []).map(uid => {
                     const user = sharedUsersInfo[uid];
                     return (
-                      <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: "#232526", borderRadius: 2, px: 0.5, py: 0.5 }}>
+                      <Box key={uid} sx={{ display: "flex", alignItems: "center", gap: 1, background: mode === "dark" ? "#171717" : "#acacac7e", borderRadius: 8, px: 0.5, py: 0.5 }}>
                         <Avatar
                           src={user?.photoURL || ""}
                           alt={user?.username || "User"}
-                          sx={{ width: 24, height: 24, fontSize: 14, bgcolor: buttonWeatherBg, color: "#000" }}
+                          sx={{ width: 24, height: 24, fontSize: 14, bgcolor: theme.palette.primary.bg, color: "#000" }}
                         >
                           {user?.username ? user.username[0].toUpperCase() : "U"}
                         </Avatar>
-                        <Typography variant="body2" sx={{ color: "#BDBDBD", fontSize: 14, marginRight: 1 }}>
+                        <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 14, marginRight: 1 }}>
                           {user?.username || uid.slice(0, 6) + "..."}
                         </Typography>
                       </Box>
@@ -1816,7 +1773,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 </Stack>
               </Box>
               <Box>
-                <Typography variant="subtitle2" sx={{ color: "#BDBDBD" }}>Created At:</Typography>
+                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Created At:</Typography>
                 <Typography variant="body2">
                   {selectedNote.createdAt?.toDate
                     ? selectedNote.createdAt.toDate().toLocaleString()
@@ -1824,20 +1781,20 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 </Typography>
               </Box>
               <Box>
-                <Typography variant="subtitle2" sx={{ color: "#BDBDBD" }}>Created By:</Typography>
+                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Created By:</Typography>
                 <Stack direction="row" spacing={1}>
                   {selectedNote.owners && selectedNote.owners.length > 0 && (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, background: "#232526", borderRadius: 2, px: 0.5, py: 0.5 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, background: mode === "dark" ? "#171717" : "#acacac7e", borderRadius: 8, px: 0.5, py: 0.5 }}>
                       <Avatar
                         src={sharedUsersInfo[selectedNote.owners[0]]?.photoURL || ""}
                         alt={sharedUsersInfo[selectedNote.owners[0]]?.username || "User"}
-                        sx={{ width: 24, height: 24, fontSize: 14, bgcolor: buttonWeatherBg, color: "#000" }}
+                        sx={{ width: 24, height: 24, fontSize: 14, bgcolor: theme.palette.primary.bg, color: "#000" }}
                       >
                         {sharedUsersInfo[selectedNote.owners[0]]?.username
                           ? sharedUsersInfo[selectedNote.owners[0]].username[0].toUpperCase()
                           : "U"}
                       </Avatar>
-                      <Typography variant="body2" sx={{ color: "#BDBDBD", fontSize: 14, marginRight: 1 }}>
+                      <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: 14, marginRight: 1 }}>
                         {sharedUsersInfo[selectedNote.owners[0]]?.username ||
                           selectedNote.owners[0].slice(0, 6) + "..."}
                       </Typography>
@@ -1846,11 +1803,11 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 </Stack>
               </Box>
               <Box>
-                <Typography variant="subtitle2" sx={{ color: "#BDBDBD" }}>Note ID:</Typography>
+                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Note ID:</Typography>
                 <Typography variant="body2">{selectedNote.id}</Typography>
               </Box>
               <Box>
-                <Typography variant="subtitle2" sx={{ color: "#BDBDBD" }}>Pinned:</Typography>
+                <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary }}>Pinned:</Typography>
                 <Typography variant="body2">{selectedNote.pinned ? "Yes" : "No"}</Typography>
               </Box>
             </Stack>
@@ -1859,7 +1816,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
         
           <Button
             size="medium"
-            sx={{ ml: 2, backgroundColor: buttonWeatherBg, width: "70px", height: "70px", color: "#000", borderRadius: 1.5, boxShadow: "none", position: "fixed", bottom: 20, right: 20, zIndex: 999 }}
+            sx={{ ml: 2, backgroundColor: theme.palette.primary.bg, width: "70px", height: "70px", color: "#000", borderRadius: "20px", boxShadow: "none", position: "fixed", bottom: 20, right: 20, zIndex: 999 }}
             onClick={() => setDrawerOpen(true)}
           >
             <AddIcon />

@@ -39,7 +39,8 @@ import { getToken, onMessage } from "firebase/messaging";
 import DeviceGuard from '../components/DeviceGuard';
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
-
+import { useThemeToggle } from "../contexts/ThemeToggleContext";
+import { getTheme } from "../theme";
 
 // Fade-in animation keyframes
 const fadeIn = keyframes`
@@ -53,134 +54,6 @@ const fadeIn = keyframes`
   }
 `;
 
-// Custom dark theme based on your detailed colors
-const theme = createTheme({
-  palette: {
-    mode: "dark",
-    background: {
-      default: "#02020200", // almost transparent black for main background
-      paper: "#0c0c0c", // deep black for dialogs/paper
-    },
-    primary: {
-      main: "#ffffffff", // bright green solid for buttons and accents
-      contrastText: "#000000", // black text on bright green buttons
-    },
-    secondary: {
-      main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
-    },
-    text: {
-      primary: "#FFFFFF", // pure white for main text
-      secondary: "#BDBDBD", // light grey for secondary text
-      disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
-    },
-    action: {
-      hover: "#ffffffff", // bright green hover for interactive elements
-      selected: "#131313", // dark black for selected states
-      disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
-      disabled: "#BDBDBD",
-    },
-    divider: "rgba(159, 159, 159, 0.45)", // very dark grey for borders
-  },
-  typography: {
-    fontFamily: "Roboto, Arial, sans-serif",
-    h6: {
-      fontWeight: "bold",
-      color: "#FFFFFF",
-    },
-    body1: {
-      fontSize: "1rem",
-      lineHeight: "1.5",
-      color: "#FFFFFF",
-    },
-    body2: {
-      fontSize: "0.875rem",
-      color: "#BDBDBD",
-    },
-  },
-  shape: {
-    borderRadius: 12,
-  },
-  components: {
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#0c0c0c40",
-          backdropFilter: "blur(40px)", // dark grey/black for app bar background
-          boxShadow: "none",
-          borderBottom: "1px solid rgb(24, 24, 24, 0.5)",
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#2c2c2c00", // dark grey card background
-          color: "#FFFFFF",
-          boxShadow: "none",
-          borderRadius: 16,
-          transition: "box-shadow 0.3s ease, transform 0.3s ease",
-          cursor: "pointer",
-          "&:hover": {
-            transform: "translateY(-4px)",
-            backgroundColor: "#131313",
-          },
-          animation: `${fadeIn} 0.6s ease forwards`,
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-          fontWeight: 600,
-          borderRadius: "12px",
-          transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-          color: "#000",
-          backgroundColor: "#fff",
-          "&:hover": {
-            backgroundColor: "#000",
-            color: "#fff",
-          },
-        },
-      },
-    },
-    MuiAvatar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#f0f0f0", // off-white avatar background
-          color: "#000",
-        },
-      },
-    },
-    MuiMenu: {
-      styleOverrides: {
-        paper: {
-          backgroundColor: "#0c0c0c40", // deep black menu background
-          color: "#FFFFFF",
-          backdropFilter: "blur(40px)",
-          borderRadius: 10,
-          border: "1px solid rgb(24, 24, 24)",
-        },
-      },
-    },
-    MuiMenuItem: {
-      styleOverrides: {
-        root: {
-          "&:hover": {
-            backgroundColor: "#2c2c2c", // translucent dark green hover
-          },
-        },
-      },
-    },
-    MuiBox: {
-      styleOverrides: {
-        root: {
-          // General box overrides if needed
-        },
-      },
-    },
-  },
-});
 
 const SESSION_KEY = "bunkmate_session";
 const USER_STORAGE_KEY = "bunkmateuser";
@@ -218,9 +91,10 @@ function Chats({ onlyList }) {
   const [friends, setFriends] = useState([]);
   const [nicknames, setNicknames] = useState({});
   const navigate = useNavigate();
+  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const theme = getTheme(mode, accent);
   const [currentUser, setCurrentUser] = useState(null);
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
-  const { settings, setTheme, setAccent, setAutoAccent } = useSettings();
   const [dynamicTheme, setDynamicTheme] = useState(theme);
   const [tab, setTab] = useState(0);
   const [friendsList, setFriendsList] = useState([]);
@@ -833,7 +707,7 @@ const friendUsers = users.filter(u => friends.includes(u.id));
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff' }}>
-        <CircularProgress color="inherit" />
+        <CircularProgress color={theme.palette.primary.main} />
       </Box>
     </ThemeProvider>
   );
@@ -967,21 +841,21 @@ const combinedChats = [
                   <BetaAccessGuard>
           <div style={{ padding: '20px', backgroundColor: '#02020200' }}>
       <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-      <IconButton onClick={goBack} sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
+      <IconButton onClick={goBack} sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 8, height: '50px', color: mode === "dark" ? "#fff" : "#000", backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", }}>
         <ArrowBackIcon />
       </IconButton>
      
            <ProfilePic />
       </div>
 
-      <Typography variant="h4" style={{ color: '#FFFFFF', fontWeight: "bolder", marginBottom: 12, mr: 2 }}>Chats</Typography>
+      <Typography variant="h4" style={{ color: theme.palette.text.primary, fontWeight: "bolder", marginBottom: 12, mr: 2 }}>Chats</Typography>
 
     <Box
       sx={{
         position: "sticky",
         top: 0,
         zIndex: 999,
-        background: "linear-gradient(to bottom, #0c0c0c, #0c0c0ce3, #0c0c0c00)",
+        background: `linear-gradient(to bottom, ${theme.palette.background.default}, ${theme.palette.background.default}e3, ${theme.palette.background.default}00)`,
         py: 2,
       }}
     >
@@ -993,15 +867,14 @@ const combinedChats = [
         onChange={(e) => setSearchTerm(e.target.value)}
         style={{
           marginBottom: '20px',
-          borderRadius: '12px',
-          backgroundColor: '#101010',
-          color: '#fff',
+          backgroundColor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
         }}
-        LabelInputProps={{ style: { color: '#fff' } }}
+        LabelInputProps={{ style: { color: theme.palette.text.primary } }}
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
-              <SearchIcon sx={{ color: "#777" }} />
+              <SearchIcon sx={{ color: theme.palette.text.primary }} />
             </InputAdornment>
           ),
         }}
@@ -1056,8 +929,8 @@ const combinedChats = [
               <Avatar
                 src={chat.iconURL ? chat.iconURL : ""}
                 sx={{
-                  bgcolor: '#f0f0f0',
-                  color: '#000',
+                  bgcolor: theme.palette.primary.bg,
+                  color: theme.palette.primary.main,
                   fontSize: 28,
                   width: 48,
                   height: 48,
@@ -1080,7 +953,7 @@ const combinedChats = [
             )}
 
             <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontWeight: 'bold', color: '#FFFFFF' }}>
+              <p style={{ margin: 0, fontWeight: 'bold', color: theme.palette.text.primary }}>
                 {chat.name}
                   {["BM - Beta members", "BM - Dev Beta"].includes(chat.name) && (
                     <span style={{
@@ -1098,7 +971,7 @@ const combinedChats = [
               <p
                 style={{
                   margin: 0,
-                  color: '#BDBDBD',
+                  color: theme.palette.text.secondary,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -1110,7 +983,7 @@ const combinedChats = [
                   : chat.lastMessage) || 'No messages yet'}
               </p>
 
-              <span style={{ fontSize: '12px', color: '#BDBDBD' }}>
+              <span style={{ fontSize: '12px', color: '#919191ff' }}>
                 {formatTimestamp(chat.timestamp)}
               </span>
             </div>
@@ -1118,8 +991,8 @@ const combinedChats = [
             {chat.unreadCount > 0 && (
               <span
                 style={{
-                  backgroundColor: buttonWeatherBg,
-                  color: '#212121',
+                  backgroundColor: theme.palette.primary.bg,
+                  color: theme.palette.primary.main,
                   padding: '4px 8px',
                   borderRadius: '50%',
                 }}
@@ -1140,12 +1013,11 @@ const combinedChats = [
     right: 20,
     width: '70px',
     height: '70px',
-    background: buttonWeatherBg,
-    borderRadius: '15px',
+    background: theme.palette.primary.bg,
+    borderRadius: '20px',
     fontSize: '38px',
     color: "#000",
-    boxShadow: 4,
-    '&:hover': { background: buttonWeatherBg }
+    boxShadow: "none",
   }}
 >
   +
@@ -1162,7 +1034,7 @@ const combinedChats = [
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       p: 3,
-      backgroundColor: "#00000000",
+      backgroundColor: mode === "dark" ? "#00000000" : "#f1f1f156",
       backdropFilter: "blur(40px)",
       height: "75vh",
       zIndex: 999,
@@ -1176,18 +1048,15 @@ const combinedChats = [
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           sx={{
-            input: { color: "#fff" },
-            backgroundColor: "#3131314d",
+            input: { color: mode === "dark" ? "#fff" : "#000" },
+            backgroundColor: mode === "dark" ? "#3131314d" : "#d0d0d0a0",
             borderRadius: 1,
             mb: 2,
-            "& .MuiOutlinedInput-notchedOutline": {
-              borderColor: "#2A2A2A",
-            },
           }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ color: "#777" }} />
+                <SearchIcon sx={{ color: mode === "dark" ? "#fff" : "#000" }} />
               </InputAdornment>
             ),
           }}
@@ -1338,7 +1207,7 @@ const combinedChats = [
   transitionDuration={400}
   PaperProps={{
     sx: {
-      bgcolor: "#00000000",
+      bgcolor: mode === "dark" ? "#00000000" : "#f1f1f1b4",
       backdropFilter: "blur(40px)",
       borderTopLeftRadius: 0,
       borderTopRightRadius: 0,
@@ -1349,7 +1218,7 @@ const combinedChats = [
   <Box sx={{ p: 3, height: "100%", display: "flex", flexDirection: "column" }}>
     {/* Header */}
     <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-      <Typography variant="h5" fontWeight="bold" color="white">
+      <Typography variant="h5" fontWeight="bold" color={theme.palette.text.primary}>
         New Chat
       </Typography>
       <IconButton onClick={() => setAddUserDialog(false)} sx={{ bgcolor: "#1F1F1F" }}>
@@ -1365,10 +1234,8 @@ const combinedChats = [
   onChange={(e) => setSearchFriend(e.target.value)}
   sx={{
     mb: 2,
-    input: { color: "#fff" },
-    backgroundColor: "#1010104d",
-    borderRadius: "12px",
-    "& fieldset": { borderColor: "#222" },
+    input: { color: mode === "dark" ? "#fff" : "#000" },
+    backgroundColor: mode === "dark" ? "#1010104d" : "#d0d0d0a0",
   }}
   InputProps={{
     startAdornment: (
@@ -1386,17 +1253,17 @@ const combinedChats = [
     onClick={() => setCreatingGroup(true)}
     sx={{ 
       mb: 2,
-      backgroundColor: "rgba(51, 51, 51, 0.23)",
+      backgroundColor: "rgba(51, 51, 51, 0.0)",
       boxShadow: "none",
       display: "flex",
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "left",
       gap: 2,
-      color: "#ffffff"
+      color: mode === "dark" ? "#fff" : "#000"
     }}
   >
-    <GroupAddIcon sx={{ p: 1.5, backgroundColor: buttonWeatherBg, borderRadius: 4, color: "#000000" }} />
+    <GroupAddIcon sx={{ p: 1.5, backgroundColor: theme.palette.primary.bg, borderRadius: 8, color: "#000000" }} />
     Create Group
   </Button>
 )}
@@ -1410,21 +1277,21 @@ const combinedChats = [
     }
     sx={{ 
       mb: 2,
-      backgroundColor: "rgba(51, 51, 51, 0.23)",
+      backgroundColor: "rgba(51, 51, 51, 0.0)",
       boxShadow: "none",
       display: "flex",
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "left",
       gap: 2,
-      color: "#ffffff"
+      color: mode === "dark" ? "#fff" : "#000"
     }}
   >
-    <PersonAddIcon sx={{ p: 1.5, backgroundColor: buttonWeatherBg, borderRadius: 4, color: "#000000" }} />
+    <PersonAddIcon sx={{ p: 1.5, backgroundColor: theme.palette.primary.bg, borderRadius: 8, color: "#000000" }} />
     New Contact
   </Button>
 
-  <Typography variant="subtitle1" color="#fff" gutterBottom>
+  <Typography variant="subtitle1" color={mode === "dark" ? "#fff" : "#000"} gutterBottom>
     Your Friends
   </Typography>
 
@@ -1450,15 +1317,15 @@ const combinedChats = [
         px: 2,
         py: 1,
         mb: 1,
-        borderRadius: 1.5,
-        backgroundColor: isSelected ? WeatherBgdrop : "#24242401",
+        borderRadius: 5,
+        backgroundColor: isSelected ? theme.palette.primary.bgr : "#24242401",
         color: isSelected ? "#000" : "#fff",
         cursor: creatingGroup ? "pointer" : "default",
       }}
     >
       <Avatar src={friend.photoURL} />
       <Box>
-        <Typography color="white" fontWeight={500}>
+        <Typography color={theme.palette.text.primary} fontWeight={500}>
           {friend.name || friend.username}
         </Typography>
         <Typography color="text.secondary" variant="caption">
@@ -1466,7 +1333,7 @@ const combinedChats = [
         </Typography>
       </Box>
       {creatingGroup && isSelected && (
-        <CheckCircleIcon sx={{ ml: "auto", color: buttonWeatherBg }} />
+        <CheckCircleIcon sx={{ ml: "auto", color: theme.palette.primary.main }} />
       )}
     </Box>
   );
@@ -1475,9 +1342,27 @@ const combinedChats = [
 </Box>
 
 {creatingGroup && (
-  <>
+  <Box sx={{ mt: 2, display: "flex", flexDirection: "row", gap: 1 }}>
     <Button
-      fullWidth
+    fullWidth
+      variant="outlined"
+      onClick={() => {
+        setCreatingGroup(false);
+        setSelectedGroupMembers([]); // Optional: clear selected
+      }}
+      sx={{
+        py: 1,
+        borderRadius: 8,
+        backgroundColor: "#ff000005",
+        color: "#ffa3a3",
+        borderColor: "#ffa3a3",
+      }}
+    >
+      Cancel
+    </Button>
+
+        <Button
+        fullWidth
       variant="contained"
       disabled={selectedGroupMembers.length === 0}
       onClick={() => {
@@ -1486,36 +1371,17 @@ const combinedChats = [
         setAddUserDialog(false);
       }}
       sx={{
-        mt: 2,
         py: 1.5,
-        borderRadius: 2,
-        bgcolor: buttonWeatherBg,
+        borderRadius: 8,
+        bgcolor: theme.palette.primary.bg,
         color: "#000",
         fontWeight: "bold",
+        boxShadow: "none",
       }}
     >
-      Continue to Create Group
+      Continue
     </Button>
-
-    <Button
-      fullWidth
-      variant="outlined"
-      onClick={() => {
-        setCreatingGroup(false);
-        setSelectedGroupMembers([]); // Optional: clear selected
-      }}
-      sx={{
-        mt: 1.5,
-        py: 1.3,
-        borderRadius: 2,
-        backgroundColor: "#ff000010",
-        color: "#ff8080ff",
-        borderColor: "#ff8080ff",
-      }}
-    >
-      Cancel
-    </Button>
-  </>
+  </Box>
 )}
 
   </Box>

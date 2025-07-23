@@ -11,6 +11,8 @@ import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
+import { useThemeToggle } from "../contexts/ThemeToggleContext";
+import { getTheme } from "../theme";
 
 import {
   AppBar,
@@ -69,6 +71,7 @@ import AlarmOutlinedIcon from '@mui/icons-material/AlarmOutlined';
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import { th } from "date-fns/locale";
 
 
 const fadeIn = keyframes`
@@ -82,133 +85,6 @@ const fadeIn = keyframes`
   }
 `;
 
-const theme = createTheme({
-  palette: {
-    mode: "dark",
-    background: {
-      default: "#02020200", // almost transparent black for main background
-      paper: "#0c0c0c", // deep black for dialogs/paper
-    },
-    primary: {
-      main: "#ffffffff", // bright green solid for buttons and accents
-      contrastText: "#000000", // black text on bright green buttons
-    },
-    secondary: {
-      main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
-    },
-    text: {
-      primary: "#FFFFFF", // pure white for main text
-      secondary: "#BDBDBD", // light grey for secondary text
-      disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
-    },
-    action: {
-      hover: "#b6b6b6ff", // bright green hover for interactive elements
-      selected: "#131313", // dark black for selected states
-      disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
-      disabled: "#BDBDBD",
-    },
-    divider: "rgb(24, 24, 24)", // very dark grey for borders
-  },
-  typography: {
-    fontFamily: "Roboto, Arial, sans-serif",
-    h6: {
-      fontWeight: "bold",
-      color: "#FFFFFF",
-    },
-    body1: {
-      fontSize: "1rem",
-      lineHeight: "1.5",
-      color: "#FFFFFF",
-    },
-    body2: {
-      fontSize: "0.875rem",
-      color: "#BDBDBD",
-    },
-  },
-  shape: {
-    borderRadius: 12,
-  },
-  components: {
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#0c0c0c40",
-          backdropFilter: "blur(40px)", // dark grey/black for app bar background
-          boxShadow: "none",
-          borderBottom: "1px solid rgb(24, 24, 24, 0.5)",
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#2c2c2c00", // dark grey card background
-          color: "#FFFFFF",
-          boxShadow: "none",
-          borderRadius: 16,
-          transition: "box-shadow 0.3s ease, transform 0.3s ease",
-          cursor: "pointer",
-          "&:hover": {
-            transform: "translateY(-4px)",
-            backgroundColor: "#131313",
-          },
-          animation: `${fadeIn} 0.6s ease forwards`,
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-          fontWeight: 600,
-          borderRadius: "12px",
-          transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-          color: "#000",
-          backgroundColor: "#fff",
-          "&:hover": {
-            backgroundColor: "#000",
-            color: "#fff",
-          },
-        },
-      },
-    },
-    MuiAvatar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#f0f0f0", // off-white avatar background
-          color: "#000",
-        },
-      },
-    },
-    MuiMenu: {
-      styleOverrides: {
-        paper: {
-          backgroundColor: "#0c0c0c40", // deep black menu background
-          color: "#FFFFFF",
-          backdropFilter: "blur(40px)",
-          borderRadius: 10,
-          border: "1px solid rgb(24, 24, 24)",
-        },
-      },
-    },
-    MuiMenuItem: {
-      styleOverrides: {
-        root: {
-          "&:hover": {
-            backgroundColor: "#2c2c2c", // translucent dark green hover
-          },
-        },
-      },
-    },
-    MuiBox: {
-      styleOverrides: {
-        root: {
-          // General box overrides if needed
-        },
-      },
-    },
-  },
-});
 
 const CATEGORY_ICONS = {
   Food: {
@@ -404,6 +280,8 @@ const Home = () => {
   const [tripGroupsMap, setTripGroupsMap] = useState({});
   const [sliderIndex, setSliderIndex] = useState(0);
 
+  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const theme = getTheme(mode, accent);
 
   // Firebase Auth realtime listener
   useEffect(() => {
@@ -691,11 +569,13 @@ const Home = () => {
           display: "flex",
           minHeight: "100vh",
           flexDirection: "column",
+          backgroundColor: mode === "dark" ? "#0c0c0c" : "#f1f1f1",
+          color: mode === "dark" ? "#fff" : "#000",
         }}
       >
         
         {/* AppBar */}
-        <AppBar position="fixed" elevation={0} backgroundColor="transparent">
+        <AppBar position="fixed" elevation={0} sx={{ backgroundColor: "transparent", backdropFilter: "blur(40px)", boxShadow: "none" }}>
           <Toolbar sx={{ justifyContent: 'space-between', py: 1, px: 3, backgroundColor: 'transparent' }}>
             <Typography variant="h6" sx={{ userSelect: 'none', display: 'flex', alignItems: 'center', gap: 1 }}>
               BunkMate 🏖️
@@ -703,11 +583,11 @@ const Home = () => {
                 <Typography
                   variant="caption"
                   sx={{
-                    backgroundColor: '#f1f1f131',
-                    color: '#fff',
+                    backgroundColor: mode === "dark" ? "#f1f1f111" : "#d5d5d5ff",
+                    color: mode === "dark" ? "#fff" : "#000",
                     px: 1.5,
                     py: 0.5,
-                    borderRadius: 0.5,
+                    borderRadius: 1.5,
                     fontWeight: 'bold',
                     fontSize: '0.7rem',
                   }}
@@ -748,7 +628,7 @@ const Home = () => {
             mb: 4,
             borderTopLeftRadius: "2.5rem",
             borderTopRightRadius: "2.5rem",
-            background: weatherBg,
+            background: `linear-gradient(to top, rgba(0,0,0,0) 0%, ${theme.palette.primary.bg} 100%)`,
             transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
           }}
         >
@@ -768,7 +648,6 @@ const Home = () => {
                 right: 0,
                 bottom: 0,
                 height: { xs: 60, md: 90 },
-                background: `linear-gradient(to bottom, rgba(0,0,0,0) 0%, ${theme.palette.background.default} 100%)`,
                 pointerEvents: "none",
                 zIndex: 2,
               },
@@ -801,28 +680,28 @@ const Home = () => {
                   px: 2,
                   py: 1,
                   borderRadius: 2,
-                  background: "#222c",
+                  background: mode === "dark" ? "#22222262" : "#e5e5e562",
                   minWidth: 170,
                   minHeight: 56,
                   animation: `${fadeIn} 0.7s`,
                 }}
               >
                 {weatherLoading ? (
-                  <CircularProgress size={24} color="white" />
+                  <CircularProgress size={24} color={mode === "dark" ? "#fff" : "#000"} />
                 ) : weather ? (
                   <>
                     {weatherIcons[weather.main] || weatherIcons.Default}
                     <Box>
-                      <Typography variant="body1" sx={{ color: "#fff", fontWeight: 600 }}>
+                      <Typography variant="body1" sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: 600 }}>
                         {weather.temp}°C {weather.city && `in ${weather.city}`}
                       </Typography>
-                      <Typography variant="body2" sx={{ color: "#BDBDBD" }}>
+                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                         {weather.desc.charAt(0).toUpperCase() + weather.desc.slice(1)}
                       </Typography>
                     </Box>
                   </>
                 ) : (
-                  <Typography variant="body2" sx={{ color: "#BDBDBD" }}>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                     Weather unavailable
                   </Typography>
                 )}
@@ -879,15 +758,14 @@ const Home = () => {
                     width: "21vw",
                     aspectRatio: "1 / 1",
                     cursor: "pointer",
-                    background: "#f1f1f111",
-                    backdropFilter: "blur(80px)",
+                    background: mode === "dark" ? "#f1f1f111" : "#ffffff41",
+                    borderRadius: 3,
                     boxShadow: "none",
-                    "&:hover": { background: "#232526" },
                     transition: "background 0.2s",
                   }}
                   onClick={tile.onClick}
                 >
-                  <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 4, backgroundColor: WeatherBgdrop, color: buttonWeatherBg }}>
+                  <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 4, backgroundColor: theme.palette.primary.bgr, color: theme.palette.primary.main }}>
                     {tile.icon}
                   </Box>
                   <Typography
@@ -935,13 +813,13 @@ const Home = () => {
     sx={{
       background: tripGroupsMap[tripInfo.id]?.iconURL
         ? `url(${tripGroupsMap[tripInfo.id].iconURL})`
-        : "#232526",
+        : theme.palette.background.card,
       backgroundSize: "cover",
       backgroundPosition: "center",
       backgroundRepeat: "no-repeat",
       color: "#fff",
-      borderRadius: 1,
-      boxShadow: "0 2px 10px #0002",
+      borderRadius: 4,
+      boxShadow: "none",
       display: "flex",
       flexDirection: "column",
       justifyContent: "flex-end",
@@ -950,6 +828,7 @@ const Home = () => {
   >
     <CardContent
       sx={{
+        backgroundColor: mode === "dark" ? "#00000000" : "#ffffff76",
         backdropFilter: "blur(12px)",
         borderBottomLeftRadius: 8,
         borderBottomRightRadius: 8,
@@ -957,15 +836,15 @@ const Home = () => {
     >
       <Box display="flex" gap={2} mb={1} alignItems="flex-start" justifyContent="space-between">
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5, color: theme.palette.text.primary }}>
             {tripInfo?.name || "Unnamed Trip"}
           </Typography>
-          <Typography variant="body2" sx={{ color: "#fff", display: "flex", alignItems: "center" }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary, display: "flex", alignItems: "center" }}>
             <LocationOn sx={{ fontSize: 16, mr: 1 }} />
             {tripInfo?.from || "Unknown"} → {tripInfo?.location || "Unknown"}
           </Typography>
           {(tripInfo?.startDate || tripInfo?.date) && (
-            <Typography variant="body2" sx={{ color: "#e7e7e7", display: "flex", alignItems: "center" }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, display: "flex", alignItems: "center" }}>
               <AccessTime sx={{ fontSize: 16, mr: 1 }} />
               {tripInfo?.startDate || "?"} → {tripInfo?.date || "?"}
             </Typography>
@@ -991,7 +870,7 @@ const Home = () => {
       </Box>
       {timelineStatsMap[tripInfo.id] && (
         <Box>
-          <Typography variant="caption" sx={{ color: "#cbcbcb" }}>
+          <Typography variant="caption" sx={{ color: mode === "dark" ? "#cbcbcb" : "#555" }}>
             Timeline Progress: {timelineStatsMap[tripInfo.id].completed} / {timelineStatsMap[tripInfo.id].total} complete
           </Typography>
           <LinearProgress
@@ -1001,8 +880,8 @@ const Home = () => {
               mt: 0.5,
               borderRadius: 20,
               height: 7,
-              bgcolor: "#ffffff36",
-              "& .MuiLinearProgress-bar": { bgcolor: "#ffffffff" },
+              bgcolor: mode === "dark" ? "#ffffff36" : "#00000036",
+              "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#000000" },
             }}
           />
         </Box>
@@ -1015,7 +894,7 @@ const Home = () => {
     </Slider>
   </Box>
 ) : (
-  <Typography variant="body2" sx={{ color: "#BDBDBD", textAlign: "center", mt: 4 }}>
+  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: "center", mt: 4 }}>
     No trips found.
   </Typography>
 )}
@@ -1038,16 +917,16 @@ const Home = () => {
               alignItems: "center",
               background: "none",
               border: "none",
-              color: buttonWeatherBg,
+              color: theme.palette.primary.main,
               fontWeight: 600,
               fontSize: 14,
               cursor: "pointer",
               px: 1,
               py: 0.5,
-              borderRadius: 1,
+              borderRadius: 5,
               transition: "background 0.2s",
               "&:hover": {
-                background: "#232526",
+                background: mode === "dark" ? "#f1f1f111" : "#e0e0e0",
               },
             }}
           >
@@ -1116,15 +995,15 @@ const Home = () => {
       key={b.id || b.name || idx}
       sx={{
         background: cat.listbgcolor,
-        borderRadius: 2,
+        borderRadius: 8,
         px: 1,
         py: 1,
         minWidth: 120,
         maxWidth: 180,
         fontSize: 13,
-        color: "#fff",
+        color: theme.palette.text.primary,
         textAlign: "left",
-        boxShadow: "0 1px 4px #0003",
+        boxShadow: "none",
         flex: "0 0 auto",
         display: "flex",
         flexDirection: "column",
@@ -1161,7 +1040,7 @@ const Home = () => {
             <Typography style={{ fontSize: 15 }}>
               {budgetName}
             </Typography>
-            <Typography variant="caption" style={{ backgroundColor: "#f1f1f111", color: "#aaa", padding: "1px 6px", borderRadius: "20px", mt: 0, fontWeight: "bolder" }}>
+            <Typography variant="caption" style={{ backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", color: mode === "dark" ? "#aaa" : "#333", padding: "1px 6px", borderRadius: "20px", mt: 0, fontWeight: "bolder" }}>
               {contributors.length > 0
                 ? `${contributors.length}`
                 : "0"}
@@ -1170,7 +1049,7 @@ const Home = () => {
           <div style={{ color: cat.fcolor, fontWeight: 600 }}>
             ₹{balance.toFixed(2)}
             {totalBudget > 0 && (
-              <span style={{ color: "#BDBDBD", fontWeight: 400, fontSize: 12, marginLeft: 4 }}>
+              <span style={{ color: mode === "dark" ? "#ccc" : "#555", fontWeight: 400, fontSize: 12, marginLeft: 4 }}>
                 / ₹{totalBudget}
               </span>
             )}
@@ -1187,7 +1066,7 @@ const Home = () => {
                 display: "flex",
                 alignItems: "center",
                 px: 2,
-                color: "#BDBDBD",
+                color: theme.palette.text.secondary,
                 fontSize: 13,
                 fontWeight: 500,
                 minWidth: 60,
@@ -1198,7 +1077,7 @@ const Home = () => {
           )}
         </Box>
       ) : (
-        <Typography variant="body2" sx={{ color: "#BDBDBD" }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: "center", mt: 2 }}>
           No budgets found.
         </Typography>
       )}
@@ -1211,10 +1090,10 @@ const Home = () => {
   <Box
     sx={{
       mb: 2,
-      background: "#f1f1f111",
-      color: "#fff",
+      background: mode === "dark" ? "#f1f1f111" : "#afafaf16",
+      color: theme.palette.text.primary,
       boxShadow: "none",
-      borderRadius: 2,
+      borderRadius: 5,
     }}
   >
     <CardContent>
@@ -1237,8 +1116,8 @@ const Home = () => {
             height: 30,
             minWidth: 30,
             borderRadius: "80px",
-            backgroundColor: WeatherBgdrop,
-            color: buttonWeatherBg,
+            backgroundColor: theme.palette.primary.bgr,
+            color: theme.palette.primary.main,
             fontSize: 24,
             padding: "4px 6px",
             boxShadow: "none",
@@ -1269,7 +1148,7 @@ const Home = () => {
                 key={rem.id}
                 style={{
                   fontSize: 16,
-                  backgroundColor: "#f1f1f111",
+                  backgroundColor: mode === "dark" ? "#f1f1f111" : "#ffffffff",
                   borderRadius: 28,
                   padding: 9,
                   listStyle: "none",
@@ -1293,7 +1172,7 @@ const Home = () => {
                   }
                 >
                   <NotificationsActiveIcon
-                    style={{ color: "#aaa", fontSize: 22 }}
+                    style={{ color: mode === "dark" ? "#aaa" : "#333", fontSize: 22 }}
                   />
                 </span>
                 <span>{rem.text}</span>
@@ -1306,11 +1185,12 @@ const Home = () => {
         size="small"
         sx={{
           mt: 1,
-          background: WeatherBgdrop,
-          color: buttonWeatherBg,
+          background: theme.palette.primary.bgr,
+          color: theme.palette.primary.main,
           fontSize: 14,
           padding: "4px 8px",
           boxShadow: "none",
+          borderRadius: 5,
         }}
         onClick={() => setRemindersDrawerOpen(true)}
       >
@@ -1376,10 +1256,12 @@ const Home = () => {
             width: '70px',
             height: '70px',
             borderRadius: 1.5,
-            background: buttonWeatherBg,
+            background: theme.palette.primary.bg,
             color: "#000",
+            boxShadow: "none",
+            borderRadius: 5,
             "&:hover": {
-              background: buttonWeatherBg,
+              background: theme.palette.primary.bg,
             },
           }}
           onClick={() => navigate("/chats")} // Or your chat route

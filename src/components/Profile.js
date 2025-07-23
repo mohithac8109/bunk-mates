@@ -36,6 +36,7 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';   
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 
 import { signOut, updateProfile } from "firebase/auth";
 import { doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
@@ -43,6 +44,8 @@ import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 import { weatherColors } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
 import { useSettings } from "../contexts/SettingsContext";
+import { useThemeToggle } from "../contexts/ThemeToggleContext";
+import { getTheme } from "../theme";
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -59,133 +62,7 @@ const fadeIn = keyframes`
   }
 `;
 
-// Custom dark theme based on your detailed colors
-const theme = createTheme({
-  palette: {
-    mode: "dark",
-    background: {
-      default: "#02020200", // almost transparent black for main background
-      paper: "#0c0c0c", // deep black for dialogs/paper
-    },
-    primary: {
-      main: "#00f721", // bright green solid for buttons and accents
-      contrastText: "#000000", // black text on bright green buttons
-    },
-    secondary: {
-      main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
-    },
-    text: {
-      primary: "#FFFFFF", // pure white for main text
-      secondary: "#BDBDBD", // light grey for secondary text
-      disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
-    },
-    action: {
-      hover: "#00f721", // bright green hover for interactive elements
-      selected: "#131313", // dark black for selected states
-      disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
-      disabled: "#BDBDBD",
-    },
-    divider: "rgb(24, 24, 24)", // very dark grey for borders
-  },
-  typography: {
-    fontFamily: "Roboto, Arial, sans-serif",
-    h6: {
-      fontWeight: "bold",
-      color: "#FFFFFF",
-    },
-    body1: {
-      fontSize: "1rem",
-      lineHeight: "1.5",
-      color: "#FFFFFF",
-    },
-    body2: {
-      fontSize: "0.875rem",
-      color: "#BDBDBD",
-    },
-  },
-  shape: {
-    borderRadius: 12,
-  },
-  components: {
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#0c0c0c", // dark grey/black for app bar background
-          boxShadow: "none",
-          borderBottom: "1px solid rgb(24, 24, 24)",
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#2c2c2c", // dark grey card background
-          color: "#FFFFFF",
-          boxShadow:
-            "0 4px 12px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6)",
-          borderRadius: 16,
-          transition: "box-shadow 0.3s ease, transform 0.3s ease",
-          cursor: "pointer",
-          "&:hover": {
-            transform: "translateY(-4px)",
-            backgroundColor: "#131313",
-          },
-          animation: `${fadeIn} 0.6s ease forwards`,
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-          fontWeight: 600,
-          borderRadius: "12px",
-          transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-          color: "#000",
-          backgroundColor: "#fff",
-          "&:hover": {
-            backgroundColor: "#000",
-            color: "#fff",
-          },
-        },
-      },
-    },
-    MuiAvatar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#f0f0f0", // off-white avatar background
-          color: "#000",
-        },
-      },
-    },
-    MuiMenu: {
-      styleOverrides: {
-        paper: {
-          backgroundColor: "#0c0c0c", // deep black menu background
-          color: "#FFFFFF",
-          borderRadius: 8,
-          border: "1px solid rgb(24, 24, 24)",
-        },
-      },
-    },
-    MuiMenuItem: {
-      styleOverrides: {
-        root: {
-          "&:hover": {
-            backgroundColor: "#2c2c2c", // translucent dark green hover
-          },
-        },
-      },
-    },
-    MuiBox: {
-      styleOverrides: {
-        root: {
-          // General box overrides if needed
-        },
-      },
-    },
-  },
-});
+
 
 const ProfilePic = () => {
   const navigate = useNavigate();
@@ -228,7 +105,8 @@ const ProfilePic = () => {
   const handleAutoAccentChange = (e) => setSettings(s => ({ ...s, autoAccent: e.target.checked }));
   const handleLocationModeChange = (e) => setSettings(s => ({ ...s, locationMode: e.target.checked ? "auto" : "manual" }));
   const handleManualLocationChange = (e) => setSettings(s => ({ ...s, manualLocation: e.target.value }));
-
+  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const theme = getTheme(mode, accent);
 
   const buttonWeatherBg =
   weather && weatherColors[weather.main]
@@ -479,8 +357,7 @@ const handleLogout = async () => {
   };
 
   return (
-<ThemeProvider theme={theme}>
-    
+  <ThemeProvider theme={theme}>
 <>
   <Box
 sx={{
@@ -489,7 +366,7 @@ sx={{
   cursor: "pointer",
   borderRadius: "12px",
   p: 1,
-  color: "#fff",
+  color: theme.palette.text.primary,
   transition: "background-color 0.3s ease",
   mr: isSmallScreen ? 0 : 1,
   ...(isSmallScreen
@@ -531,10 +408,10 @@ sx={{
         maxWidth: 450,
         borderTopLeftRadius: 16,
         borderTopRightRadius: 16,
-        backgroundColor: "#00000000",
+        backgroundColor: theme.palette.background.main,
         backdropFilter: 'blur(80px)',
         backgroundImage: 'none',
-        color: "#fff",
+        color: theme.palette.text.primary,
         px: 2,
         pb: 3,
       },
@@ -543,7 +420,7 @@ sx={{
     {/* Drawer drag indicator */}
     <Slide direction="down" in={true} timeout={200}>
       <Box
-        sx={{ width: 40, height: 5, backgroundColor: "#666", borderRadius: 2, my: 1, mx: "auto" }}
+        sx={{ width: 40, height: 5, backgroundColor: "#666", borderRadius: 8,  my: 1, mx: "auto" }}
       />
     </Slide>
 
@@ -560,7 +437,7 @@ sx={{
             <Typography variant="subtitle1" fontWeight="bold">
               {userData.name || "Username"}
             </Typography>
-            <Typography variant="body2" sx={{ color: "#aaa" }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
               {userData.email || "Email"}
             </Typography>
           </Box>
@@ -573,37 +450,37 @@ sx={{
           <ListItem sx={{ pb: 0 }}>
             <ListItemButton onClick={() => setDrawerPage("editProfile")} 
                 sx={{ 
-                  backgroundColor: "#f1f1f111", 
-                  borderRadius: 1.7, 
+                  backgroundColor: mode === "dark" ? "#f1f1f111" : "#c1c1c195", 
+                  borderRadius: 5, 
                   py: 2,
                   '&:hover': { bgcolor: '#f1f1f121'}
 
                   }}>
               <ListItemIcon>
-                <PersonOutlineIcon sx={{ color: "#fff" }} />
+                <PersonOutlineIcon sx={{ color: theme.palette.text.primary }} />
               </ListItemIcon>
               <ListItemText primary="Edit Profile" />
             </ListItemButton>
           </ListItem>
 
-          {/* <ListItem>
+          <ListItem sx={{ pb: 0 }}>
             <ListItemButton
               onClick={() => setDrawerPage("generalSettings")}
-              sx={{ backgroundColor: "#f1f1f111", borderRadius: 1.7, py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}
+              sx={{ backgroundColor: mode === "dark" ? "#f1f1f111" : "#c1c1c195",  borderRadius: 5,  py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}
             >
               <ListItemIcon>
-                <SettingsOutlinedIcon sx={{ color: "#fff" }} />
+                <SettingsOutlinedIcon sx={{ color: theme.palette.text.primary }} />
               </ListItemIcon>
               <ListItemText primary="General Settings" />
             </ListItemButton>
-          </ListItem> */}
+          </ListItem>
 
 
           {/* New: App Version & About */}
           <ListItem sx={{ pb: 0 }}>
-            <ListItemButton onClick={() => setDrawerPage("about")} sx={{ backgroundColor: "#f1f1f111", borderRadius: 1.7, py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}>
+            <ListItemButton onClick={() => setDrawerPage("about")} sx={{ backgroundColor: mode === "dark" ? "#f1f1f111" : "#c1c1c195",  borderRadius: 5,  py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}>
               <ListItemIcon>
-                <InfoOutlinedIcon sx={{ color: "#fff" }} />
+                <InfoOutlinedIcon sx={{ color: theme.palette.text.primary }} />
               </ListItemIcon>
               <ListItemText primary="App Version & About" />
             </ListItemButton>
@@ -611,20 +488,20 @@ sx={{
 
           {/* New: Support / Help */}
           <ListItem sx={{ pb: 0 }}>
-            <ListItemButton onClick={() => setDrawerPage("support")} sx={{ backgroundColor: "#f1f1f111", borderRadius: 1.7, py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}>
+            <ListItemButton onClick={() => setDrawerPage("support")} sx={{ backgroundColor: mode === "dark" ? "#f1f1f111" : "#c1c1c195",  borderRadius: 5,  py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}>
               <ListItemIcon>
-                <HelpOutlineIcon sx={{ color: "#fff" }} />
+                <HelpOutlineIcon sx={{ color: theme.palette.text.primary }} />
               </ListItemIcon>
               <ListItemText primary="Support / Help" />
             </ListItemButton>
           </ListItem>
 
           <ListItem>
-            <ListItemButton onClick={() => setConfirmLogout(true)} sx={{ backgroundColor: "#ff191982", borderRadius: 1.7, py: 2.2, '&:hover': { bgcolor: '#ff000086', color: '#ff000046'}}}>
+            <ListItemButton onClick={() => setConfirmLogout(true)} sx={{ backgroundColor: mode === "dark" ? "#ff191982" : "#ff8e8e82", borderRadius: 5,  py: 2.2, '&:hover': { bgcolor: '#ff000086', color: '#ff000046'}}}>
               <ListItemIcon>
-                <LogoutIcon sx={{ color: "#ffd4d4" }} />
+                <LogoutIcon sx={{ color: mode === "dark" ? "#ffd4d4" : "#ff0000ff" }} />
               </ListItemIcon>
-              <Typography sx={{ color: "#ffd4d4" }}>Logout</Typography>
+              <Typography sx={{ color: mode === "dark" ? "#ffd4d4" : "#ff0000ff" }}>Logout</Typography>
             </ListItemButton>
           </ListItem>
         </List>
@@ -633,7 +510,7 @@ sx={{
 
     {/* Edit Profile Page */}
     {drawerPage === "editProfile" && (
-      <Container sx={{ mt: 1, mb: 2, color: "#fff" }}>
+      <Container sx={{ mt: 1, mb: 2, color: theme.palette.text.primary }}>
 
         {/* Your edit profile form here */}
         {/* ... */}
@@ -642,47 +519,63 @@ sx={{
 
     {drawerPage === "generalSettings" && (
 <Container sx={{ mt: 1, mb: 2 }}>
-  <Button
-    startIcon={<ArrowBackIcon />}
-    onClick={() => setDrawerPage("main")}
-    sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}
-  />
-  <Typography variant="h5" gutterBottom>
-    <h2>General Settings</h2>
-  </Typography>
+    <Button
+      startIcon={<ArrowBackIcon />}
+      onClick={() => setDrawerPage("main")}
+      sx={{
+        mb: 2,
+        borderRadius: 8, 
+        color: theme.palette.text.primary,
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", 
+        '&:hover': { backgroundColor: "#f1f1f121" },
+      }}
+    >
+      Back
+    </Button>
 
   {/* Theme Section */}
-  <Box sx={{ mb: 3 }}>
-    <Typography variant="subtitle1" sx={{ mb: 1 }}>Theme</Typography>
-    {themeOptions.map(opt => (
+<Box sx={{ mb: 3 }}>
+  <Typography variant="subtitle1" sx={{ mb: 1 }}>Theme</Typography>
+  <FormControlLabel
+    control={
+      <Switch
+        checked={mode === "dark"}
+        onChange={toggleTheme}
+        name="themeToggle"
+        color="primary"
+      />
+    }
+    label={mode === "dark" ? "Dark Mode" : "Light Mode"}
+  />
+  <Typography variant="subtitle2" sx={{ mt: 2 }}>Accent Color</Typography>
+  <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+    {["default", "blue", "green", "red", "orange"].map((opt) => (
       <Button
         key={opt}
-        variant={settings.theme === opt ? "contained" : "outlined"}
-        sx={{ mr: 2, mb: 1 }}
-        onClick={() => handleThemeChange(opt)}
+        variant={accent === opt ? "contained" : "outlined"}
+        sx={{
+          backgroundColor:
+            opt === "default"
+              ? undefined
+              : opt === "blue"
+              ? "#1976d2"
+              : opt === "green"
+              ? "#43a047"
+              : opt === "red"
+              ? "#e53935"
+              : opt === "orange"
+              ? "#f9971fff"
+              : undefined,
+          color: theme.palette.text.primary,
+        }}
+        onClick={() => setAccent(opt)}
       >
         {opt.charAt(0).toUpperCase() + opt.slice(1)}
       </Button>
     ))}
-    <Typography variant="subtitle2" sx={{ mt: 2 }}>Accent Color</Typography>
-    <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-      {accentOptions.map(opt => (
-        <Button
-          key={opt}
-          variant={settings.accent === opt && !settings.autoAccent ? "contained" : "outlined"}
-          sx={{ backgroundColor: opt !== "default" ? opt : undefined, color: "#fff" }}
-          onClick={() => handleAccentChange(opt)}
-        >
-          {opt.charAt(0).toUpperCase() + opt.slice(1)}
-        </Button>
-      ))}
-    </Box>
-    <FormControlLabel
-      control={<Switch checked={settings.autoAccent} onChange={handleAutoAccentChange} />}
-      label="Auto-change accent with weather"
-      sx={{ mt: 1 }}
-    />
   </Box>
+</Box>
+
 
   {/* Location Section */}
   <Box sx={{ mb: 3 }}>
@@ -717,9 +610,9 @@ sx={{
       onClick={() => setDrawerPage("main")}
       sx={{
         mb: 2,
-        borderRadius: 2,
-        color: "#fff",
-        backgroundColor: "#f1f1f111",
+        borderRadius: 8, 
+        color: theme.palette.text.primary,
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", 
         '&:hover': { backgroundColor: "#f1f1f121" },
       }}
     >
@@ -734,9 +627,9 @@ sx={{
     {/* Version Card */}
     <Box
       sx={{
-        backgroundColor: "#1e1e1e71",
+        backgroundColor: mode === "dark" ? "#1e1e1e71" : "#cccccc81",
         p: 2,
-        borderRadius: 2,
+        borderRadius: 5, 
         mb: 3,
         mt: 3,
         boxShadow: "none",
@@ -746,13 +639,13 @@ sx={{
       <Typography variant="subtitle1" fontWeight="bold">
         Version
       </Typography>
-      <Typography variant="body2" sx={{ color: "#ccc" }}>
+      <Typography variant="body2" sx={{ color: mode === "dark" ? "#ccc" : "#555" }}>
         {packageJson.version || "N/A"}
       </Typography>
     </Box>
 
     {/* About Text */}
-    <Typography variant="body1" sx={{ mb: 3, color: "#aaa" }}>
+    <Typography variant="body1" sx={{ mb: 3, color: mode === "dark" ? "#aaa" : "#333" }}>
       This app is designed to simplify your group trip planning experience — chat, split expenses, manage tasks, and discover places together. 
       Built with ❤️ in India.
     </Typography>
@@ -760,7 +653,7 @@ sx={{
     {/* Credits / Licenses */}
     <Box sx={{ mb: 4 }}>
       <Typography variant="h6" gutterBottom>Licenses & Credits</Typography>
-        <Typography variant="body2" sx={{ color: "#bbb", lineHeight: 1.8 }}>
+        <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", lineHeight: 1.8 }}>
           • React.js — MIT License<br />
           • Firebase (Auth, Firestore, Messaging) — Apache License 2.0<br />
           • Material UI (v5) — MIT License<br />
@@ -778,7 +671,7 @@ sx={{
       <Button
         fullWidth
         variant="outlined"
-        sx={{ mb: 2, backgroundColor: "#f1f1f111", color: "#fff", border: "1px solid #333" }}
+        sx={{ mb: 2, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  color: theme.palette.text.primary, border: "1px solid #ccc", borderRadius: 3 }}
         onClick={() => window.open('/privacy-policy', '_blank')}
       >
         Privacy Policy
@@ -787,7 +680,7 @@ sx={{
       <Button
         fullWidth
         variant="outlined"
-        sx={{ mb: 2, backgroundColor: "#f1f1f111", color: "#fff", border: "1px solid #333" }}
+        sx={{ mb: 2, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  color: theme.palette.text.primary, border: "1px solid #ccc", borderRadius: 3 }}
         onClick={() => window.open('/terms', '_blank')}
       >
         Terms of Service
@@ -801,7 +694,7 @@ sx={{
       <Stack direction="row" spacing={2}>
         <Button
           variant="contained"
-          sx={{ backgroundColor: "#f1f1f111", color: "#fff", minWidth: 48 }}
+          sx={{ backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  color: theme.palette.text.primary, minWidth: 48, boxShadow: "none" }}
           onClick={() => window.open('mailto:jayendrachoudhary.am@gmail.com')}
         >
           <MailOutlinedIcon />
@@ -811,15 +704,15 @@ sx={{
     </Box>
 
     {/* Open Source Link */}
-    <Box sx={{ mt: 4, backgroundColor: "#f1f1f111", px: 3, py: 3, borderRadius: 2 }}>
+    <Box sx={{ mt: 4, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  px: 3, py: 3, borderRadius: 6 }}>
       <Typography variant="h6" gutterBottom>Open Source</Typography>
-      <Typography variant="body2" sx={{ color: "#aaa", mb: 2 }}>
+      <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", mb: 2 }}>
         Our source code is available on GitHub. Feel free to contribute, report issues, or fork it.
       </Typography>
       <Button
         variant="outlined"
         fullWidth
-        sx={{ color: "#000", borderColor: "#555" }}
+        sx={{ color: "#000", borderColor: "#555", borderRadius: 3 }}
       >
         Providing Soon...
       </Button>
@@ -838,11 +731,19 @@ sx={{
 
       {drawerPage === "featuresChangelog" && (
         <Container sx={{ mt: 1, mb: 2 }}>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => setDrawerPage("about")}
-            sx={{ mr: 2, width: '65px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}
-          />
+    <Button
+      startIcon={<ArrowBackIcon />}
+      onClick={() => setDrawerPage("about")}
+      sx={{
+        mb: 2,
+        borderRadius: 8, 
+        color: theme.palette.text.primary,
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", 
+        '&:hover': { backgroundColor: "#f1f1f121" },
+      }}
+    >
+      Back
+    </Button>
           <Typography variant="h5" gutterBottom><h2>Features & Changelog</h2></Typography>
 
           {/* Features Section */}
@@ -851,7 +752,7 @@ sx={{
             {features.map(({ name, detail }, idx) => (
               <Box key={idx} sx={{ mb: 2, ml: 2 }}>
                 <Typography variant="subtitle1" component="div" fontWeight="bold">{name}</Typography>
-                <Typography variant="body2" sx={{ color: "#aaa" }}>{detail}</Typography>
+                <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>{detail}</Typography>
               </Box>
             ))}
           </Box>
@@ -860,9 +761,9 @@ sx={{
           <Box>
             <Typography variant="h6" gutterBottom>Changelog</Typography>
 {changelogs.map(({ version, date, changes }) => (
-  <Card sx={{ my: 2, p: 2, boxShadow: "none", backgroundColor: "#f1f1f111" }}>
+  <Card sx={{ my: 2, p: 2, boxShadow: "none", backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", borderRadius: 5 }} key={version}>
     <Typography variant="subtitle1" fontWeight="bold">
-      Version {version} – <span style={{ color: "#aaa" }}>{date}</span>
+      Version {version} – <span style={{ color: mode === "dark" ? "#aaa" : "#333" }}>{date}</span>
     </Typography>
     <ul style={{ paddingLeft: 20 }}>
       {changes.map((c, i) => <li key={i}><Typography variant="body2">{c}</Typography></li>)}
@@ -881,9 +782,9 @@ sx={{
       onClick={() => setDrawerPage("main")}
       sx={{
         mb: 1,
-        borderRadius: 2,
-        color: "#fff",
-        backgroundColor: "#f1f1f111",
+        borderRadius: 8, 
+        color: theme.palette.text.primary,
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", 
         '&:hover': { backgroundColor: "#f1f1f121" },
       }}
     >
@@ -896,7 +797,7 @@ sx={{
     </Typography>
 
     <Stack spacing={2} sx={{ mb: 4 }}>
-    {/* <Card sx={{ px: 2, py: 1, backgroundColor: "#f1f1f111", boxShadow: "none" }}>
+    {/* <Card sx={{ px: 2, py: 1, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  boxShadow: "none" }}>
       <ListItemText
         primary="Support & Help"
         secondary="Support for any issues or questions"
@@ -904,7 +805,7 @@ sx={{
     </Card> */}
     <Card
       onClick={() => window.open("/terms-and-conditions", "_blank")}
-      sx={{ px: 2, py: 1, backgroundColor: "#f1f1f111", boxShadow: "none" }}
+      sx={{ px: 2, py: 1, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  boxShadow: "none", borderRadius: 5 }}
     >
       <ListItemText
         primary="Terms & Conditions"
@@ -913,7 +814,7 @@ sx={{
     </Card>
     {/* <Card
       onClick={() => window.open("/faq", "_blank")}
-      sx={{ px: 2, py: 1, backgroundColor: "#f1f1f111", boxShadow: "none" }}
+      sx={{ px: 2, py: 1, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  boxShadow: "none" }}
     >
       <ListItemText
         primary="Frequently Asked Questions"
@@ -922,7 +823,7 @@ sx={{
     </Card> */}
     <Card
       onClick={() => window.open("mailto:jayendrachoudhary.am@gmail.com")} 
-      sx={{ px: 2, py: 1, backgroundColor: "#f1f1f111", boxShadow: "none" }}
+      sx={{ px: 2, py: 1, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",  boxShadow: "none", borderRadius: 5  }}
     >
       <ListItemText
         primary="Contact Support"
@@ -955,9 +856,9 @@ sx={{
       onClick={() => setDrawerPage("main")}
       sx={{
         mb: 3,
-        borderRadius: 2,
-        color: "#fff",
-        backgroundColor: "#f1f1f111",
+        borderRadius: 8, 
+        color: theme.palette.text.primary,
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", 
         '&:hover': { backgroundColor: "#f1f1f121" },
       }}
     >
@@ -1030,9 +931,10 @@ sx={{
             variant="outlined"
             onClick={() => setDrawerPage("main")}
             sx={{
-              backgroundColor: "#f1f1f111",
-              color: "#fff",
+              backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", 
+              color: theme.palette.text.primary,
               borderColor: "#555",
+              borderRadius: 5,
             }}
             disabled={isSaving}
           >
@@ -1042,7 +944,7 @@ sx={{
             variant="contained"
             onClick={handleSave}
             disabled={isSaving}
-            sx={{ backgroundColor: buttonWeatherBg }}
+            sx={{ backgroundColor: theme.palette.primary.main, borderRadius: 5, color: "#fff", boxShadow: "none", '&:hover': { backgroundColor: theme.palette.primary.dark } }}
           >
             {isSaving ? <CircularProgress size={24} /> : "Save Changes"}
           </Button>
@@ -1063,13 +965,14 @@ sx={{
   onClose={() => setConfirmLogout(false)}
   PaperProps={{
     sx: {
-      backgroundColor: '#00000000',
-      backdropFilter: 'blur(20px)',
+      backgroundColor: mode === "dark" ? "#00000000" : "#ffffff91",
+      backdropFilter: 'blur(10px)',
       boxShadow: 'none',
+      borderRadius: 6,
     }
   }}
 >
-  <DialogTitle sx={{ px: 3, py: 3, color: '#fff' }}>
+  <DialogTitle sx={{ px: 3, py: 3, color: mode === "dark" ? "#fff" : "#000" }}>
     Are you sure you want to logout?
   </DialogTitle>
   
@@ -1077,10 +980,11 @@ sx={{
     <Button
       variant="outlined"
       sx={{
-        backgroundColor: '#f1f1f111',
-        color: '#fff',
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+        color: mode === "dark" ? "#fff" : "#000",
         p: 1.5,
-        borderColor: '#ffffff33'
+        borderColor: '#ffffff33',
+        borderRadius: 5,
       }}
       onClick={() => setConfirmLogout(false)}
     >
@@ -1090,9 +994,11 @@ sx={{
     <Button
       variant="contained"
       sx={{
-        backgroundColor: '#ff000046',
-        color: '#ffbfbfff',
+        backgroundColor:  mode === "dark" ? "#700000ff" : "#ffd4d4",
+        color:  mode === "dark" ? "#ffd4d4" : "#ff0000ff",
         p: 1.5,
+        borderRadius: 5,
+        boxShadow: 'none',
         '&:hover': {
           backgroundColor: '#ff000088',
         }
