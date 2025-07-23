@@ -14,23 +14,24 @@ import {
 } from "@mui/material";
 import { LockOutlined, RocketLaunch, HourglassBottom } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
-import { getCookie } from "../utils/cookies"; // ✅ Import from your cookies.js utility
+import { auth, db } from "../firebase";  // Make sure you import your initialized db and auth
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
 
 const ALLOWED_USER_TYPES = ["Beta", "Dev Beta"];
 
-// Theme definition
 const theme = createTheme({
   palette: {
     mode: "dark",
-    primary: { main: "#D0BCFF" },
-    secondary: { main: "#CCC2DC" },
-    background: { default: "#18122B", paper: "#1E1B2E" },
+    primary: { main: "#ffffffff" },
+    secondary: { main: "#d6d6d6ff" },
+    background: { default: "#0c0c0c", paper: "#1e1e1eff" },
     surface: { main: "#1E1B2E" },
     error: { main: "#F2B8B5" },
     info: { main: "#80BFFF" },
     success: { main: "#00A36C" },
     warning: { main: "#FFD600" },
-    divider: "#2A2740",
+    divider: "#4a4a4aff",
   },
   shape: { borderRadius: 18 },
   typography: {
@@ -59,7 +60,6 @@ const theme = createTheme({
   },
 });
 
-// Simple SVG
 function BetaIllustration(props) {
   return (
     <SvgIcon viewBox="0 0 120 120" {...props} sx={{ fontSize: 120 }}>
@@ -76,25 +76,45 @@ export default function BetaAccessGuard({ children }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkAccess = () => {
-      const rawUserType = getCookie("bunkmate_usertype") ||
-                       JSON.parse(localStorage.getItem("bunkmateuser") || "{}")?.type;
-
-      const userType = decodeURIComponent(rawUserType || "").trim();
-
-      if (ALLOWED_USER_TYPES.includes((userType || "").trim())) {
-        setAccessDenied(false);
-      } else {
+    // Listen for auth state
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        // Not logged in, deny access (or redirect)
         setAccessDenied(true);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-    };
 
-    checkAccess();
+      // Real-time listener on user doc for type changes
+      const userDocRef = doc(db, "users", user.uid);
+      const unsubscribeUserDoc = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const userType = (docSnap.data().type || "").trim();
+          if (ALLOWED_USER_TYPES.includes(userType)) {
+            setAccessDenied(false);
+          } else {
+            setAccessDenied(true);
+          }
+        } else {
+          setAccessDenied(true);
+        }
+        setLoading(false);
+      }, (error) => {
+        console.error("Error fetching user info:", error);
+        setAccessDenied(true);
+        setLoading(false);
+      });
+
+      // Cleanup user doc listener when component unmounts or user changes
+      return () => unsubscribeUserDoc();
+    });
+
+    // Cleanup auth listener on unmount
+    return () => unsubscribeAuth();
   }, []);
 
   useEffect(() => {
-    // Inject Nunito font
+    // Inject Nunito font once
     if (!document.getElementById("nunito-font-link")) {
       const link = document.createElement("link");
       link.id = "nunito-font-link";

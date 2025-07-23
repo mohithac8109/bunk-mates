@@ -1276,14 +1276,6 @@ const removeUserReaction = async (msg, emoji) => {
           vertical: 'bottom',
           horizontal: 'center',
         }}
-        PaperProps={{
-          sx: {
-            bgcolor: '#222',
-            borderRadius: 3,
-            boxShadow: '0 4px 24px #000a',
-            p: 1,
-          }
-        }}
       >
         <EmojiPicker
           onEmojiClick={(emojiData) => {

@@ -1509,15 +1509,34 @@ const canEditExpenses = (() => {
                   aria-labelledby="expense-drawer-title"
                 >
                   <Box sx={{ display: "flex", flexDirection: "column", mb: 2, ml: 4, gap: 3 }}>
-                    <Button onClick={() => {
-                      setExpDrawerOpen(false);
-                      // Remove expdrawer from URL
-                      const params = new URLSearchParams(window.location.search);
-                      params.delete("expdrawer");
-                      window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
-                    }} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
-                      <ArrowBackIcon />
-                    </Button>
+<Button
+  onClick={() => {
+    setExpDrawerOpen(false);
+    // Remove 'index' and 'expdrawer' from URL query params
+    const params = new URLSearchParams(window.location.search);
+    params.delete("index");
+    params.delete("expdrawer");
+
+    // Construct the new URL – omit ? if no params remain
+    const newSearch = params.toString();
+    const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname;
+
+    // Replace the current history state without reloading the page
+    window.history.replaceState({}, "", newUrl);
+  }}
+  sx={{
+    mr: 2,
+    width: "30px",
+    fontSize: 3,
+    borderRadius: 2,
+    height: "50px",
+    color: "#fff",
+    backgroundColor: "#f1f1f111",
+  }}
+>
+  <ArrowBackIcon />
+</Button>
+
 
                   <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 1 }}>
                     <Typography variant="h4" sx={{ color: "#fff", fontWeight: "bold" }}>

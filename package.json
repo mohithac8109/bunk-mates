@@ -73,9 +73,11 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.5.2",
     "react-scripts": "^5.0.1",
+    "react-slick": "^0.30.3",
     "react-swipeable": "^7.0.2",
     "recharts": "^2.15.3",
     "remark-gfm": "^4.0.1",
+    "slick-carousel": "^1.8.1",
     "tinymce": "^7.9.1",
     "uuid": "^11.1.0",
     "zustand": "^5.0.3"

@@ -218,13 +218,13 @@ const Signup = () => {
             variant="contained"
             fullWidth
             sx={{
-              backgroundColor: "#00f721ba",
+              backgroundColor: "#ffffffba",
               color: "#000",
               borderRadius: 14,
               fontWeight: 500,
               py: 1.5,
               "&:hover": {
-                backgroundColor: "#00f721",
+                backgroundColor: "#ffffffff",
                 transform: "scale(1.03)",
               },
               transition: "all 0.2s ease-in-out",
@@ -238,9 +238,9 @@ const Signup = () => {
             onClick={handleGoogleSignup}
             startIcon={<GoogleIcon />}
             sx={{
-              border: "1px solid #2C2C2C",
+              border: "1px solid #696969ff",
               color: "#fff",
-              backgroundColor: "#1E1E1E",
+              backgroundColor: "#1e1e1e00",
               borderRadius: 14,
               py: 1.5,
               "&:hover": {
@@ -252,7 +252,7 @@ const Signup = () => {
             Continue with Google
           </Button>
 
-          <Typography variant="body2" align="center" sx={{ color: "#B0BEC5", mt: 2 }}>
+          <Typography variant="body2" align="center" sx={{ color: "#ffffffff", mt: 2 }}>
             Already have an account?{" "}
             <Link href="/login" underline="hover" color="#00BFA6">
               Login

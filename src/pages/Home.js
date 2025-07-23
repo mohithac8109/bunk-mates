@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { doc, getDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, orderBy, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getAuth } from "firebase/auth";
 import { useWeather } from "../contexts/WeatherContext";
 import { Chats } from "./Chats"
 import packageJson from '../../package.json'; 
+import Slider from 'react-slick';
+import "slick-carousel/slick/slick.css"; 
+import "slick-carousel/slick/slick-theme.css";
 
 import {
   AppBar,
@@ -24,7 +27,14 @@ import {
   keyframes,
   Button,
   Chip,
+  LinearProgress,
+  Avatar,
+  AvatarGroup,
+  Tooltip,
 } from "@mui/material"; 
+import {
+  LocationOn, AccessTime,
+} from "@mui/icons-material";
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
@@ -176,7 +186,7 @@ const theme = createTheme({
       paper: "#0c0c0c", // deep black for dialogs/paper
     },
     primary: {
-      main: "#00f721", // bright green solid for buttons and accents
+      main: "#ffffffff", // bright green solid for buttons and accents
       contrastText: "#000000", // black text on bright green buttons
     },
     secondary: {
@@ -188,7 +198,7 @@ const theme = createTheme({
       disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
     },
     action: {
-      hover: "#00f721", // bright green hover for interactive elements
+      hover: "#b6b6b6ff", // bright green hover for interactive elements
       selected: "#131313", // dark black for selected states
       disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
       disabled: "#BDBDBD",
@@ -328,6 +338,34 @@ function getUserFromStorage() {
   return null;
 }
 
+function getDefaultTripIndex(trips) {
+  const now = new Date();
+  let ongoing = null, upcoming = null, upcomingDate = null;
+  trips.forEach((trip, idx) => {
+    const start = new Date(trip.startDate || trip.date);
+    const end = new Date(trip.endDate || trip.date);
+    if (start <= now && now <= end) ongoing = idx;
+    else if (start > now && (!upcomingDate || start < upcomingDate)) {
+      upcoming = idx;
+      upcomingDate = start;
+    }
+  });
+  if (ongoing !== null) return ongoing;
+  if (upcoming !== null) return upcoming;
+  return 0;
+}
+
+const sliderSettings = {
+  dots: true,
+  infinite: false,
+  speed: 500,
+  slidesToShow: 1,
+  slidesToScroll: 1,
+  swipeToSlide: true,
+  adaptiveHeight: true,
+  arrows: true,
+};
+
 
 const Home = () => {
   const navigate = useNavigate();
@@ -340,7 +378,12 @@ const Home = () => {
   const [reminders, setReminders] = useState([]);
   const [remindersLoading, setRemindersLoading] = useState(true);
   const [remindersDrawerOpen, setRemindersDrawerOpen] = useState(false);
-  const remindersRef = useRef();
+  const remindersRef = useRef();const [myTrips, setMyTrips] = useState([]); // All trips the user joined
+  const [tripMembersMap, setTripMembersMap] = useState({}); // uid array for each tripID: array of user objects
+  const [timelineStatsMap, setTimelineStatsMap] = useState({}); // timeline status per tripID
+  const [sliderIndex, setSliderIndex] = useState(0);
+  const [tripGroupsMap, setTripGroupsMap] = useState({});
+
   // User data states
   const [userData, setUserData] = useState({
     name: "",
@@ -358,36 +401,29 @@ const Home = () => {
     navigate("/budget-mngr");
   };
 
-  useEffect(() => {
-    const fetchReminders = async () => {
-      setRemindersLoading(true);
-      try {
-        const user = getUserFromStorage();
-        if (!user || !user.uid) {
-          setReminders([]);
-          setRemindersLoading(false);
-          return;
-        }
-        const q = query(
-          collection(db, "reminders"),
-          where("uid", "==", user.uid),
-          orderBy("createdAt", "desc")
-        );
-        const querySnapshot = await getDocs(q);
-        const data = [];
-        querySnapshot.forEach((doc) => {
-          const reminder = { id: doc.id, ...doc.data() };
-          if (reminder.uid === user.uid) {
-            data.push(reminder);
-          }
-        });
-        setReminders(data);
-      } catch (err) {
-        setReminders([]);
-      }
+useEffect(() => {
+    const user = getUserFromStorage();
+    if (!user?.uid) {
+      setReminders([]);
       setRemindersLoading(false);
-    };
-    fetchReminders();
+      return;
+    }
+    setRemindersLoading(true);
+    const q = query(
+      collection(db, "reminders"),
+      where("uid", "==", user.uid),
+      orderBy("createdAt", "desc")
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = [];
+      snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
+      setReminders(data);
+      setRemindersLoading(false);
+    }, () => {
+      setReminders([]);
+      setRemindersLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
      // Fetch reminders for Home page glimpse
@@ -551,6 +587,118 @@ const Home = () => {
     );
   }, []);
 
+  
+useEffect(() => {
+  const user = getUserFromStorage();
+  if (!user || !user.uid) {
+    setMyTrips([]);
+    setTripMembersMap({});
+    setTimelineStatsMap({});
+    return;
+  }
+
+  // Listen to trips where user is a member
+  const tripsQuery = query(
+    collection(db, "trips"),
+    where("members", "array-contains", user.uid)
+  );
+
+  // Subscribe to real-time updates on trips
+  const unsubscribeTrips = onSnapshot(tripsQuery, (querySnapshot) => {
+    const tripsList = [];
+    querySnapshot.forEach((doc) => {
+      tripsList.push({ id: doc.id, ...doc.data() });
+    });
+    setMyTrips(tripsList);
+
+    // For every trip, set up listeners for members and timeline
+    // Because tripsList changes on every snapshot, clean up listeners safely:
+    
+    // Store unsubscribes so we can remove old listeners
+    let memberUnsubs = [];
+    let timelineUnsubs = [];
+
+    // Members fetch with real-time updates
+    tripsList.forEach((trip) => {
+      if (trip.members && Array.isArray(trip.members)) {
+        // For simplicity, we fetch all member docs once (not real-time per member here)
+        // For full real-time, you'd setup onSnapshot per member, but this is costly.
+        Promise.all(
+          trip.members.map((uid) =>
+            getDoc(doc(db, "users", uid)).then((d) =>
+              d.exists() ? { uid: d.id, ...(d.data() || {}) } : null
+            )
+          )
+        ).then((membersData) => {
+          setTripMembersMap((prev) => ({
+            ...prev,
+            [trip.id]: membersData.filter(Boolean),
+          }));
+        });
+      }
+    });
+
+    // Timeline listeners per trip
+    // Unsubscribe from previous listeners to avoid leak. (Use refs or strong closure here)
+    let timelineUnsubFunctions = [];
+    timelineUnsubs.forEach((unsub) => unsub && unsub());
+    timelineUnsubs = tripsList.map((trip) => {
+      const timelineCol = collection(db, "trips", trip.id, "timeline");
+      const unsub = onSnapshot(timelineCol, (snap) => {
+        const events = snap.docs.map((d) => d.data());
+        const total = events.length || 1;
+        const completed = events.filter((e) => e.completed === true).length;
+        setTimelineStatsMap((prev) => ({
+          ...prev,
+          [trip.id]: {
+            completed,
+            total,
+            percent: Math.round((completed / total) * 100),
+          },
+        }));
+      });
+      timelineUnsubFunctions.push(unsub);
+      return unsub;
+    });
+
+    // Cleanup timeline listeners when trips update
+    return () => {
+      timelineUnsubFunctions.forEach((unsub) => unsub && unsub());
+    };
+  });
+
+  return () => {
+    unsubscribeTrips();
+  };
+}, []);
+
+useEffect(() => {
+  if (myTrips && myTrips.length > 0) {
+    setSliderIndex(getDefaultTripIndex(myTrips));
+  }
+}, [myTrips]);
+
+  useEffect(() => {
+    if (!myTrips.length) {
+      setTripGroupsMap({});
+      return;
+    }
+    async function fetchGroupsForTrips() {
+      const groupMap = {};
+      await Promise.all(
+        myTrips.map(async trip => {
+          const groupSnap = await getDoc(doc(db, "groupChats", trip.id));
+          if (groupSnap.exists()) {
+            groupMap[trip.id] = groupSnap.data();
+          }
+        })
+      );
+      setTripGroupsMap(groupMap);
+    }
+    fetchGroupsForTrips();
+  }, [myTrips]);
+
+
   // Pick gradient based on weather
   const weatherBg =
   weather && weatherGradients[weather.main]
@@ -593,120 +741,101 @@ const Home = () => {
   }, [userData]);
 
     // Add loading state to budgets fetch
-  useEffect(() => {
-    setLoading(true); // Start loading when fetching budgets
-    let userId = null;
-    try {
-      const storedUser = localStorage.getItem("bunkmateuser");
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        if (parsed?.uid) userId = parsed.uid;
-      }
-      if (!userId) {
-        const cookieUser = document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("bunkmateuser="))
-          ?.split("=")[1];
-        if (cookieUser) {
-          const parsed = JSON.parse(decodeURIComponent(cookieUser));
-          if (parsed?.uid) userId = parsed.uid;
-        }
-      }
-    } catch {}
-    if (!userId) {
+useEffect(() => {
+    const user = getUserFromStorage();
+    if (!user?.uid) {
       setBudgets([]);
       setLoading(false);
       return;
     }
-
-    import("../firebase").then(({ db }) => {
-      import("firebase/firestore").then(({ doc, getDoc }) => {
-        const docRef = doc(db, "budgets", userId);
-        getDoc(docRef).then((docSnap) => {
-          if (docSnap.exists()) {
-            setBudgets(docSnap.data().items || []);
-          } else {
-            setBudgets([]);
-          }
-          setLoading(false); // End loading after fetching
-        }).catch(() => setLoading(false));
-      });
+    setLoading(true);
+    const budgetsDocRef = doc(db, "budgets", user.uid);
+    const unsubscribe = onSnapshot(budgetsDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setBudgets(docSnap.data().items || []);
+      } else {
+        setBudgets([]);
+      }
+      setLoading(false);
+    }, () => {
+      setBudgets([]);
+      setLoading(false);
     });
+    return () => unsubscribe();
   }, []);
 
-useEffect(() => {
-  const fetchUserData = async () => {
-    setLoading(true);
-    let user = auth.currentUser;
-    let uid = null;
+  // --------- User Data Load ---------
+  useEffect(() => {
+    async function fetchUserData() {
+      setLoading(true);
+      let uid = auth.currentUser?.uid || null;
 
-    if (user) {
-      uid = user.uid;
-    } else {
-      // Try to get UID from localStorage/cookie
-      const storedUser = localStorage.getItem("bunkmateuser");
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          if (parsed?.uid) uid = parsed.uid;
-        } catch {}
-      }
       if (!uid) {
-        const cookieUser = document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("bunkmateuser="))
-          ?.split("=")[1];
-        if (cookieUser) {
+        const storedUser = localStorage.getItem("bunkmateuser");
+        if (storedUser) {
           try {
-            const parsed = JSON.parse(decodeURIComponent(cookieUser));
+            const parsed = JSON.parse(storedUser);
             if (parsed?.uid) uid = parsed.uid;
           } catch {}
         }
+        if (!uid) {
+          const cookieUser = document.cookie.split("; ")
+            .find(row => row.startsWith("bunkmateuser="))
+            ?.split("=")[1];
+          if (cookieUser) {
+            try {
+              const parsed = JSON.parse(decodeURIComponent(cookieUser));
+              if (parsed?.uid) uid = parsed.uid;
+            } catch {}
+          }
+        }
       }
-    }
 
-    if (!uid) {
-      setNotLoggedIn(true);
-      setLoading(false);
-      return;
-    }
+      if (!uid) {
+        setNotLoggedIn(true);
+        setLoading(false);
+        return;
+      }
 
-    // Fetch user data from Firestore
-    try {
-      const docRef = doc(db, "users", uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        const newUserData = {
-          name: data.displayName || data.name || "User",
-          email: data.email || "",
-          mobile: data.phoneNumber || data.mobile || "Not provided",
-          photoURL: data.photoURL || "",
-          bio: data.userBio || data.bio || "",
-          uid: uid,
-        };
-        setUserData(newUserData);
-        setUserType(data.type || "");
-        localStorage.setItem("bunkmateuser", JSON.stringify(newUserData));
-        localStorage.setItem(SESSION_KEY, "active");
-        document.cookie = `${SESSION_KEY}=active; path=/; max-age=604800`;
-        setNotLoggedIn(false);
-      } else {
+      try {
+        const docRef = doc(db, "users", uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const newUserData = {
+            name: data.displayName || data.name || "User",
+            email: data.email || "",
+            mobile: data.phoneNumber || data.mobile || "Not provided",
+            photoURL: data.photoURL || "",
+            bio: data.userBio || data.bio || "",
+            uid
+          };
+          setUserData(newUserData);
+          setUserType(data.type || "");
+          localStorage.setItem("bunkmateuser", JSON.stringify(newUserData));
+          localStorage.setItem(SESSION_KEY, "active");
+          document.cookie = `${SESSION_KEY}=active; path=/; max-age=604800`;
+          setNotLoggedIn(false);
+        } else {
+          setNotLoggedIn(true);
+        }
+      } catch {
         setNotLoggedIn(true);
       }
-    } catch {
-      setNotLoggedIn(true);
+      setLoading(false);
     }
-    setLoading(false);
-  };
+    if (!userData.email || !userData.uid) fetchUserData();
+  }, [userData.email, userData.uid]);
 
-  // Only fetch if not already loaded
-  if (!userData.email || !userData.uid) {
-    fetchUserData();
-  }
-}, [userData.email, userData.uid]);
+  // --------- Slider index setup ---------
+  useEffect(() => {
+    if (myTrips && myTrips.length > 0) {
+      setSliderIndex(getDefaultTripIndex(myTrips));
+    }
+  }, [myTrips]);
 
-    const handleLogout = () => {
+
+  const handleLogout = () => {
     localStorage.removeItem(SESSION_KEY);
     document.cookie = `${SESSION_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;`;
     localStorage.removeItem("bunkmateuser");
@@ -822,7 +951,7 @@ useEffect(() => {
               }}
             >
               <Typography variant="h5" sx={{ color: "text.primary" }}>
-                {getGreeting()},<br /><Typography variant="title" style={{ fontWeight: "bold", fontSize: "1.8rem" }}>{userData.name}!</Typography>
+                {getGreeting()},<br /><Typography variant="title" style={{ fontWeight: "bold", fontSize: "1.8rem" }}>{userData.name || "user"}!</Typography>
               </Typography>
               {/* Weather Widget */}
               <Box
@@ -954,9 +1083,108 @@ useEffect(() => {
               </Box>
             ) : (
     <Grid container spacing={3} justifyContent={"center"}>
+
+{/* Trips Display card */}
+{myTrips && myTrips.length > 0 ? (
+  <Box sx={{ minWidth: 340, maxWidth: 340, mx: "auto", px: 0 }}>
+<Typography variant="h6" textAlign="left" mb={1}>Your Trips</Typography>
+
+    <Slider {...sliderSettings} slickGoTo={sliderIndex}>
+      {myTrips.map((tripInfo) => (
+<Box key={tripInfo.id} sx={{ px: 1 }}>
+  <Card
+    sx={{
+      background: tripGroupsMap[tripInfo.id]?.iconURL
+        ? `url(${tripGroupsMap[tripInfo.id].iconURL})`
+        : "#232526",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+      color: "#fff",
+      borderRadius: 1,
+      boxShadow: "0 2px 10px #0002",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "flex-end",
+      mx: 1,
+    }}
+  >
+    <CardContent
+      sx={{
+        backdropFilter: "blur(12px)",
+        borderBottomLeftRadius: 8,
+        borderBottomRightRadius: 8,
+      }}
+    >
+      <Box display="flex" gap={2} mb={1} alignItems="flex-start" justifyContent="space-between">
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+            {tripInfo?.name || "Unnamed Trip"}
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#fff", display: "flex", alignItems: "center" }}>
+            <LocationOn sx={{ fontSize: 16, mr: 1 }} />
+            {tripInfo?.from || "Unknown"} → {tripInfo?.location || "Unknown"}
+          </Typography>
+          {(tripInfo?.startDate || tripInfo?.date) && (
+            <Typography variant="body2" sx={{ color: "#e7e7e7", display: "flex", alignItems: "center" }}>
+              <AccessTime sx={{ fontSize: 16, mr: 1 }} />
+              {tripInfo?.startDate || "?"} → {tripInfo?.date || "?"}
+            </Typography>
+          )}
+        </Box>
+              {/* Member avatars as avatar group */}
+      {tripMembersMap[tripInfo.id]?.length > 0 && (
+    <AvatarGroup max={3} sx={{ mt: 1, width: 24, height: 24 }}>
+      {tripMembersMap[tripInfo.id].map((m) => (
+        <Tooltip title={m.name || `@${m.username}`} key={m.uid}>
+          <Avatar
+            sx={{
+                width: 24,
+                height: 24,
+            }}
+            src={m.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${m.uid}`}
+            alt={m.name || m.username}
+          />
+        </Tooltip>
+      ))}
+    </AvatarGroup>
+      )}
+      </Box>
+      {timelineStatsMap[tripInfo.id] && (
+        <Box>
+          <Typography variant="caption" sx={{ color: "#cbcbcb" }}>
+            Timeline Progress: {timelineStatsMap[tripInfo.id].completed} / {timelineStatsMap[tripInfo.id].total} complete
+          </Typography>
+          <LinearProgress
+            value={timelineStatsMap[tripInfo.id].percent}
+            variant="determinate"
+            sx={{
+              mt: 0.5,
+              borderRadius: 20,
+              height: 7,
+              bgcolor: "#ffffff36",
+              "& .MuiLinearProgress-bar": { bgcolor: "#ffffffff" },
+            }}
+          />
+        </Box>
+      )}
+    </CardContent>
+  </Card>
+</Box>
+
+      ))}
+    </Slider>
+  </Box>
+) : (
+  <Typography variant="body2" sx={{ color: "#BDBDBD", textAlign: "center", mt: 4 }}>
+    No trips found.
+  </Typography>
+)}
+
+
       {/* Budgets Display Card */}
 <Grid item xs={12} md={6} lg={4}>
-  <Box>
+  <Box sx={{ minWidth: 356, maxWidth: 356 }} >
     <CardContent>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h6" sx={{ color: "text.primary" }}>
