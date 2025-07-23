@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { doc, getDoc, collection, query, where, getDocs, orderBy, onSnapshot } from "firebase/firestore";
+import { doc, collection, query, where, orderBy, getDoc, onSnapshot, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase";
-import { getAuth } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import { useWeather } from "../contexts/WeatherContext";
-import { Chats } from "./Chats"
-import packageJson from '../../package.json'; 
-import Slider from 'react-slick';
-import "slick-carousel/slick/slick.css"; 
+import { Chats } from "./Chats";
+import packageJson from '../../package.json';
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 
 import {
   AppBar,
@@ -20,7 +21,6 @@ import {
   Grid,
   Card,
   CardContent,
-  CardMedia,
   CircularProgress,
   ThemeProvider,
   createTheme,
@@ -31,13 +31,21 @@ import {
   Avatar,
   AvatarGroup,
   Tooltip,
-} from "@mui/material"; 
+  useTheme,
+  useMediaQuery,
+  Fab,
+  Zoom,
+} from "@mui/material";
 import {
-  LocationOn, AccessTime,
+  LocationOn,
+  AccessTime,
+  ChatBubbleOutline,
+  AlarmOutlined,
+  ChevronRight,
+  AccountBalanceWalletOutlined,
+  ExploreOutlined,
+  StickyNote2Outlined,
 } from "@mui/icons-material";
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
-import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import ProfilePic from "../components/Profile";
 import Reminders from "./Reminders";
 import DeviceGuard from "../components/DeviceGuard";
@@ -60,112 +68,9 @@ import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
 import AlarmOutlinedIcon from '@mui/icons-material/AlarmOutlined';
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
-
-const CATEGORY_ICONS = {
-  Food: {
-    icon: <RestaurantOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#ff9c000f",   // orange[50]
-    bgcolor: "#ff9c0030",   // orange[50]
-    mcolor: "#ff98005e",    // orange[500]
-    fcolor: "#e3aa8b"     // orange[900]
-  },
-  Tour: {
-    icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#0093ff0f",   // blue[50]
-    bgcolor: "#0093ff30",   // blue[50]
-    mcolor: "#2196f35e",    // blue[500]
-    fcolor: "#92b6ef"     // blue[900]
-  },
-  Rent: {
-    icon: <HomeOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#88ff000f",   // lightGreen[50]
-    bgcolor: "#88ff0030",   // lightGreen[50]
-    mcolor: "#8bc34a5e",    // lightGreen[500]
-    fcolor: "#8dc378"     // lightGreen[900]
-  },
-  Utilities: {
-    icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#8ad0ff0f",   // blueGrey[50]
-    bgcolor: "#8ad0ff30",   // blueGrey[50]
-    mcolor: "#607d8b5e",    // blueGrey[500]
-    fcolor: "#8e9ba1"     // blueGrey[900]
-  },
-  Shopping: {
-    icon: <LocalMallOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#ff00550f",   // pink[50]
-    bgcolor: "#ff005530",   // pink[50]
-    mcolor: "#e91e635e",    // pink[500]
-    fcolor: "#ffbce0"     // pink[900]
-  },
-  Fun: {
-    icon: <EmojiEventsOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#f5e7480f",   // yellow[50]
-    bgcolor: "#f5e74830",   // yellow[50]
-    mcolor: "#c3b6415e",    // yellow[500]
-    fcolor: "#ddca15"     // yellow[900]
-  },
-  Hospital: {
-    icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#ff00260f",   // red[50]
-    bgcolor: "#ff002630",   // red[50]
-    mcolor: "#f443365e",    // red[500]
-    fcolor: "#efa4a4"     // red[900]
-  },
-  Education: {
-    icon: <SchoolOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#0093ff0f",   // blue[50]
-    bgcolor: "#0093ff30",   // blue[50]
-    mcolor: "#2196f35e",    // blue[500]
-    fcolor: "#92b6ef"      // indigo[900]
-  },
-  Fuel: {
-    icon: <LocalGasStationOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#fbe9e70f",   // deepOrange[50]
-    bgcolor: "#fbe9e730",   // deepOrange[50]
-    mcolor: "#ff5722",    // deepOrange[500]
-    fcolor: "#bf360c"     // deepOrange[900]
-  },
-  Entertainment: {
-    icon: <MovieOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#f3e5f50f",   // purple[50]
-    bgcolor: "#f3e5f530",   // purple[50]
-    mcolor: "#9c27b0",    // purple[500]
-    fcolor: "#4a148c"     // purple[900]
-  },
-  Bills: {
-    icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#e0f2f10f",   // teal[50]
-    bgcolor: "#e0f2f130",   // teal[50]
-    mcolor: "#009688",    // teal[500]
-    fcolor: "#004d40"     // teal[900]
-  },
-  Travel: {
-    icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#e1f5fe0f",   // lightBlue[50]
-    bgcolor: "#e1f5fe",   // lightBlue[50]
-    mcolor: "#03a9f4",    // lightBlue[500]
-    fcolor: "#01579b"     // lightBlue[900]
-  },
-  Medical: {
-    icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#fce4ec0f",   // pink[50]
-    bgcolor: "#fce4ec",   // pink[50]
-    mcolor: "#e91e63",    // pink[500]
-    fcolor: "#880e4f"     // pink[900]
-  },
-  Other: {
-    icon: <CategoryOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#f5f5f50f",   // grey[50]
-    bgcolor: "#f5f5f530",   // grey[100]
-    mcolor: "#bdbdbd5e",    // grey[400]
-    fcolor: "#a4a4a4"     // grey[900]
-  },
-};
-
-const WEATHER_API_KEY = "c5298240cb3e71775b479a32329803ab"; // <-- Replace with your API key
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 
 
-// Fade-in animation keyframes
 const fadeIn = keyframes`
   from {
     opacity: 0;
@@ -177,7 +82,6 @@ const fadeIn = keyframes`
   }
 `;
 
-// Custom dark theme based on your detailed colors
 const theme = createTheme({
   palette: {
     mode: "dark",
@@ -306,16 +210,112 @@ const theme = createTheme({
   },
 });
 
+const CATEGORY_ICONS = {
+  Food: {
+    icon: <RestaurantOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#ff9c000f",   // orange[50]
+    bgcolor: "#ff9c0030",   // orange[50]
+    mcolor: "#ff98005e",    // orange[500]
+    fcolor: "#e3aa8b"     // orange[900]
+  },
+  Tour: {
+    icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#0093ff0f",   // blue[50]
+    bgcolor: "#0093ff30",   // blue[50]
+    mcolor: "#2196f35e",    // blue[500]
+    fcolor: "#92b6ef"     // blue[900]
+  },
+  Rent: {
+    icon: <HomeOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#88ff000f",   // lightGreen[50]
+    bgcolor: "#88ff0030",   // lightGreen[50]
+    mcolor: "#8bc34a5e",    // lightGreen[500]
+    fcolor: "#8dc378"     // lightGreen[900]
+  },
+  Utilities: {
+    icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#8ad0ff0f",   // blueGrey[50]
+    bgcolor: "#8ad0ff30",   // blueGrey[50]
+    mcolor: "#607d8b5e",    // blueGrey[500]
+    fcolor: "#8e9ba1"     // blueGrey[900]
+  },
+  Shopping: {
+    icon: <LocalMallOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#ff00550f",   // pink[50]
+    bgcolor: "#ff005530",   // pink[50]
+    mcolor: "#e91e635e",    // pink[500]
+    fcolor: "#ffbce0"     // pink[900]
+  },
+  Fun: {
+    icon: <EmojiEventsOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#f5e7480f",   // yellow[50]
+    bgcolor: "#f5e74830",   // yellow[50]
+    mcolor: "#c3b6415e",    // yellow[500]
+    fcolor: "#ddca15"     // yellow[900]
+  },
+  Hospital: {
+    icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#ff00260f",   // red[50]
+    bgcolor: "#ff002630",   // red[50]
+    mcolor: "#f443365e",    // red[500]
+    fcolor: "#efa4a4"     // red[900]
+  },
+  Education: {
+    icon: <SchoolOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#0093ff0f",   // blue[50]
+    bgcolor: "#0093ff30",   // blue[50]
+    mcolor: "#2196f35e",    // blue[500]
+    fcolor: "#92b6ef"      // indigo[900]
+  },
+  Fuel: {
+    icon: <LocalGasStationOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#fbe9e70f",   // deepOrange[50]
+    bgcolor: "#fbe9e730",   // deepOrange[50]
+    mcolor: "#ff5722",    // deepOrange[500]
+    fcolor: "#bf360c"     // deepOrange[900]
+  },
+  Entertainment: {
+    icon: <MovieOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#f3e5f50f",   // purple[50]
+    bgcolor: "#f3e5f530",   // purple[50]
+    mcolor: "#9c27b0",    // purple[500]
+    fcolor: "#4a148c"     // purple[900]
+  },
+  Bills: {
+    icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#e0f2f10f",   // teal[50]
+    bgcolor: "#e0f2f130",   // teal[50]
+    mcolor: "#009688",    // teal[500]
+    fcolor: "#004d40"     // teal[900]
+  },
+  Travel: {
+    icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#e1f5fe0f",   // lightBlue[50]
+    bgcolor: "#e1f5fe",   // lightBlue[50]
+    mcolor: "#03a9f4",    // lightBlue[500]
+    fcolor: "#01579b"     // lightBlue[900]
+  },
+  Medical: {
+    icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#fce4ec0f",   // pink[50]
+    bgcolor: "#fce4ec",   // pink[50]
+    mcolor: "#e91e63",    // pink[500]
+    fcolor: "#880e4f"     // pink[900]
+  },
+  Other: {
+    icon: <CategoryOutlinedIcon sx={{ fontSize: "large" }} />,
+    listbgcolor: "#f5f5f50f",   // grey[50]
+    bgcolor: "#f5f5f530",   // grey[100]
+    mcolor: "#bdbdbd5e",    // grey[400]
+    fcolor: "#a4a4a4"     // grey[900]
+  },
+};
+
+
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
 
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return "Good Morning";
-  if (hour >= 12 && hour < 17) return "Good Afternoon";
-  if (hour >= 17 && hour < 21) return "Good Evening";
-  return "Good Night";
-}
+const WEATHER_API_KEY = "c5298240cb3e71775b479a32329803ab"; // <-- Replace with your API key
 
 function getUserFromStorage() {
   // Try localStorage first
@@ -336,6 +336,15 @@ function getUserFromStorage() {
     }
   } catch {}
   return null;
+}
+
+// Utility functions
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "Good Morning";
+  if (hour >= 12 && hour < 17) return "Good Afternoon";
+  if (hour >= 17 && hour < 21) return "Good Evening";
+  return "Good Night";
 }
 
 function getDefaultTripIndex(trips) {
@@ -366,67 +375,122 @@ const sliderSettings = {
   arrows: true,
 };
 
-
 const Home = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [notLoggedIn, setNotLoggedIn] = useState(false);
   const muiTheme = useTheme();
   const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
+
+  // User auth states
+  const [authInitialized, setAuthInitialized] = useState(false);
+  const [user, setUser] = useState(null);
+
+  // Loading and login states
+  const [loading, setLoading] = useState(true);
+  const [notLoggedIn, setNotLoggedIn] = useState(false);
+
+  // App data states
+  const [userData, setUserData] = useState({});
+  const [userType, setUserType] = useState("");
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   const [budgets, setBudgets] = useState([]);
   const [reminders, setReminders] = useState([]);
   const [remindersLoading, setRemindersLoading] = useState(true);
   const [remindersDrawerOpen, setRemindersDrawerOpen] = useState(false);
-  const remindersRef = useRef();const [myTrips, setMyTrips] = useState([]); // All trips the user joined
-  const [tripMembersMap, setTripMembersMap] = useState({}); // uid array for each tripID: array of user objects
-  const [timelineStatsMap, setTimelineStatsMap] = useState({}); // timeline status per tripID
-  const [sliderIndex, setSliderIndex] = useState(0);
+  const remindersRef = useRef();
+
+  const [myTrips, setMyTrips] = useState([]);
+  const [tripMembersMap, setTripMembersMap] = useState({});
+  const [timelineStatsMap, setTimelineStatsMap] = useState({});
   const [tripGroupsMap, setTripGroupsMap] = useState({});
+  const [sliderIndex, setSliderIndex] = useState(0);
 
-  // User data states
-  const [userData, setUserData] = useState({
-    name: "",
-    username: "",
-    email: "",
-    mobile: "",
-    photoURL: "",
-    bio: "",
-  });
 
-  const [userType, setUserType] = useState(""); // BETA or DEV BETA label
+  // Firebase Auth realtime listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setAuthInitialized(true);
+      if (!firebaseUser) {
+        setUser(null);
+        setNotLoggedIn(true);
+        setLoading(false);
+        return;
+      }
+      setUser(firebaseUser);
 
-  
-  const gotoBudgetMngr = () => {
-    navigate("/budget-mngr");
-  };
+      // Fetch user data realtime listener
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setUserData(data);
+          setUserType(data.type || "");
+        }
+        setNotLoggedIn(false);
+        setLoading(false);
+      }, () => {
+        setUserData({});
+        setUserType("");
+        setLoading(false);
+      });
 
-useEffect(() => {
-    const user = getUserFromStorage();
-    if (!user?.uid) {
-      setReminders([]);
-      setRemindersLoading(false);
-      return;
-    }
-    setRemindersLoading(true);
-    const q = query(
-      collection(db, "reminders"),
-      where("uid", "==", user.uid),
-      orderBy("createdAt", "desc")
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = [];
-      snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
-      setReminders(data);
-      setRemindersLoading(false);
-    }, () => {
-      setReminders([]);
-      setRemindersLoading(false);
+      // Cleanup on unmount
+      return () => unsubscribeUser();
     });
+
     return () => unsubscribe();
   }, []);
 
-     // Fetch reminders for Home page glimpse
+  // Load weather once (with caching)
+  useEffect(() => {
+    let cachedWeather = null;
+    try {
+      const local = localStorage.getItem(WEATHER_STORAGE_KEY);
+      if (local) cachedWeather = JSON.parse(local);
+      if (!cachedWeather) {
+        const cookieWeather = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith(WEATHER_STORAGE_KEY + "="))
+          ?.split("=")[1];
+        if (cookieWeather) cachedWeather = JSON.parse(decodeURIComponent(cookieWeather));
+      }
+    } catch {}
+    if (cachedWeather) {
+      setWeather(cachedWeather);
+      setWeatherLoading(false);
+    } else {
+      setWeatherLoading(true);
+      if (!navigator.geolocation) {
+        setWeatherLoading(false);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const res = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${WEATHER_API_KEY}&units=metric`
+          );
+          const data = await res.json();
+          const weatherObj = {
+            main: data.weather?.[0]?.main || "Default",
+            desc: data.weather?.[0]?.description || "",
+            temp: Math.round(data.main?.temp),
+            city: data.name,
+          };
+          setWeather(weatherObj);
+          localStorage.setItem(WEATHER_STORAGE_KEY, JSON.stringify(weatherObj));
+          document.cookie = `${WEATHER_STORAGE_KEY}=${encodeURIComponent(
+            JSON.stringify(weatherObj)
+          )}; path=/; max-age=1800`;
+        } catch {
+          setWeather(null);
+        }
+        setWeatherLoading(false);
+      }, () => setWeatherLoading(false), { timeout: 10000 });
+    }
+  }, []);
+
+
+  // Real-time reminders listener
   useEffect(() => {
     const fetchReminders = async () => {
       setRemindersLoading(true);
@@ -459,298 +523,18 @@ useEffect(() => {
     fetchReminders();
   }, []);
 
+  // Real-time budgets listener
   useEffect(() => {
-  // Try to load weather from localStorage/cookie first
-  let cachedWeather = null;
-  try {
-    const local = localStorage.getItem(WEATHER_STORAGE_KEY);
-    if (local) cachedWeather = JSON.parse(local);
-    if (!cachedWeather) {
-      const cookieWeather = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith(WEATHER_STORAGE_KEY + "="))
-        ?.split("=")[1];
-      if (cookieWeather) cachedWeather = JSON.parse(decodeURIComponent(cookieWeather));
-    }
-  } catch {}
-  if (cachedWeather) {
-    setWeather(cachedWeather);
-    setWeatherLoading(false);
-  }
-
-  if (!navigator.geolocation) {
-    setWeatherLoading(false);
-    return;
-  }
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
-      try {
-        const { latitude, longitude } = position.coords;
-        const res = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${WEATHER_API_KEY}&units=metric`
-        );
-        const data = await res.json();
-        const weatherObj = {
-          main: data.weather?.[0]?.main || "Default",
-          desc: data.weather?.[0]?.description || "",
-          temp: Math.round(data.main?.temp),
-          city: data.name
-        };
-        setWeather(weatherObj);
-        // Save to localStorage and cookie for sync/offline
-        localStorage.setItem(WEATHER_STORAGE_KEY, JSON.stringify(weatherObj));
-        document.cookie = `${WEATHER_STORAGE_KEY}=${encodeURIComponent(JSON.stringify(weatherObj))}; path=/; max-age=1800`; // 30 min
-      } catch {
-        setWeather(null);
-      }
-      setWeatherLoading(false);
-    },
-    () => setWeatherLoading(false),
-    { timeout: 10000 }
-  );
-}, [setWeather, setWeatherLoading]);
-
-  useEffect(() => {
-    // Try to get userId from localStorage/cookie (like Budget.js)
-    let userId = null;
-    try {
-      const storedUser = localStorage.getItem("bunkmateuser");
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        if (parsed?.uid) userId = parsed.uid;
-      }
-      if (!userId) {
-        // Try cookie
-        const cookieUser = document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("bunkmateuser="))
-          ?.split("=")[1];
-        if (cookieUser) {
-          const parsed = JSON.parse(decodeURIComponent(cookieUser));
-          if (parsed?.uid) userId = parsed.uid;
-        }
-      }
-    } catch {}
-    if (!userId) {
-      setBudgets([]);
-      return;
-    }
-
-        import("../firebase").then(({ db }) => {
-      import("firebase/firestore").then(({ doc, getDoc }) => {
-        const docRef = doc(db, "budgets", userId);
-        getDoc(docRef).then((docSnap) => {
-          if (docSnap.exists()) {
-            setBudgets(docSnap.data().items || []);
-          } else {
-            setBudgets([]);
-          }
-        });
-      });
-    });
-  }, []);
-
-    const sortedBudgets = useMemo(() => {
-    return [...budgets].sort((a, b) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bTime - aTime;
-    });
-  }, [budgets]);
-
-    useEffect(() => {
-    if (!navigator.geolocation) {
-      setWeatherLoading(false);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude, longitude } = position.coords;
-          const res = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${WEATHER_API_KEY}&units=metric`
-          );
-          const data = await res.json();
-          setWeather({
-            main: data.weather?.[0]?.main || "Default",
-            desc: data.weather?.[0]?.description || "",
-            temp: Math.round(data.main?.temp),
-            city: data.name
-          });
-        } catch {
-          setWeather(null);
-        }
-        setWeatherLoading(false);
-      },
-      () => setWeatherLoading(false),
-      { timeout: 10000 }
-    );
-  }, []);
-
-  
-useEffect(() => {
-  const user = getUserFromStorage();
-  if (!user || !user.uid) {
-    setMyTrips([]);
-    setTripMembersMap({});
-    setTimelineStatsMap({});
-    return;
-  }
-
-  // Listen to trips where user is a member
-  const tripsQuery = query(
-    collection(db, "trips"),
-    where("members", "array-contains", user.uid)
-  );
-
-  // Subscribe to real-time updates on trips
-  const unsubscribeTrips = onSnapshot(tripsQuery, (querySnapshot) => {
-    const tripsList = [];
-    querySnapshot.forEach((doc) => {
-      tripsList.push({ id: doc.id, ...doc.data() });
-    });
-    setMyTrips(tripsList);
-
-    // For every trip, set up listeners for members and timeline
-    // Because tripsList changes on every snapshot, clean up listeners safely:
-    
-    // Store unsubscribes so we can remove old listeners
-    let memberUnsubs = [];
-    let timelineUnsubs = [];
-
-    // Members fetch with real-time updates
-    tripsList.forEach((trip) => {
-      if (trip.members && Array.isArray(trip.members)) {
-        // For simplicity, we fetch all member docs once (not real-time per member here)
-        // For full real-time, you'd setup onSnapshot per member, but this is costly.
-        Promise.all(
-          trip.members.map((uid) =>
-            getDoc(doc(db, "users", uid)).then((d) =>
-              d.exists() ? { uid: d.id, ...(d.data() || {}) } : null
-            )
-          )
-        ).then((membersData) => {
-          setTripMembersMap((prev) => ({
-            ...prev,
-            [trip.id]: membersData.filter(Boolean),
-          }));
-        });
-      }
-    });
-
-    // Timeline listeners per trip
-    // Unsubscribe from previous listeners to avoid leak. (Use refs or strong closure here)
-    let timelineUnsubFunctions = [];
-    timelineUnsubs.forEach((unsub) => unsub && unsub());
-    timelineUnsubs = tripsList.map((trip) => {
-      const timelineCol = collection(db, "trips", trip.id, "timeline");
-      const unsub = onSnapshot(timelineCol, (snap) => {
-        const events = snap.docs.map((d) => d.data());
-        const total = events.length || 1;
-        const completed = events.filter((e) => e.completed === true).length;
-        setTimelineStatsMap((prev) => ({
-          ...prev,
-          [trip.id]: {
-            completed,
-            total,
-            percent: Math.round((completed / total) * 100),
-          },
-        }));
-      });
-      timelineUnsubFunctions.push(unsub);
-      return unsub;
-    });
-
-    // Cleanup timeline listeners when trips update
-    return () => {
-      timelineUnsubFunctions.forEach((unsub) => unsub && unsub());
-    };
-  });
-
-  return () => {
-    unsubscribeTrips();
-  };
-}, []);
-
-useEffect(() => {
-  if (myTrips && myTrips.length > 0) {
-    setSliderIndex(getDefaultTripIndex(myTrips));
-  }
-}, [myTrips]);
-
-  useEffect(() => {
-    if (!myTrips.length) {
-      setTripGroupsMap({});
-      return;
-    }
-    async function fetchGroupsForTrips() {
-      const groupMap = {};
-      await Promise.all(
-        myTrips.map(async trip => {
-          const groupSnap = await getDoc(doc(db, "groupChats", trip.id));
-          if (groupSnap.exists()) {
-            groupMap[trip.id] = groupSnap.data();
-          }
-        })
-      );
-      setTripGroupsMap(groupMap);
-    }
-    fetchGroupsForTrips();
-  }, [myTrips]);
-
-
-  // Pick gradient based on weather
-  const weatherBg =
-  weather && weatherGradients[weather.main]
-  ? weatherGradients[weather.main]
-  : weatherGradients.Default;
-  
-  const buttonWeatherBg =
-  weather && weatherColors[weather.main]
-    ? weatherColors[weather.main]
-    : weatherColors.Default;
-  
-    
-  const WeatherBgdrop =
-  weather && weatherbgColors[weather.main]
-    ? weatherbgColors[weather.main]
-    : weatherbgColors.Default;
-  
-  useEffect(() => {
-    const session = localStorage.getItem(SESSION_KEY) || document.cookie.split('; ').find(row => row.startsWith(SESSION_KEY + '='))?.split('=')[1];
-    if (!session) {
-      setLoading(true);
-      // No session, check for user in localStorage
-      const storedUser = localStorage.getItem("bunkmateuser");
-      if (!storedUser) {
-        setNotLoggedIn(true); // Instead of redirect
-        setLoading(false);
-        return;
-      }
-    } else {
-      setLoading(false);
-    }
-  }, [navigate]);
-
-  // Save session on successful login/fetch
-  useEffect(() => {
-    if (userData && userData.email) {
-      localStorage.setItem(SESSION_KEY, "active");
-      document.cookie = `${SESSION_KEY}=active; path=/; max-age=604800`; // 7 days
-    }
-  }, [userData]);
-
-    // Add loading state to budgets fetch
-useEffect(() => {
-    const user = getUserFromStorage();
     if (!user?.uid) {
       setBudgets([]);
       setLoading(false);
       return;
     }
     setLoading(true);
+
     const budgetsDocRef = doc(db, "budgets", user.uid);
-    const unsubscribe = onSnapshot(budgetsDocRef, (docSnap) => {
+
+    const unsubscribeBudgets = onSnapshot(budgetsDocRef, (docSnap) => {
       if (docSnap.exists()) {
         setBudgets(docSnap.data().items || []);
       } else {
@@ -761,87 +545,142 @@ useEffect(() => {
       setBudgets([]);
       setLoading(false);
     });
-    return () => unsubscribe();
-  }, []);
 
-  // --------- User Data Load ---------
+    return () => unsubscribeBudgets();
+  }, [user]);
+
+    // Pick gradient based on weather
+    const weatherBg =
+    weather && weatherGradients[weather.main]
+    ? weatherGradients[weather.main]
+    : weatherGradients.Default;
+    
+    const buttonWeatherBg =
+    weather && weatherColors[weather.main]
+      ? weatherColors[weather.main]
+      : weatherColors.Default;
+    
+      
+    const WeatherBgdrop =
+    weather && weatherbgColors[weather.main]
+      ? weatherbgColors[weather.main]
+      : weatherbgColors.Default;
+
+          const sortedBudgets = useMemo(() => {
+          return [...budgets].sort((a, b) => {
+            const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return bTime - aTime;
+          });
+        }, [budgets]);
+
+  // Real-time trips listener + timelines + trip member fetch (one-time per trip)
   useEffect(() => {
-    async function fetchUserData() {
-      setLoading(true);
-      let uid = auth.currentUser?.uid || null;
-
-      if (!uid) {
-        const storedUser = localStorage.getItem("bunkmateuser");
-        if (storedUser) {
-          try {
-            const parsed = JSON.parse(storedUser);
-            if (parsed?.uid) uid = parsed.uid;
-          } catch {}
-        }
-        if (!uid) {
-          const cookieUser = document.cookie.split("; ")
-            .find(row => row.startsWith("bunkmateuser="))
-            ?.split("=")[1];
-          if (cookieUser) {
-            try {
-              const parsed = JSON.parse(decodeURIComponent(cookieUser));
-              if (parsed?.uid) uid = parsed.uid;
-            } catch {}
-          }
-        }
-      }
-
-      if (!uid) {
-        setNotLoggedIn(true);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const docRef = doc(db, "users", uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const newUserData = {
-            name: data.displayName || data.name || "User",
-            email: data.email || "",
-            mobile: data.phoneNumber || data.mobile || "Not provided",
-            photoURL: data.photoURL || "",
-            bio: data.userBio || data.bio || "",
-            uid
-          };
-          setUserData(newUserData);
-          setUserType(data.type || "");
-          localStorage.setItem("bunkmateuser", JSON.stringify(newUserData));
-          localStorage.setItem(SESSION_KEY, "active");
-          document.cookie = `${SESSION_KEY}=active; path=/; max-age=604800`;
-          setNotLoggedIn(false);
-        } else {
-          setNotLoggedIn(true);
-        }
-      } catch {
-        setNotLoggedIn(true);
-      }
-      setLoading(false);
+    if (!user?.uid) {
+      setMyTrips([]);
+      setTripMembersMap({});
+      setTimelineStatsMap({});
+      setTripGroupsMap({});
+      return;
     }
-    if (!userData.email || !userData.uid) fetchUserData();
-  }, [userData.email, userData.uid]);
 
-  // --------- Slider index setup ---------
+    const tripsQuery = query(
+      collection(db, "trips"),
+      where("members", "array-contains", user.uid)
+    );
+    
+    const unsubscribeTrips = onSnapshot(tripsQuery, (querySnapshot) => {
+      const tripsList = [];
+      querySnapshot.forEach(doc => tripsList.push({ id: doc.id, ...doc.data() }));
+      setMyTrips(tripsList);
+
+      // Fetch members once per trip, not real-time per member for performance
+      tripsList.forEach(async (trip) => {
+        if (trip.members && Array.isArray(trip.members)) {
+          const membersData = await Promise.all(
+            trip.members.map(uid =>
+              getDoc(doc(db, "users", uid)).then(d => d.exists() ? { uid: d.id, ...d.data() } : null)
+            )
+          );
+          setTripMembersMap(prev => ({ ...prev, [trip.id]: membersData.filter(Boolean) }));
+        }
+      });
+
+      // Setup timeline listeners for each trip, cleanup on new trips update
+      let timelineUnsubs = [];
+      timelineUnsubs.forEach(unsub => unsub && unsub());
+      timelineUnsubs = tripsList.map(trip => {
+        const timelineCol = collection(db, "trips", trip.id, "timeline");
+        const unsub = onSnapshot(timelineCol, snap => {
+          const events = snap.docs.map(d => d.data());
+          const total = events.length || 1;
+          const completed = events.filter(e => e.completed === true).length;
+          setTimelineStatsMap(prev => ({
+            ...prev,
+            [trip.id]: { completed, total, percent: Math.round((completed / total) * 100) }
+          }));
+        });
+        return unsub;
+      });
+
+      return () => timelineUnsubs.forEach(unsub => unsub && unsub());
+    });
+
+    return () => unsubscribeTrips();
+  }, [user]);
+
+  // Update slider index when trips list changes
   useEffect(() => {
     if (myTrips && myTrips.length > 0) {
       setSliderIndex(getDefaultTripIndex(myTrips));
     }
   }, [myTrips]);
 
+  // Load trip groups once when trips update
+  useEffect(() => {
+    if (!myTrips.length) {
+      setTripGroupsMap({});
+      return;
+    }
 
+    const fetchGroupsForTrips = async () => {
+      const groupMap = {};
+      await Promise.all(
+        myTrips.map(async trip => {
+          const groupSnap = await getDoc(doc(db, "groupChats", trip.id));
+          if (groupSnap.exists()) {
+            groupMap[trip.id] = groupSnap.data();
+          }
+        })
+      );
+      setTripGroupsMap(groupMap);
+    };
+
+    fetchGroupsForTrips();
+  }, [myTrips]);
+
+  // Logout handler
   const handleLogout = () => {
     localStorage.removeItem(SESSION_KEY);
     document.cookie = `${SESSION_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;`;
     localStorage.removeItem("bunkmateuser");
-    navigate("/login");
+    auth.signOut().then(() => navigate("/login"));
   };
 
+  if (!authInitialized) {
+    // Wait for Firebase Auth initialization
+    return (
+      <Box sx={{display:"flex", justifyContent:"center", alignItems:"center", minHeight:"100vh"}}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (notLoggedIn) {
+    // User not logged in, redirect or show message
+    navigate("/login", { replace: true });
+    return null; // Avoid rendering this page
+  }
 
   return (
     <ThemeProvider theme={theme}>
@@ -1368,76 +1207,118 @@ useEffect(() => {
 </Grid>
 
         {/* Reminders Glimpse Card */}
-        <Container maxWidth="lg" sx={{ mt: 2, mb: 2 }}>
-          <Box sx={{ mb: 2, background: "#f1f1f111", color: "#fff", boxShadow: "none", borderRadius: 2 }}>
-            <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" , mb: 3 }}>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <AlarmOutlinedIcon sx={{ mr: 1 }} />
-                  <Typography variant="h6">Reminders</Typography>
-                </Box>
+<Container maxWidth="lg" sx={{ mt: 2, mb: 2 }}>
+  <Box
+    sx={{
+      mb: 2,
+      background: "#f1f1f111",
+      color: "#fff",
+      boxShadow: "none",
+      borderRadius: 2,
+    }}
+  >
+    <CardContent>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 3,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <AlarmOutlinedIcon sx={{ mr: 1 }} />
+          <Typography variant="h6">Reminders</Typography>
+        </Box>
 
-                <Button
-                  size="small"
-                  sx={{ height: 30, minWidth: 30, borderRadius: "80px", backgroundColor: WeatherBgdrop, color: buttonWeatherBg, fontSize: 24, padding: "4px 6px", boxShadow: "none" }}
-                  onClick={() => {
-                      remindersRef.current?.openAddReminderDrawer();
-                  }}
-                >
-                  +
-                </Button>
-              </Box>
-              {remindersLoading ? (
-                <Typography color="text.secondary" fontSize={14}>
-                  Loading...
-                </Typography>
-              ) : reminders.length === 0 ? (
-                <Typography color="text.secondary" fontSize={14}>
-                  No reminders yet.
-                </Typography>
-              ) : (
-                <ul style={{ margin: 0, paddingLeft: 0 }}>
-                  {reminders
-                    .filter(rem => !rem.completed)
-                    .slice(0, 3)
-                    .map((rem) => (
-                      <li
-                        key={rem.id}
-                        style={{
-                          fontSize: 16,
-                          backgroundColor: "#f1f1f111",
-                          borderRadius: 28,
-                          padding: 9,
-                          listStyle: "none",
-                          marginBottom: 7,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 9,
-                        }}
-                      >
-                        <span
-                          style={{ cursor: "pointer", marginRight: 8, marginLeft: 8, display: "flex", alignItems: "center" }}
-                          title="Mark as completed"
-                          onClick={() => remindersRef.current?.markReminderComplete(rem.id)}
-                        >
-                          <NotificationsActiveIcon style={{ color: "#aaa", fontSize: 22 }} />
-                        </span>
-                        <span>{rem.text}</span>
-                      </li>
-                    ))}
-                </ul>
-              )}
-              <Button
-                size="small"
-                sx={{ mt: 1, background: WeatherBgdrop, color: buttonWeatherBg, fontSize: 14, padding: "4px 8px", boxShadow: "none" }}
-                onClick={() => setRemindersDrawerOpen(true)}
+        <Button
+          size="small"
+          sx={{
+            height: 30,
+            minWidth: 30,
+            borderRadius: "80px",
+            backgroundColor: WeatherBgdrop,
+            color: buttonWeatherBg,
+            fontSize: 24,
+            padding: "4px 6px",
+            boxShadow: "none",
+          }}
+          onClick={() => {
+            remindersRef.current?.openAddReminderDrawer();
+          }}
+        >
+          +
+        </Button>
+      </Box>
+
+      {remindersLoading ? (
+        <Typography color="text.secondary" fontSize={14}>
+          Loading...
+        </Typography>
+      ) : reminders.length === 0 ? (
+        <Typography color="text.secondary" fontSize={14}>
+          No reminders yet.
+        </Typography>
+      ) : (
+        <ul style={{ margin: 0, paddingLeft: 0 }}>
+          {reminders
+            .filter((rem) => !rem.completed)
+            .slice(0, 3)
+            .map((rem) => (
+              <li
+                key={rem.id}
+                style={{
+                  fontSize: 16,
+                  backgroundColor: "#f1f1f111",
+                  borderRadius: 28,
+                  padding: 9,
+                  listStyle: "none",
+                  marginBottom: 7,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                }}
               >
-                View All
-              </Button>
-            </CardContent>
-          </Box>
-        </Container>
+                <span
+                  style={{
+                    cursor: "pointer",
+                    marginRight: 8,
+                    marginLeft: 8,
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                  title="Mark as completed"
+                  onClick={() =>
+                    remindersRef.current?.markReminderComplete(rem.id)
+                  }
+                >
+                  <NotificationsActiveIcon
+                    style={{ color: "#aaa", fontSize: 22 }}
+                  />
+                </span>
+                <span>{rem.text}</span>
+              </li>
+            ))}
+        </ul>
+      )}
 
+      <Button
+        size="small"
+        sx={{
+          mt: 1,
+          background: WeatherBgdrop,
+          color: buttonWeatherBg,
+          fontSize: 14,
+          padding: "4px 8px",
+          boxShadow: "none",
+        }}
+        onClick={() => setRemindersDrawerOpen(true)}
+      >
+        View All
+      </Button>
+    </CardContent>
+  </Box>
+</Container>
 
 
         <Reminders
