@@ -1016,7 +1016,7 @@ const combinedChats = [
     background: theme.palette.primary.bg,
     borderRadius: '20px',
     fontSize: '38px',
-    color: "#000",
+    color: theme.palette.primary.main,
     boxShadow: "none",
   }}
 >

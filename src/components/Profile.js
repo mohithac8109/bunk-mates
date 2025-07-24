@@ -517,90 +517,180 @@ sx={{
       </Container>
     )}
 
-    {drawerPage === "generalSettings" && (
-<Container sx={{ mt: 1, mb: 2 }}>
+{drawerPage === "generalSettings" && (
+  <Container sx={{ mt: 1, mb: 2 }}>
     <Button
       startIcon={<ArrowBackIcon />}
       onClick={() => setDrawerPage("main")}
       sx={{
         mb: 2,
-        borderRadius: 8, 
+        borderRadius: 8,
         color: theme.palette.text.primary,
-        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", 
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
         '&:hover': { backgroundColor: "#f1f1f121" },
       }}
     >
       Back
     </Button>
 
-  {/* Theme Section */}
-<Box sx={{ mb: 3 }}>
-  <Typography variant="subtitle1" sx={{ mb: 1 }}>Theme</Typography>
-  <FormControlLabel
-    control={
-      <Switch
-        checked={mode === "dark"}
-        onChange={toggleTheme}
-        name="themeToggle"
-        color="primary"
-      />
-    }
-    label={mode === "dark" ? "Dark Mode" : "Light Mode"}
-  />
-  <Typography variant="subtitle2" sx={{ mt: 2 }}>Accent Color</Typography>
-  <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-    {["default", "blue", "green", "red", "orange"].map((opt) => (
-      <Button
-        key={opt}
-        variant={accent === opt ? "contained" : "outlined"}
-        sx={{
-          backgroundColor:
-            opt === "default"
-              ? undefined
-              : opt === "blue"
-              ? "#1976d2"
-              : opt === "green"
-              ? "#43a047"
-              : opt === "red"
-              ? "#e53935"
-              : opt === "orange"
-              ? "#f9971fff"
-              : undefined,
-          color: theme.palette.text.primary,
-        }}
-        onClick={() => setAccent(opt)}
-      >
-        {opt.charAt(0).toUpperCase() + opt.slice(1)}
-      </Button>
-    ))}
-  </Box>
+        {/* Header */}
+    <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>
+      General Settings
+    </Typography>
+
+    {/* THEME MODE: "Dark" / "Light" pill toggle group */}
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="subtitle1" sx={{ mb: 1 }}>Who can use dark mode?</Typography>
+      {/* Really, it's just the theme mode selector */}
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Button
+          onClick={() => { setMode("dark"); }}
+          variant={mode === "dark" ? "contained" : "outlined"}
+          sx={{
+            borderRadius: 999,
+            px: 3, py: 0.5,
+            fontWeight: 600,
+            fontSize: "1rem",
+            backgroundColor: mode === "dark" ? "#000000ff" : "transparent",
+            color: mode === "dark" ? "#fff" : theme.palette.text.primary,
+            borderColor: "#aaa",
+            boxShadow: "none",
+          }}
+        >Dark Mode</Button>
+        <Button
+          onClick={() => { setMode("light"); }}
+          variant={mode === "light" ? "contained" : "outlined"}
+          sx={{
+            borderRadius: 999,
+            px: 3, py: 0.5,
+            fontWeight: 600,
+            fontSize: "1rem",
+            backgroundColor: mode === "light" ? "#fff" : "transparent",
+            color: mode === "light" ? "#222" : theme.palette.text.primary,
+            borderColor: "#aaa",
+            boxShadow: "none",
+            '&:hover': { backgroundColor: "#f7f7f7", color: "#222" },
+          }}
+        >Light Mode</Button>
+      </Box>
+    </Box>
+
+    {/* ACCENT COLOR: group of pill/toggle buttons, like image */}
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="subtitle1" sx={{ mb: 1 }}>Accent Color</Typography>
+      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+        {[
+          { opt: "default", label: "", bg: theme.palette.primary.bg , color: theme.palette.text.primary },
+        ].map(({ opt, label, bg, color }) => (
+          <Button
+            key={opt}
+            onClick={() => setAccent(opt)}
+            variant={"contained"}
+            fullWidth
+            sx={{
+              borderRadius: 4,
+              px: 3, py: 1.2,
+              fontWeight: 600,
+              fontSize: "1rem",
+              height: 50,
+              backgroundColor: bg,
+              boxShadow: "none",
+              mb: 3,
+              color: accent === opt ? color : theme.palette.primary.main,
+              '&:hover': {
+                backgroundColor: bg,
+                color: color
+              }
+            }}
+          >This is the Accent Preview</Button>
+        ))}
+      </Box>
+
+<Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", width: 240, mx: "auto", }}>
+  {[
+    { opt: "blue", label: "Blue", bg: "#bbdefb", color: "#fff" },
+    { opt: "green", label: "Green", bg: "#c8e6c9", color: "#fff" },
+    { opt: "red", label: "Red", bg: "#EF5350", color: "#fff" },
+    { opt: "orange", label: "Orange", bg: "#FFCC80", color: "#fff" },
+    { opt: "yellow", label: "Yellow", bg: "#FFEB3B", color: "#000" },
+    { opt: "turquoise", label: "Turquoise", bg: "#b6f6ffff", color: "#fff" },
+    { opt: "lime", label: "Lime", bg: "#DCE775", color: "#000" },
+    { opt: "purple", label: "Purple", bg: "#f4b8ffff", color: "#fff" },
+    { opt: "skyblue", label: "Sky Blue", bg: "#81D4FA", color: "#fff" },
+    { opt: "mint", label: "Mint", bg: "#A5D6A7", color: "#fff" },
+  ].map(({ opt, label, bg, color }) => (
+    <Button
+      key={opt}
+      onClick={() => setAccent(opt)}
+      variant={"contained"}
+      sx={{
+        borderRadius: 999,
+        fontWeight: 600,
+        fontSize: "0.875rem",
+        minWidth: 35,
+        minHeight: 35,
+        backgroundColor: bg,
+        color: accent === opt ? color : theme.palette.text.primary,
+        border: accent === opt ? "2px solid" : "2px solid",
+        borderColor: accent === opt ? theme.palette.text.primary : "#aaa",
+        textTransform: "none",
+        boxShadow: "none",
+        '&:hover': {
+          backgroundColor: bg,
+          color: color
+        }
+      }}
+    />
+  ))}
 </Box>
 
+    </Box>
 
-  {/* Location Section */}
-  <Box sx={{ mb: 3 }}>
-    <Typography variant="subtitle1" sx={{ mb: 1 }}>Location</Typography>
-    <FormControlLabel
-      control={
-        <Switch
-          checked={settings.locationMode === "auto"}
-          onChange={handleLocationModeChange}
+    {/* LOCATION: Allow pill-style toggle for auto/manual */}
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="subtitle1" sx={{ mb: 1 }}>Location</Typography>
+      <Box sx={{ display: "flex", gap: 2 }}>
+        <Button
+          variant={settings.locationMode === "auto" ? "contained" : "outlined"}
+          onClick={() => handleLocationModeChange({ target: { checked: true } })}
+          sx={{
+            borderRadius: 999,
+            px: 3, py: 1.2,
+            fontWeight: 600,
+            backgroundColor: settings.locationMode === "auto" ? theme.palette.primary.main : "transparent",
+            color: settings.locationMode === "auto" ? "#fff" : "#333",
+            minWidth: 96,
+            boxShadow: "none",
+          }}
+        >Auto</Button>
+        <Button
+          variant={settings.locationMode === "manual" ? "contained" : "outlined"}
+          onClick={() => handleLocationModeChange({ target: { checked: false } })}
+          sx={{
+            borderRadius: 999,
+            px: 3, py: 1.2,
+            fontWeight: 600,
+            backgroundColor: settings.locationMode !== "auto" ? theme.palette.primary.main : "transparent",
+            color: settings.locationMode !== "auto" ? "#fff" : "#333",
+            borderColor: settings.locationMode !== "auto" ? theme.palette.primary.main : "#aaa",
+            minWidth: 96,
+            boxShadow: "none",
+          }}
+        >Manual</Button>
+      </Box>
+      {settings.locationMode !== "auto" && (
+        <TextField
+          label="Set Location Manually"
+          value={settings.manualLocation}
+          onChange={handleManualLocationChange}
+          fullWidth
+          sx={{ mt: 2 }}
         />
-      }
-      label="Use my current location automatically"
-    />
-    {settings.locationMode !== "auto" && (
-      <TextField
-        label="Set Location Manually"
-        value={settings.manualLocation}
-        onChange={handleManualLocationChange}
-        fullWidth
-        sx={{ mt: 1 }}
-      />
-    )}
-  </Box>
-</Container>
+      )}
+    </Box>
+  </Container>
 )}
+
 
 {drawerPage === "about" && (
   <Container sx={{ mt: 2, mb: 4 }}>

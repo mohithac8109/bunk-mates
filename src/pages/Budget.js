@@ -61,6 +61,8 @@ import { db } from "../firebase"; // Your Firebase config export
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSettings } from "../contexts/SettingsContext";
+import { useThemeToggle } from "../contexts/ThemeToggleContext";
+import { getTheme } from "../theme";
 
 import ProfilePic from "../components/Profile";
 import BetaAccessGuard from "../components/BetaAccessGuard";
@@ -92,134 +94,7 @@ const fadeIn = keyframes`
   }
 `;
 
-// Custom dark theme based on your detailed colors
-const theme = createTheme({
-  palette: {
-    mode: "dark",
-    background: {
-      default: "#02020200", // almost transparent black for main background
-      paper: "#0c0c0c", // deep black for dialogs/paper
-    },
-    primary: {
-      main: "#00f721", // bright green solid for buttons and accents
-      contrastText: "#000000", // black text on bright green buttons
-    },
-    secondary: {
-      main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
-    },
-    text: {
-      primary: "#FFFFFF", // pure white for main text
-      secondary: "#BDBDBD", // light grey for secondary text
-      disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
-    },
-    action: {
-      hover: "#00f721", // bright green hover for interactive elements
-      selected: "#131313", // dark black for selected states
-      disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
-      disabled: "#BDBDBD",
-    },
-    divider: "rgb(24, 24, 24)", // very dark grey for borders
-  },
-  typography: {
-    fontFamily: "Roboto, Arial, sans-serif",
-    h6: {
-      fontWeight: "bold",
-      color: "#FFFFFF",
-    },
-    body1: {
-      fontSize: "1rem",
-      lineHeight: "1.5",
-      color: "#FFFFFF",
-    },
-    body2: {
-      fontSize: "0.875rem",
-      color: "#BDBDBD",
-    },
-  },
-  shape: {
-    borderRadius: 12,
-  },
-  components: {
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#0c0c0c40",
-          backdropFilter: "blur(40px)", // dark grey/black for app bar background
-          boxShadow: "none",
-          borderBottom: "1px solid rgb(24, 24, 24, 0.5)",
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#2c2c2c00", // dark grey card background
-          color: "#FFFFFF",
-          boxShadow: "none",
-          borderRadius: 16,
-          transition: "box-shadow 0.3s ease, transform 0.3s ease",
-          cursor: "pointer",
-          "&:hover": {
-            transform: "translateY(-4px)",
-            backgroundColor: "#131313",
-          },
-          animation: `${fadeIn} 0.6s ease forwards`,
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-          fontWeight: 600,
-          borderRadius: "12px",
-          transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-          color: "#000",
-          backgroundColor: "#fff",
-          "&:hover": {
-            backgroundColor: "#000",
-            color: "#fff",
-          },
-        },
-      },
-    },
-    MuiAvatar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#f0f0f0", // off-white avatar background
-          color: "#000",
-        },
-      },
-    },
-    MuiMenu: {
-      styleOverrides: {
-        paper: {
-          backgroundColor: "#0c0c0c40", // deep black menu background
-          color: "#FFFFFF",
-          backdropFilter: "blur(40px)",
-          borderRadius: 10,
-          border: "1px solid rgb(24, 24, 24)",
-        },
-      },
-    },
-    MuiMenuItem: {
-      styleOverrides: {
-        root: {
-          "&:hover": {
-            backgroundColor: "#2c2c2c", // translucent dark green hover
-          },
-        },
-      },
-    },
-    MuiBox: {
-      styleOverrides: {
-        root: {
-          // General box overrides if needed
-        },
-      },
-    },
-  },
-});
+
 
 const PREDEFINED_CATEGORIES = [
   "Food",
@@ -778,7 +653,8 @@ const BudgetManager = () => {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const history = useNavigate();
-  const muiTheme = useTheme();
+  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const theme = getTheme(mode, accent);
   const [customCategory, setCustomCategory] = useState("");
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [menuIndex, setMenuIndex] = useState(null);
@@ -816,7 +692,7 @@ const expdrawerFlag = params.get("expdrawer") === "true";
 
   const accentColor = settings.autoAccent && weather
   ? (weatherColors[weather.main] || weatherColors.Default)
-  : (settings.accent === "default" ? "#00f721" : settings.accent);
+  : (settings.accent === "default" ? "#f9971f" : settings.accent);
 
 const dynamicTheme = createTheme({
   palette: {
@@ -1238,8 +1114,7 @@ const canEditExpenses = (() => {
       <Box
         sx={{
           p: 3,
-          backgroundColor: "#00000000",
-          color: "#fff",
+          color: theme.palette.text.primary,
           minHeight: "100vh",
           maxWidth: 600,
           mx: "auto",
@@ -1261,7 +1136,7 @@ const canEditExpenses = (() => {
               justifyContent: "space-between"
             }}
           >
-            <Button onClick={goBack} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
+            <Button onClick={goBack} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 8, height: '50px', color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", }}>
               <ArrowBackIcon />
             </Button>
             <ProfilePic />
@@ -1281,7 +1156,7 @@ const canEditExpenses = (() => {
             paddingTop: "25px", 
             zIndex: 1,
             pb: 3,
-            background: "linear-gradient(to bottom, #0c0c0c, #0c0c0c, #0c0c0c, #0c0c0c, #0c0c0c90, #0c0c0c00)",
+            background: `linear-gradient(to bottom, ${theme.palette.background.default}, ${theme.palette.background.default}, ${theme.palette.background.default}, ${theme.palette.background.default}, ${theme.palette.background.default}90, ${theme.palette.background.default}00)`,
           }}
         >
           <TextField
@@ -1297,7 +1172,7 @@ const canEditExpenses = (() => {
                 </InputAdornment>
               ),
             }}
-            sx={{ flex: 1, minWidth: 200, backdropFilter: "blur(80px)" }}
+            sx={{ flex: 1, minWidth: 200, backdropFilter: "blur(80px)", }}
           />
 
           <TextField
@@ -1325,8 +1200,7 @@ const canEditExpenses = (() => {
     onClick={() => setCardView(cardView === "grid" ? "list" : "grid")}
     sx={{
       borderRadius: 1,
-      boxShadow: "inset 0 2px 8px #222",
-      background: WeatherBgdrop,
+      background: mode === "dark" ? "#f1f1f111" : "#e0e0e0",
       transition: "all 0.2s",
       backdropFilter: "blur(80px)",
       p: 1.2,
@@ -1334,9 +1208,9 @@ const canEditExpenses = (() => {
     }}
   >
     {cardView === "grid" ? (
-      <ViewListIcon sx={{ color: buttonWeatherBg }} />
+      <ViewListIcon sx={{ color: theme.palette.text.primary }} />
     ) : (
-      <ViewModuleIcon sx={{ color: buttonWeatherBg }} />
+      <ViewModuleIcon sx={{ color: theme.palette.text.primary }} />
     )}
   </IconButton>
 </Box>

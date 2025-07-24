@@ -575,19 +575,19 @@ const Home = () => {
       >
         
         {/* AppBar */}
-        <AppBar position="fixed" elevation={0} sx={{ backgroundColor: "transparent", backdropFilter: "blur(40px)", boxShadow: "none" }}>
+        <AppBar position="fixed" elevation={0} sx={{ backgroundColor: "transparent", backdropFilter: "blur(10px)", boxShadow: "none" }}>
           <Toolbar sx={{ justifyContent: 'space-between', py: 1, px: 3, backgroundColor: 'transparent' }}>
-            <Typography variant="h6" sx={{ userSelect: 'none', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="h6" sx={{ userSelect: 'none', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 'bold', color: mode === "dark" ? "#f1f1f1" : "#333" }}>
               BunkMate 🏖️
               {userType && (
                 <Typography
                   variant="caption"
                   sx={{
-                    backgroundColor: mode === "dark" ? "#f1f1f111" : "#d5d5d5ff",
+                    backgroundColor: mode === "dark" ? "#f1f1f141" : "#4848484d",
                     color: mode === "dark" ? "#fff" : "#000",
                     px: 1.5,
-                    py: 0.5,
-                    borderRadius: 1.5,
+                    py: 0.2,
+                    borderRadius: 2.5,
                     fontWeight: 'bold',
                     fontSize: '0.7rem',
                   }}
@@ -600,7 +600,7 @@ const Home = () => {
           </Toolbar>
         </AppBar>
 
-<Box sx={{ height: { xs: 86, sm: 77 } }} />
+<Box sx={{ height: { xs: 0, sm: 77 } }} />
                 {loading ? (
           <Box
             sx={{
@@ -623,12 +623,9 @@ const Home = () => {
         <Box
           sx={{
             width: "100%",
-            position: "relative",
             zIndex: 1,
             mb: 4,
-            borderTopLeftRadius: "2.5rem",
-            borderTopRightRadius: "2.5rem",
-            background: `linear-gradient(to top, rgba(0,0,0,0) 0%, ${theme.palette.primary.bg} 100%)`,
+            background: `linear-gradient(to top, rgba(0,0,0,0) 0%, #00000000 1%, ${theme.palette.primary.mainbg} 100%)`,
             transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
           }}
         >
@@ -661,7 +658,8 @@ const Home = () => {
                 flexWrap: "wrap",
                 gap: 2,
                 borderRadius: 3,
-                p: 3,
+                py: 12,
+                px: 1,
                 transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
                 animation: `${fadeIn} 0.7s`,
                 zIndex: 3,
@@ -679,15 +677,15 @@ const Home = () => {
                   gap: 1.5,
                   px: 2,
                   py: 1,
-                  borderRadius: 2,
-                  background: mode === "dark" ? "#22222262" : "#e5e5e562",
+                  borderRadius: 5,
+                  background: mode === "dark" ? "#0c0c0c5a" : "#f1f1f19a",
                   minWidth: 170,
                   minHeight: 56,
                   animation: `${fadeIn} 0.7s`,
                 }}
               >
                 {weatherLoading ? (
-                  <CircularProgress size={24} color={mode === "dark" ? "#fff" : "#000"} />
+                  <CircularProgress size={24} color={theme.palette.background.primary} />
                 ) : weather ? (
                   <>
                     {weatherIcons[weather.main] || weatherIcons.Default}
@@ -758,14 +756,14 @@ const Home = () => {
                     width: "21vw",
                     aspectRatio: "1 / 1",
                     cursor: "pointer",
-                    background: mode === "dark" ? "#f1f1f111" : "#ffffff41",
-                    borderRadius: 3,
+                    background: mode === "dark" ? "#f1f1f111" : "#0c0c0c07",
+                    borderRadius: 5,
                     boxShadow: "none",
                     transition: "background 0.2s",
                   }}
                   onClick={tile.onClick}
                 >
-                  <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 4, backgroundColor: theme.palette.primary.bgr, color: theme.palette.primary.main }}>
+                  <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 6, backgroundColor: theme.palette.primary.bgr, color: theme.palette.primary.main }}>
                     {tile.icon}
                   </Box>
                   <Typography
@@ -796,7 +794,7 @@ const Home = () => {
                   height: "60vh",
                 }}
               >
-                <CircularProgress color="white" />
+                <CircularProgress color={theme.palette.background.main} />
               </Box>
             ) : (
     <Grid container spacing={3} justifyContent={"center"}>
@@ -828,7 +826,7 @@ const Home = () => {
   >
     <CardContent
       sx={{
-        backgroundColor: mode === "dark" ? "#00000000" : "#ffffff76",
+        backgroundColor: mode === "dark" ? "#00000000" : "#ffffffa1",
         backdropFilter: "blur(12px)",
         borderBottomLeftRadius: 8,
         borderBottomRightRadius: 8,
@@ -836,15 +834,15 @@ const Home = () => {
     >
       <Box display="flex" gap={2} mb={1} alignItems="flex-start" justifyContent="space-between">
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5, color: theme.palette.text.primary }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5, color: mode === "dark" ? "#cbcbcb" : "#3d3d3d" }}>
             {tripInfo?.name || "Unnamed Trip"}
           </Typography>
-          <Typography variant="body2" sx={{ color: theme.palette.text.primary, display: "flex", alignItems: "center" }}>
+          <Typography variant="body2" sx={{ color: mode === "dark" ? "#cbcbcb" : "#3d3d3d", display: "flex", alignItems: "center" }}>
             <LocationOn sx={{ fontSize: 16, mr: 1 }} />
             {tripInfo?.from || "Unknown"} → {tripInfo?.location || "Unknown"}
           </Typography>
           {(tripInfo?.startDate || tripInfo?.date) && (
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, display: "flex", alignItems: "center" }}>
+            <Typography variant="body2" sx={{ color: mode === "dark" ? "#cbcbcb" : "#3d3d3d", display: "flex", alignItems: "center" }}>
               <AccessTime sx={{ fontSize: 16, mr: 1 }} />
               {tripInfo?.startDate || "?"} → {tripInfo?.date || "?"}
             </Typography>
@@ -870,7 +868,7 @@ const Home = () => {
       </Box>
       {timelineStatsMap[tripInfo.id] && (
         <Box>
-          <Typography variant="caption" sx={{ color: mode === "dark" ? "#cbcbcb" : "#555" }}>
+          <Typography variant="caption" sx={{ color: mode === "dark" ? "#cbcbcb" : "#3d3d3d" }}>
             Timeline Progress: {timelineStatsMap[tripInfo.id].completed} / {timelineStatsMap[tripInfo.id].total} complete
           </Typography>
           <LinearProgress
@@ -880,8 +878,8 @@ const Home = () => {
               mt: 0.5,
               borderRadius: 20,
               height: 7,
-              bgcolor: mode === "dark" ? "#ffffff36" : "#00000036",
-              "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#000000" },
+              bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
+              "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff" },
             }}
           />
         </Box>
@@ -917,7 +915,7 @@ const Home = () => {
               alignItems: "center",
               background: "none",
               border: "none",
-              color: theme.palette.primary.main,
+              color: mode === "dark" ? "#f1f1f1" : "#333",
               fontWeight: 600,
               fontSize: 14,
               cursor: "pointer",
@@ -1185,12 +1183,12 @@ const Home = () => {
         size="small"
         sx={{
           mt: 1,
-          background: theme.palette.primary.bgr,
-          color: theme.palette.primary.main,
+          background: mode === "dark" ? "#f1f1f111" : "#0c0c0c1a",
+          color: theme.palette.text.primary,
           fontSize: 14,
           padding: "4px 8px",
           boxShadow: "none",
-          borderRadius: 5,
+          borderRadius: 3,
         }}
         onClick={() => setRemindersDrawerOpen(true)}
       >
@@ -1255,9 +1253,8 @@ const Home = () => {
             zIndex: 999,
             width: '70px',
             height: '70px',
-            borderRadius: 1.5,
             background: theme.palette.primary.bg,
-            color: "#000",
+            color: theme.palette.primary.main,
             boxShadow: "none",
             borderRadius: 5,
             "&:hover": {

@@ -1498,7 +1498,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                       fontSize: "0.7rem",
                       borderRadius: '10px',
                       color: theme.palette.text.primary,
-                      background: theme.palette.primary.bgr,
+                      background: mode === "dark" ? "#3a3a3a" : "#bdbdbd83",
                     }}
                   />
                 ))}
@@ -1521,9 +1521,9 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 position: "sticky",
                 right: 0,
                 bottom: 0,
-                backgroundColor: mode === "dark" ? "#1e1e1eff" : "#e0e0e0",
+                backgroundColor: mode === "dark" ? "#252525ff" : "#e0e0e0",
                 justifyContent: "space-between",
-                borderRadius: 4,
+                borderRadius: 8,
                 alignContent: "center"
               }}>
               <Tooltip title="Edit">
@@ -1536,7 +1536,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   setDrawerOpen(true);
                   setViewDrawerOpen(false);
                 }}
-                sx={{ color: theme.palette.text.primary, backgroundColor: theme.palette.primary.bgr, padding: 1 }}
+                sx={{ color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#3a3a3a" : "#bdbdbd83", padding: 1 }}
               >
                 <EditIcon />
               </IconButton>
@@ -1547,7 +1547,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                   handleShareNote(selectedNote);
                   setAddCollabDrawerOpen(true);
                 }}
-                sx={{ color: theme.palette.text.primary, backgroundColor: theme.palette.primary.bgr, padding: 1 }}
+                sx={{ color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#3a3a3a" : "#bdbdbd83", padding: 1 }}
               >
                 <ShareIcon />
               </IconButton>
@@ -1557,7 +1557,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                 onClick={() => handlePinNote(selectedNote)}
                 sx={{ 
                   color: selectedNote?.pinned ? "#00f721" : theme.palette.text.primary,
-                  backgroundColor: selectedNote?.pinned ? "#00f72121" : theme.palette.primary.bgr,
+                  backgroundColor: selectedNote?.pinned ? "#00f72121" : `${mode === "dark" ? "#3a3a3a" : "#bdbdbd83"}`,
                   padding: 1,
                   transform: selectedNote?.pinned ? "rotate(30deg)" : "rotate(0deg)",
                  }}
@@ -1568,7 +1568,7 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
             <Tooltip title="Note Details">
               <IconButton
                 onClick={() => setDetailsDrawerOpen(true)}
-                sx={{ color: theme.palette.text.primary, backgroundColor: theme.palette.primary.bgr, padding: 1 }}
+                sx={{ color: theme.palette.text.primary, backgroundColor: mode === "dark" ? "#3a3a3a" : "#bdbdbd83", padding: 1 }}
               >
                 <InfoOutlinedIcon />
               </IconButton>
@@ -1743,8 +1743,8 @@ const sortedNotes = [...filteredNotes].sort((a, b) => {
                       sx={{
                         fontSize: "0.7rem",
                         borderRadius: '10px',
-                        color: '#000',
-                        background: theme.palette.primary.bgr,
+                        color: mode === "dark" ? "#fff" : "#000",
+                        background: mode === "dark" ? "#3a3a3a" : "#bdbdbd83",
                       }}
                     />
                   ))}

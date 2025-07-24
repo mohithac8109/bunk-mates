@@ -43,6 +43,8 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { useWeather } from "../contexts/WeatherContext";
 import { weatherGradients, weatherColors, weatherbgColors, weatherIcons } from "../elements/weatherTheme";
 import { db, messaging } from "../firebase";
+import { useThemeToggle } from "../contexts/ThemeToggleContext";
+import { getTheme } from "../theme";
 import {
   collection,
   addDoc,
@@ -69,71 +71,6 @@ const fadeIn = keyframes`
 `;
 
 // Custom dark theme (swap for light if needed)
-const theme = createTheme({
-  palette: {
-    mode: "dark",
-    background: {
-      default: "#18191A",
-      paper: "#232526",
-    },
-    primary: {
-      main: "#00f721",
-      contrastText: "#000",
-    },
-    secondary: {
-      main: "#444444ea",
-    },
-    text: {
-      primary: "#fff",
-      secondary: "#BDBDBD",
-      disabled: "#f0f0f0",
-    },
-    action: {
-      hover: "#00f721",
-      selected: "#131313",
-      disabledBackground: "rgba(0,155,89,0.16)",
-      disabled: "#BDBDBD",
-    },
-    divider: "rgb(24, 24, 24)",
-  },
-  shape: {
-    borderRadius: 12,
-  },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#232526",
-          color: "#fff",
-          boxShadow: "none",
-          borderRadius: 16,
-          animation: `${fadeIn} 0.6s ease forwards`,
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-          fontWeight: 600,
-          borderRadius: "12px",
-        },
-      },
-    },
-    MuiFab: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#00f721",
-          color: "#000",
-          "&:hover": {
-            backgroundColor: "#00f721",
-            color: "#000",
-          },
-        },
-      },
-    },
-  },
-});
 
 function getUserFromStorage() {
   try {
@@ -206,7 +143,8 @@ const Reminders = forwardRef(({ open, onClose }, ref) => {
   const [notifiedIds, setNotifiedIds] = useState({});
   const [completedOpen, setCompletedOpen] = useState(false);
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
-  
+  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const theme = getTheme(mode, accent);
 
   // Drag-to-close
   const dragStartY = useRef(null);
@@ -494,9 +432,9 @@ useImperativeHandle(ref, () => ({
             maxWidth: 480,
             mx: "auto",
             height: "92vh",
-            background: "#00000010",
+            background: mode === "dark" ? "#0c0c0c11" : "#f1f1f1d3",
             backdropFilter: "blur(80px)",
-            color: "#fff",
+            color: mode === "dark" ? "#fff" : "#000",
             borderTopLeftRadius: 25,
             borderTopRightRadius: 25,
             borderBottomLeftRadius: 0,
@@ -542,9 +480,10 @@ useImperativeHandle(ref, () => ({
                 width: 36,
                 height: 36,
                 minWidth: 0,
-                borderRadius: 2,
-                color: "#fff",
-                backgroundColor: "#232526",
+                borderRadius: 8,
+                p: 2,
+                color: mode === "dark" ? "#fff" : "#000",
+                backgroundColor: mode === "dark" ? "#f1f1f111" : "#8a8a8a6f",
               }}
             >
               <ArrowBackIcon />
@@ -575,7 +514,7 @@ useImperativeHandle(ref, () => ({
               <Tooltip title="Add Reminder">
                 <Button
                   size="medium"
-                  sx={{ ml: 2, boxShadow: "none", background: buttonWeatherBg, color: "#000", borderRadius: 4, width: "40px" }}
+                  sx={{ ml: 2, boxShadow: "none", background: theme.palette.primary.bg, color: "#000", borderRadius: 8, width: "40px" }}
                   onClick={() => setDrawerOpen(true)}
                 >
                   <AddIcon />
@@ -593,21 +532,21 @@ useImperativeHandle(ref, () => ({
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ color: "#aaa" }} />
+                      <SearchIcon sx={{ color: mode === "dark" ? "#aaa" : "#333" }} />
                     </InputAdornment>
                   ),
-                  style: { color: "#fff" },
+                  style: { color: mode === "dark" ? "#fff" : "#000", borderRadius: '15px' },
                 }}
                 sx={{
                   width: "100%",
                   mb: 2,
                   borderRadius: 2,
-                  input: { color: "#fff" },
+                  input: { color: mode === "dark" ? "#fff" : "#000" },
                 }}
               />
             </Box>
 
-            <Card sx={{ mb: 2, backgroundColor: "transparent" }}>
+            <Card sx={{ mb: 2, backgroundColor: mode === "dark" ? "transparent" : "#ffffffaf", borderRadius: 4, boxShadow: "none" }}>
               <CardContent sx={{ mb: 2, backgroundColor: "transparent" }}>
                 <Typography variant="h6" fontSize={16} sx={{ mb: 2 }}>
                   Active Reminders ({filteredReminders.length})
@@ -628,8 +567,8 @@ useImperativeHandle(ref, () => ({
       sx={{
         borderRadius: 4,
         mb: 1,
-        background: "#f1f1f111",
-        color: "#fff",
+        background: mode === "dark" ? "#f1f1f111" : "#dbdbdbae",
+        color: mode === "dark" ? "#fff" : "#000",
         opacity: rem.completed ? 0.5 : 1,
         textDecoration: rem.completed ? "line-through" : "none",
       }}
@@ -638,7 +577,7 @@ useImperativeHandle(ref, () => ({
           <IconButton
             edge="end"
             onClick={(e) => handleMenuOpen(e, idx)}
-            sx={{ color: "#fff" }}
+            sx={{ color: mode === "dark" ? "#fff" : "#000" }}
           >
             <MoreVertIcon />
           </IconButton>
@@ -689,7 +628,7 @@ useImperativeHandle(ref, () => ({
         {rem.completed ? (
           <CheckCircleIcon sx={{ fontSize: 28, color: "#00f721" }} />
         ) : (
-          <NotificationsActiveIcon sx={{ fontSize: 28, color: buttonWeatherBg }} />
+          <NotificationsActiveIcon sx={{ fontSize: 28, color: mode === "dark" ? "#fff" : "#000" }} />
         )}
       </IconButton>
       <ListItemText
@@ -707,7 +646,7 @@ useImperativeHandle(ref, () => ({
               sx={{
                 fontSize: 16,
                 fontWeight: rem.completed ? "normal" : "bold",
-                color: "#fff",
+                color: mode === "dark" ? "#fff" : "#000",
                 textDecoration: rem.completed ? "line-through" : "none",
                 opacity: rem.completed ? 0.9 : 1,
               }}
@@ -719,7 +658,7 @@ useImperativeHandle(ref, () => ({
         secondary={
           rem.time ? (
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <Typography variant="caption" sx={{ color: "#BDBDBD" }}>
+              <Typography variant="caption" sx={{ color: "#646464ff" }}>
                 {rem.date} {rem.time}
               </Typography>
             </Box>
@@ -733,7 +672,7 @@ useImperativeHandle(ref, () => ({
               </CardContent>
             </Card>
 
-                        <Card sx={{ mb: 2, backgroundColor: "transparent" }}>
+                        <Card sx={{ mb: 2, backgroundColor: mode === "dark" ? "transparent" : "#ffffffaf", borderRadius: 4, boxShadow: "none" }}>
               <Box
                 sx={{
                   display: "flex",
@@ -767,11 +706,12 @@ useImperativeHandle(ref, () => ({
     <ListItem
       key={rem.id}
       sx={{
-        borderRadius: 2,
+        borderRadius: 3,
         mb: 1,
-        background: "#88888822",
-        color: "#fff",
+        background: mode === "dark" ? "#88888822" : "#dcdcdcff",
+        color: mode === "dark" ? "#fff" : "#000",
         opacity: 0.5,
+        boxShadow: "none",
       }}
     >
       <IconButton
@@ -797,7 +737,7 @@ useImperativeHandle(ref, () => ({
             <Typography
               variant="body1"
               sx={{
-                color: "#fff",
+                color: mode === "dark" ? "#fff" : "#000",
                 textDecoration: "line-through",
                 opacity: 0.7,
               }}
@@ -809,7 +749,7 @@ useImperativeHandle(ref, () => ({
         secondary={
           rem.time ? (
             <Box sx={{ display: "flex", flexDirection: "column", mr: 2, gap: 0.1 }}>
-              <Typography variant="caption" sx={{ color: "#BDBDBD" }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                 {rem.time}
               </Typography>
             </Box>
@@ -820,8 +760,8 @@ useImperativeHandle(ref, () => ({
                 size="small"
                 onClick={() => handleDeleteReminder(rem.id)}
                 sx={{ 
-                  color: "#fd7373", 
-                  backgroundColor: "#ff000081", 
+                  color: "#cd0000ff", 
+                  backgroundColor: "#ff9090c4", 
                   p: 1.2,
                 }}
               >
@@ -867,8 +807,8 @@ useImperativeHandle(ref, () => ({
                 onChange={e => setReminderText(e.target.value)}
                 fullWidth
                 variant="outlined"
-                InputProps={{ style: { color: "#fff" } }}
-                InputLabelProps={{ style: { color: "#aaa" } }}
+                InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+                InputLabelProps={{ style: { color: mode === "dark" ? "#aaa" : "#333" } }}
               />
               <TextField
                 label="Remind Date"
@@ -877,8 +817,8 @@ useImperativeHandle(ref, () => ({
                 onChange={e => setReminderDate(e.target.value)}
                 fullWidth
                 variant="outlined"
-                InputProps={{ style: { color: "#fff" } }}
-                InputLabelProps={{ style: { color: "#aaa" } }}
+                InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+                InputLabelProps={{ style: { color: mode === "dark" ? "#aaa" : "#333" } }}
               />
               <TextField
                 label="Remind At"
@@ -887,8 +827,8 @@ useImperativeHandle(ref, () => ({
                 onChange={e => setReminderTime(e.target.value)}
                 fullWidth
                 variant="outlined"
-                InputProps={{ style: { color: "#fff" } }}
-                InputLabelProps={{ style: { color: "#aaa" } }}
+                InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+                InputLabelProps={{ style: { color: mode === "dark" ? "#aaa" : "#333" } }}
               />
               {error && (
                 <Typography color="error" sx={{ mt: 1 }}>
