@@ -72,6 +72,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { th } from "date-fns/locale";
+import { DotsThreeCircle } from "phosphor-react";
 
 
 const fadeIn = keyframes`
@@ -242,13 +243,14 @@ function getDefaultTripIndex(trips) {
 
 const sliderSettings = {
   dots: true,
+  dotsClass: "slick-dots slick-thumb",
   infinite: false,
   speed: 500,
   slidesToShow: 1,
   slidesToScroll: 1,
   swipeToSlide: true,
   adaptiveHeight: true,
-  arrows: true,
+  arrows: false,  
 };
 
 const Home = () => {
@@ -317,6 +319,7 @@ const Home = () => {
 
     return () => unsubscribe();
   }, []);
+
 
   // Load weather once (with caching)
   useEffect(() => {
@@ -621,8 +624,8 @@ const Home = () => {
           </Box>
         ) : (
         <Box
+          fullWidth
           sx={{
-            width: "100%",
             zIndex: 1,
             mb: 4,
             background: `linear-gradient(to top, rgba(0,0,0,0) 0%, #00000000 1%, ${theme.palette.primary.mainbg} 100%)`,
@@ -801,7 +804,7 @@ const Home = () => {
 
 {/* Trips Display card */}
 {myTrips && myTrips.length > 0 ? (
-  <Box sx={{ minWidth: 340, maxWidth: 340, mx: "auto", px: 0 }}>
+  <Box sx={{ minWidth: "70vw", mx: "auto", px: 0 }}>
 <Typography variant="h6" textAlign="left" mb={1}>Your Trips</Typography>
 
     <Slider {...sliderSettings} slickGoTo={sliderIndex}>
@@ -900,7 +903,7 @@ const Home = () => {
 
       {/* Budgets Display Card */}
 <Grid item xs={12} md={6} lg={4}>
-  <Box sx={{ minWidth: 356, maxWidth: 356 }} >
+  <Box sx={{ minWidth: "90vw" }} >
     <CardContent>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h6" sx={{ color: "text.primary" }}>

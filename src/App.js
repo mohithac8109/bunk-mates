@@ -54,6 +54,8 @@ function BodyBackgroundSetter() {
   const { mode } = useThemeToggle();
   useEffect(() => {
     document.body.style.backgroundColor = mode === "dark" ? "#0c0c0c" : "#f1f1f1";
+    document.body.style.setProperty('--slick-dot-color', mode === "dark" ? "#888" : "#bbb");
+    document.body.style.setProperty('--slick-dot-active-color', mode === "dark" ? "#ffffffff" : "#000000ff");
   }, [mode]);
   return null;
 }

@@ -1,6 +1,9 @@
 // theme.js
 import { createTheme } from "@mui/material/styles";
 import { themeColors } from "./elements/themeColors";
+import {
+  keyframes,
+} from "@mui/material"; 
 
 export function getTheme(mode = "dark", accent = "default") {
   let base = { ...themeColors[mode] };
@@ -87,6 +90,145 @@ export function getTheme(mode = "dark", accent = "default") {
       shades: ["#e2ffe4ff", "#A5D6A7", "#66BB6A", "#4CAF50", "#2E7D32"],
     },
   };
+
+  const fadeIn = keyframes`
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  `;
+
+  const theme = createTheme({
+    palette: {
+      mode: "dark",
+      background: {
+        default: "#02020200", // almost transparent black for main background
+        paper: "#0c0c0c", // deep black for dialogs/paper
+      },
+      primary: {
+        main: "#ffffffff", // bright green solid for buttons and accents
+        contrastText: "#000000", // black text on bright green buttons
+      },
+      secondary: {
+        main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
+      },
+      text: {
+        primary: "#FFFFFF", // pure white for main text
+        secondary: "#BDBDBD", // light grey for secondary text
+        disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
+      },
+      action: {
+        hover: "#b6b6b6ff", // bright green hover for interactive elements
+        selected: "#131313", // dark black for selected states
+        disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
+        disabled: "#BDBDBD",
+      },
+      divider: "rgb(24, 24, 24)", // very dark grey for borders
+    },
+    typography: {
+      fontFamily: "Roboto, Arial, sans-serif",
+      h6: {
+        fontWeight: "bold",
+        color: "#FFFFFF",
+      },
+      body1: {
+        fontSize: "1rem",
+        lineHeight: "1.5",
+        color: "#FFFFFF",
+      },
+      body2: {
+        fontSize: "0.875rem",
+        color: "#BDBDBD",
+      },
+    },
+    shape: {
+      borderRadius: 12,
+    },
+    components: {
+      MuiAppBar: {
+        styleOverrides: {
+          root: {
+            backgroundColor: "#0c0c0c40",
+            backdropFilter: "blur(40px)", // dark grey/black for app bar background
+            boxShadow: "none",
+            borderBottom: "1px solid rgb(24, 24, 24, 0.5)",
+          },
+        },
+      },
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            backgroundColor: "#2c2c2c00", // dark grey card background
+            color: "#FFFFFF",
+            boxShadow: "none",
+            borderRadius: 16,
+            transition: "box-shadow 0.3s ease, transform 0.3s ease",
+            cursor: "pointer",
+            "&:hover": {
+              transform: "translateY(-4px)",
+              backgroundColor: "#131313",
+            },
+            animation: `${fadeIn} 0.6s ease forwards`,
+          },
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            textTransform: "none",
+            fontWeight: 600,
+            borderRadius: "12px",
+            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+            color: "#000",
+            backgroundColor: "#fff",
+            "&:hover": {
+              backgroundColor: "#000",
+              color: "#fff",
+            },
+          },
+        },
+      },
+      MuiAvatar: {
+        styleOverrides: {
+          root: {
+            backgroundColor: "#f0f0f0", // off-white avatar background
+            color: "#000",
+          },
+        },
+      },
+      MuiMenu: {
+        styleOverrides: {
+          paper: {
+            backgroundColor: "#0c0c0c40", // deep black menu background
+            color: "#FFFFFF",
+            backdropFilter: "blur(40px)",
+            borderRadius: 10,
+            border: "1px solid rgb(24, 24, 24)",
+          },
+        },
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            "&:hover": {
+              backgroundColor: "#2c2c2c", // translucent dark green hover
+            },
+          },
+        },
+      },
+      MuiBox: {
+        styleOverrides: {
+          root: {
+            // General box overrides if needed
+          },
+        },
+      },
+    },
+  });
 
   if (accent !== "default" && base.palette && accents[accent]) {
     const accentColors = accents[accent];
