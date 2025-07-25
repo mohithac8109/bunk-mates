@@ -556,7 +556,7 @@ sx={{
             borderColor: "#aaa",
             boxShadow: "none",
           }}
-        >Dark Mode</Button>
+        >Dark</Button>
         <Button
           onClick={() => { setMode("light"); }}
           variant={mode === "light" ? "contained" : "outlined"}
@@ -571,7 +571,7 @@ sx={{
             boxShadow: "none",
             '&:hover': { backgroundColor: "#f7f7f7", color: "#222" },
           }}
-        >Light Mode</Button>
+        >Light</Button>
       </Box>
     </Box>
 

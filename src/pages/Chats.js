@@ -867,7 +867,6 @@ const combinedChats = [
         onChange={(e) => setSearchTerm(e.target.value)}
         style={{
           marginBottom: '20px',
-          backgroundColor: theme.palette.background.paper,
           color: theme.palette.text.primary,
         }}
         LabelInputProps={{ style: { color: theme.palette.text.primary } }}
@@ -877,6 +876,7 @@ const combinedChats = [
               <SearchIcon sx={{ color: theme.palette.text.primary }} />
             </InputAdornment>
           ),
+          sx: { color: theme.palette.text.primary, backgroundColor: theme.palette.background.paper, borderRadius: '8px', height: '40px' },
         }}
       />
     </Box>
@@ -962,7 +962,7 @@ const combinedChats = [
                       backgroundColor: '#00f72133',
                       padding: '2px 6px',
                       borderRadius: 6,
-                      color: '#00f721',
+                      color: '#00cc1bff',
                     }}>
                       {chat.name.includes("Dev") ? "🧪 Dev Beta" : "🔒 Beta"}
                     </span>
@@ -979,7 +979,7 @@ const combinedChats = [
                 }}
               >
                 {(chat.lastMessage?.length > 30
-                  ? chat.lastMessage.slice(0, 26) + '...'
+                  ? chat.lastMessage.slice(0, 21) + '...'
                   : chat.lastMessage) || 'No messages yet'}
               </p>
 
@@ -993,11 +993,10 @@ const combinedChats = [
                 style={{
                   backgroundColor: theme.palette.primary.bg,
                   color: theme.palette.primary.main,
-                  padding: '4px 8px',
+                  padding: '4px',
                   borderRadius: '50%',
                 }}
               >
-                {chat.unreadCount}
               </span>
             )}
           </div>

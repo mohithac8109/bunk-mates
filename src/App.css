@@ -96,6 +96,16 @@ button {
   padding: 0px;
 }
 
+.highlighted-reply {
+  animation: replyHighlight 1.2s;
+  box-shadow: 0 0 0 3px #00f72199;
+  background: #eaffea !important;
+}
+@keyframes replyHighlight {
+  0% { box-shadow: 0 0 0 3px #00f72199; }
+  80% { box-shadow: 0 0 0 3px #00f72199; }
+  100% { box-shadow: none; }
+}
 
 /* Style active dot */
 .slick-dots.slick-thumb li.slick-active button:before {
