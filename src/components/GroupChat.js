@@ -93,10 +93,14 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import ShareIcon from "@mui/icons-material/Share";
+import ReplyIcon from '@mui/icons-material/Reply';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import { QRCodeCanvas } from 'qrcode.react';
 
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
+import { useThemeToggle } from "../contexts/ThemeToggleContext";
+import { getTheme } from "../theme";
 
 
 // Generate a consistent color per user based on their name
@@ -297,6 +301,8 @@ const theme = createTheme({
 
 function GroupChat() {
   const { groupName } = useParams();
+  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const theme = getTheme(mode, accent);
   const [messages, setMessages] = useState([]);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
@@ -364,6 +370,8 @@ function GroupChat() {
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [inviteDrawerOpen, setInviteDrawerOpen] = useState(false);
+  const [highlightedMsgId, setHighlightedMsgId] = useState(null);
+  const messageRefs = useRef({});
 
   const addedBy = user?.displayName || user?.email || "Someone";
   
@@ -1399,12 +1407,12 @@ const getGroupedReactions = (msg, allUsers = {}) => {
       padding: '10px 16px',
       display: 'flex',
       alignItems: 'center',
+      background: mode === "dark" ? 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to bottom, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
       height: '64px',
-      background: 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)',
       backdropFilter: 'blur(0px)',
     }}
   >
-    <IconButton onClick={handleBackButton} sx={{ mr: 1 }} style={{ color: '#fff' }}>
+    <IconButton onClick={handleBackButton} sx={{ mr: 1 }} style={{ color: mode === "dark" ? "#fff" : "#000" }}>
       <ArrowBackIcon />
     </IconButton>
 
@@ -1419,11 +1427,11 @@ const getGroupedReactions = (msg, allUsers = {}) => {
       <Avatar
         src={groupInfo.iconURL || ""}
         sx={{
-          bgcolor: '#333333',
-          color: '#000',
+          bgcolor: mode === "dark" ? "#aaa" : "#333",
+          color: mode === "dark" ? '#000' : "#fff",
           fontSize: 24,
-          width: 48,
-          height: 48,
+          width: 40,
+          height: 40,
           border: '2px solid rgb(7, 7, 7)',
           marginRight: 2,
         }}
@@ -1442,7 +1450,8 @@ const getGroupedReactions = (msg, allUsers = {}) => {
             display: 'flex',
             alignItems: 'center',
             gap: 1,
-            color: '#fff',
+            fontSize: "14px",
+            color: mode === "dark" ? "#fff" : "#000",
           }}
         >
           {groupInfo.name || groupName}
@@ -1453,11 +1462,11 @@ const getGroupedReactions = (msg, allUsers = {}) => {
               component="span"
               sx={{
                 ml: 1,
-                px: 1,
-                py: 0.3,
-                fontSize: 12,
+                px: 0.5,
+                py: 0.1,
+                fontSize: 11,
                 backgroundColor: '#00f72133',
-                color: '#00f721',
+                color: '#009e15ff',
                 borderRadius: 1.5,
               }}
             >
@@ -1469,9 +1478,9 @@ const getGroupedReactions = (msg, allUsers = {}) => {
               component="span"
               sx={{
                 ml: 1,
-                px: 1,
-                py: 0.3,
-                fontSize: 12,
+                px: 0.5,
+                py: 0.1,
+                fontSize: 11,
                 backgroundColor: '#66ccff33',
                 color: '#66ccff',
                 borderRadius: 1.5,
@@ -1494,6 +1503,10 @@ const getGroupedReactions = (msg, allUsers = {}) => {
           paddingTop: '60px',
           overflowY: 'auto',
           marginBottom: '0px', // optional if you have a fixed input/footer
+          backgroundImage: mode === "dark" ? `url(/assets/images/chatbg/dark.png)` : `url(/assets/images/chatbg/light.png)`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
         }}
       >
         <MessageContainer>
@@ -1511,14 +1524,15 @@ const getGroupedReactions = (msg, allUsers = {}) => {
             textAlign: 'center',
             padding: '25px',
             border: '1.2px solid #009b59ad',
+            backdropFilter: 'blur(25px)',
             maxWidth: '100%'
           }}
         >
         <Avatar
             src={groupInfo.iconURL ? groupInfo.iconURL : ""}
             sx={{
-              bgcolor: '#000',
-              color: '#000',
+              bgcolor: mode === "dark" ? '#f1f1f1' : "#0c0c0c",
+              color: mode === "dark" ? "#000" : "#fff",
               fontSize: 38,
               width: 68,
               height: 68,
@@ -1532,11 +1546,11 @@ const getGroupedReactions = (msg, allUsers = {}) => {
     variant="subtitle1"
     sx={{
       fontWeight: 'bold',
-      fontSize: '28px',
+      fontSize: '21px',
       whiteSpace: 'nowrap',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
-      color: '#FFFFFF',
+      color: mode === "dark" ? "#fff" : "#000",
       mb: 0.5,
     }}
   >
@@ -1546,11 +1560,11 @@ const getGroupedReactions = (msg, allUsers = {}) => {
               component="span"
               sx={{
                 ml: 1,
-                px: 1,
-                py: 0.3,
-                fontSize: 12,
+                px: 0.5,
+                py: 0.1,
+                fontSize: 11,
                 backgroundColor: '#00f72133',
-                color: '#00f721',
+                color: '#008912ff',
                 borderRadius: 1.5,
               }}
             >
@@ -1562,9 +1576,9 @@ const getGroupedReactions = (msg, allUsers = {}) => {
               component="span"
               sx={{
                 ml: 1,
-                px: 1,
-                py: 0.3,
-                fontSize: 12,
+                px: 0.5,
+                py: 0.1,
+                fontSize: 11,
                 backgroundColor: '#66ccff33',
                 color: '#66ccff',
                 borderRadius: 1.5,
@@ -1582,7 +1596,7 @@ const getGroupedReactions = (msg, allUsers = {}) => {
       whiteSpace: 'pre-wrap',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
-      color: '#FFFFFF',
+      color: mode === "dark" ? "#fff" : "#000",
       textAlign: "center",
       mb: 0.5,
       width: "80vw"
@@ -1592,24 +1606,24 @@ const getGroupedReactions = (msg, allUsers = {}) => {
   </Typography>
 
   {createdByUser && (
-    <Typography variant="caption" sx={{ color: '#B0BEC5', mb: 0.5 }}>
-      <strong sx={{color: '#fff'}}>Created by:</strong> {createdByUser.name}
+    <Typography variant="caption" sx={{ color: mode === "dark" ? "#ccc" : "#555", mb: 0.5 }}>
+      <strong sx={{color: mode === "dark" ? "#fff" : "#000"}}>Created by:</strong> {createdByUser.name}
     </Typography>
   )}
 
-  <Typography variant="caption" sx={{ color: '#B0BEC5' }}>
-  <br></br><strong sx={{color: '#fff'}}>{groupInfo.members?.length || 0} Members</strong>
+  <Typography variant="caption" sx={{ color: mode === "dark" ? "#ccc" : "#555" }}>
+  <br></br><strong sx={{color: mode === "dark" ? "#fff" : "#000"}}>{groupInfo.members?.length || 0} Members</strong>
   </Typography>
 
 <Typography
   variant="caption"
   sx={{
-    color: '#B0BEC5',
+    color: mode === "dark" ? "#ccc" : "#555",
     whiteSpace: 'pre-wrap',
     mt: 1,
   }}
 >
-  <strong style={{ color: '#fff' }}>Members Joined:</strong>
+  <strong style={{ color: mode === "dark" ? "#fff" : "#000" }}>Members Joined:</strong>
   {'\n'}
   {memberUsers.length === 0 ? (
     'None'
@@ -1625,13 +1639,13 @@ const getGroupedReactions = (msg, allUsers = {}) => {
 
 
           {loading ? (
-            <Typography variant="body1" sx={{ textAlign: 'center', color: '#888' }}>
+            <Typography variant="body1" sx={{ textAlign: 'center', color: mode === "dark" ? "#aaa" : "#333" }}>
               Loading messages...
             </Typography>
           ) : (
             Object.keys(groupedMessages).map((date) => (
               <Box key={date} sx={{ marginBottom: '80px' }}>
-                <Typography variant="body2" sx={{ color: '#aaa', bgcolor: '#2b2b2b54', borderRadius: '15px', textAlign: 'center', marginBottom: '10px' }}>
+                <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", bgcolor: mode === "dark" ? '#2b2b2b54' : "#0c0c0c24", borderRadius: '0px', textAlign: 'center', marginBottom: '10px' }}>
                   {date}
                 </Typography>
                 {(groupedMessages?.[date] || []).map((msg) => {
@@ -1652,7 +1666,8 @@ if (msg.type === "system") {
           flexDirection: "column",
           alignItems: "center",
           gap: 0.5,
-          backgroundColor: "#ffffff0a",
+          backgroundColor: "#6c6c6c21",
+          backdropFilter: "blur(10px)",
           borderRadius: 2,
           px: 2,
           py: 0.5,
@@ -1661,7 +1676,7 @@ if (msg.type === "system") {
         <Typography
           variant="caption"
           sx={{
-            color: "#b5b5b5",
+            color: mode === "dark" ? "#ccc" : "#555",
             fontStyle: "italic",
             fontSize: "13px",
             textAlign: "center",
@@ -1684,6 +1699,8 @@ if (msg.type === "system") {
     alignItems: 'flex-end',
     gap: 1,
     px: 1,
+    maxWidth: '90%',
+    mx: "auto"
   }}
   onContextMenu={(e) => {
     e.preventDefault();
@@ -1699,14 +1716,16 @@ if (msg.type === "system") {
                       <Avatar
                         src={msg.photoURL || 'https://via.placeholder.com/50'}
                         alt={msg.senderName}
-                        sx={{ width: 40, height: 40 }}
+                        sx={{ width: 30, height: 30 }}
                       >
-                        {msg.photoURL && <AccountCircleIcon sx={{ fontSize: 52, color: '#e8e8e8' }} />}
+                        {msg.photoURL && <AccountCircleIcon sx={{ fontSize: 40, color: mode === "dark" ? '#2f2f2fff' : "#fff" }} />}
                       </Avatar>
-                    </Box>
+                    </Box>  
+
                     <motion.div
-      key={msg.id}
-      drag="x"
+                key={msg.id}
+                ref={el => { messageRefs.current[msg.id] = el; }}
+            drag="x"
       dragConstraints={{ left: 0, right: 100 }}
       dragElastic={0.3}
       onDragEnd={(_, info) => {
@@ -1722,24 +1741,49 @@ if (msg.type === "system") {
         flexDirection: msg.senderId === currentUser.uid ? 'row-reverse' : 'row',
         marginBottom: '15px',
         alignItems: 'flex-end',
-        gap: 8,
-        padding: '0 8px',
+        gap: 1,
+        padding: '0',
+                ...(highlightedMsgId === msg.id && {
+                    boxShadow: "none",
+                    padding: 2,
+                    borderRadius: 12,
+                    background: theme.palette.primary.mainbg,
+                    transition: "background 1.5s ease-in-out",
+                  })
       }}
     >
-                    <MessageBubble isCurrentUser={msg.senderId === currentUser.uid} status={msg.status}>
-                      
-                    {msg.replyTo?.text && (
+      <Box sx={{ display: "flex", flexDirection: 'column', m: 0 }}>
+                          {msg.replyTo?.text && (
   <Box
     sx={{
-      borderLeft: '4px solid #00f721',
-      p: 0.8,
-      pl: 1,
-      mb: 1,
-      bgcolor: '#2b2b2bea',
-      borderRadius: 1,
+      border: mode === "dark" ? '1px solid #6565659d' : '1px solid #9f9f9fff',
+      borderLeft: mode === "dark" ? '4px solid #00f72172' : '4px solid #057c1572',
+      px: 1.5,
+      py: 0.2,
+      mb: 0.3,
+      bgcolor: mode === "dark" ? '#4a4a4a00' : "#ececec70",
+      backdropFilter: 'blur(24px)',
+      color: mode === "dark" ? "#fff" : "#222",
+      borderRadius: 2,
+      boxShadow: mode === "dark"
+        ? "0 2px 8px #0002"
+        : "0 2px 8px #8881",
+      display: "flex",
+      flexDirection: "column",
+      gap: 0.2,
+      maxWidth: "95%",
+    }}
+    onClick={() => {
+      const replyId = msg.replyTo.id;
+      const el = messageRefs.current[replyId];
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightedMsgId(replyId);
+        setTimeout(() => setHighlightedMsgId(null), 1200);
+      }
     }}
   >
-    <Typography variant="caption" color="#83f192">
+    <Typography variant="caption" color={mode === "dark" ? "#00f721ab" : "#057c1572"}>
   {msg.senderId === currentUser.uid
     ? 'You'
     : (msg.replyTo?.senderName?.length > 60
@@ -1747,21 +1791,37 @@ if (msg.type === "system") {
         : msg.replyTo?.senderName || 'Unknown')}
 </Typography>
 
-    <Typography variant="body2" sx={{ color: '#ccc', fontStyle: 'italic' }}>
+    <Typography variant="body2" sx={{ color: mode === "dark" ? "#919191ff" : "#7c7c7cff", fontStyle: 'italic', fontSize: "0.97em", wordBreak: "break-word" }}>
       {msg.replyTo.text.length > 60
-        ? msg.replyTo.text.slice(0, 60) + '...'
+        ? msg.replyTo.text.slice(0, 30) + '...'
         : msg.replyTo.text}
     </Typography>
   </Box>
 )}
-
+                    <Paper
+                      isCurrentUser={msg.senderId === currentUser.uid} 
+                      status={msg.status}                    
+                      elevation={1}
+                      sx={{
+                        px: 2,
+                        py: 0.5,
+                        mx: 0,
+                        maxWidth: "65vw",
+                        minWidth: "100px",
+                        bgcolor: msg.senderId === currentUser.uid ? mode === "dark" ? "#005c4b" : "#d9fdd3" : mode === "dark" ? "#353535" : "#ffffff",
+                        borderRadius:msg.senderId === currentUser.uid ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                        color: mode === "dark" ? "#fff" : "#000",
+                        position: 'relative',
+                        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)',
+                      }}
+                    >
                       <Typography
                         variant="body2"
                         sx={{
                           fontWeight: 'bold',
                           fontSize: '13px',
                           marginBottom: '5px',
-                          color: '#a7a7a7',
+                          color: mode === "dark" ? '#a7a7a7' : "#696969ff",
                           maxWidth: 'auto',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
@@ -1771,6 +1831,7 @@ if (msg.type === "system") {
                       >
                         {msg.senderName}
                       </Typography>
+
 {msg.type === "poll" && Array.isArray(msg.options) && msg.options.length > 0 ? (
   <Box>
     <Typography variant="subtitle1" sx={{ color: "#00f721", fontWeight: 600 }}>
@@ -1816,16 +1877,16 @@ if (msg.type === "system") {
     </Typography>
   </Box>
 ) : msg.type === "timeline" && groupInfo?.tripId ? (
-<Box sx={{ maxWidth: 420, minWidth: 310 }}>
+<Box sx={{ maxWidth: 250, minWidth: 220 }}>
   <Typography
     variant="subtitle1"
-    sx={{ color: "#fff", fontWeight: 700, mb: 1 }}
+    sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: 700, mb: 1 }}
   >
     📅 Group Timeline
   </Typography>
   <List dense>
     {sortedTimeline.length === 0 && (
-      <Typography sx={{ color: "#888", mb: 1 }}>
+      <Typography sx={{ color: mode === "dark" ? "#888888" : "#111111", mb: 1 }}>
         No timeline events yet.
       </Typography>
     )}
@@ -1860,7 +1921,7 @@ if (msg.type === "system") {
                 ? "#f794002a"
                 : event.completed
                 ? "transparent"
-                : "#ececec30",
+                : "#8787873f",
               border: isUpcoming ? "2px solid #f79400aa" : undefined,
               px: 1.2,
               py: 0.5,
@@ -1868,7 +1929,8 @@ if (msg.type === "system") {
               display: "flex",
               alignItems: "center",
               minHeight: 34,
-              width: "80%",
+              m: 0,
+              width: "90%",
               boxShadow: isUpcoming ? "0 2px 12px #00f72100" : undefined,
               transition: "background 0.2s, border 0.2s",
             }}
@@ -1878,10 +1940,10 @@ if (msg.type === "system") {
               sx={{
                 fontFamily: "monospace",
                 color: event.completed
-                  ? "#f7f7f7ff"
+                  ? mode === "dark" ? "#c5c5c5ff" : "#313131ff"
                   : isUpcoming
-                  ? "#ffffffff"
-                  : "#b6b6b6ff",
+                  ? mode === "dark" ? "#ffffffff" : "#000000"
+                  : mode === "dark" ? "#b6b6b6ff" : "#333333",
                 fontWeight: 700,
                 minWidth: 30,
               }}
@@ -1892,14 +1954,14 @@ if (msg.type === "system") {
               <Typography
                 variant="body2"
                 sx={{
-                  color: event.completed ? "#c5c5c5ff" : "#fff",
+                  color: event.completed ? mode === "dark" ? "#c5c5c5ff" : "#333333" : mode === "dark" ? "#fff" : "#000",
                   fontWeight: 700,
                   lineHeight: 1.1,
                 }}
               >
                 {event.title || event.text || isUpcoming || "Untitled"}
               </Typography>
-              <Typography variant="caption" sx={{ color: event.completed ? "#c5c5c5ff" : "#fff", fontWeight: isUpcoming ? 700 : 400 }}>
+              <Typography variant="caption" sx={{ color: event.completed ? mode === "dark" ? "#c5c5c5ff" : "#333333" : mode === "dark" ? "#fff" : "#000", fontWeight: isUpcoming ? 700 : 400 }}>
                 {timeStr}
               </Typography>
             </Box>
@@ -1910,8 +1972,8 @@ if (msg.type === "system") {
   </List>
 </Box>
 ) : msg.type === "checklist" && groupInfo?.tripId ? (
-  <Box sx={{ maxWidth: 420, minWidth: 260 }}>
-    <Typography variant="subtitle1" sx={{ color: "#fff", fontWeight: 700 }}>
+  <Box sx={{ maxWidth: 250, minWidth: 220 }}>
+    <Typography variant="subtitle1" sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: 700 }}>
       📝 Trip Checklist
     </Typography>
     <List dense>
@@ -1928,14 +1990,14 @@ if (msg.type === "system") {
                 checked={isChecked}
                 tabIndex={-1}
                 sx={{
-                  color: "#00f721",
-                  '&.Mui-checked': { color: "#00f721" },
+                  color: mode === "dark" ? "#fff" : "#000",
+                  '&.Mui-checked': { color: "#56cb66ff" },
                 }}
               />
               <ListItemText
                 primary={item.text || "Untitled"}
                 sx={{
-                  color: isChecked ? "#9affd3" : "#fff",
+                  color: isChecked ? "#56cb66ff" : mode === "dark" ? "#fff" : "#000",
                   textDecoration: isChecked ? "line-through" : "none",
                 }}
               />
@@ -1944,7 +2006,7 @@ if (msg.type === "system") {
         );
       })}
     </List>
-    <Typography variant="caption" sx={{ color: "#aaa", mt: 1 }}>
+    <Typography variant="caption" sx={{ color: "#818181ff", mt: 1, fontStyle: 'italic' }}>
       Only you see your own progress
     </Typography>
   </Box>
@@ -1954,7 +2016,7 @@ if (msg.type === "system") {
   sx={{
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
-    color: '#fff',
+    color: mode === "dark" ? "#fff" : "#000",
     fontSize: '15px'
   }}
 >
@@ -1983,7 +2045,7 @@ if (msg.type === "system") {
           sx={{
             display: "flex",
             alignItems: "center",
-            bgcolor: "#2b2b2b",
+            bgcolor: mode ===  "dark" ? "#2b2b2b" : "#efefefff",
             borderRadius: "20px",
             px: 0.5,
             py: 0.2,
@@ -2008,7 +2070,11 @@ if (msg.type === "system") {
 )}
 
 
-                      <MessageTime>
+                      <MessageTime
+                        sx={{
+                          color: "#757575"
+                        }}
+                      >
                         {msg.timestamp?.seconds
                           ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString([], {
                               hour: '2-digit',
@@ -2041,7 +2107,8 @@ if (msg.type === "system") {
                           </Typography>
                         )}
                         </Box>
-                    </MessageBubble>
+                    </Paper>
+      </Box>
                     </motion.div>
                   </Box>
                     );
@@ -2076,12 +2143,16 @@ if (msg.type === "system") {
   onClose={() => setAnchorEl(null)}
   PaperProps={{
     sx: {
-      minWidth: 200,
-      borderRadius: 2,
-      bgcolor: "#181818",
-      color: "#fff",
-      boxShadow: "0 4px 24px #000a",
-      p: 0.5,
+      minWidth: 220,
+      borderRadius: 4,
+      bgcolor: mode === "dark" ? "#18181823" : "#ffffff43",
+      color: mode === "dark" ? "#fff" : "#222",
+      boxShadow: mode === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
+      p: 1,
+      backdropFilter: mode === "dark" ? 'blur(18px)' : 'blur(8px)',
+      border: mode === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
+      overflow: 'hidden',
+      transition: "box-shadow 0.3s, background 0.3s",
     },
   }}
 >
@@ -2095,14 +2166,19 @@ if (msg.type === "system") {
           setAnchorEl(null);
         }}
         sx={{
-          color: "#fff",
-          fontSize: 18,
-          width: 36,
-          height: 36,
-          bgcolor: "#292929",
-          borderRadius: "12px",
-          "&:hover": {
-            bgcolor: "#3a3a3a",
+          width: 38,
+          height: 38,
+          fontSize: 20,
+          bgcolor: mode === "dark" ? 'rgba(41,41,41,0.85)' : '#f7f7f7',
+          borderRadius: 2,
+          color: mode === "dark" ? "#fff" : "#222",
+          backdropFilter: mode === "dark" ? 'blur(10px)' : 'blur(2px)',
+          border: mode === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
+          boxShadow: mode === "dark" ? '0 2px 8px #0004' : '0 2px 8px #bbb2',
+          transition: 'all 0.18s cubic-bezier(0.4,0,0.2,1)',
+          '&:hover': {
+            bgcolor: mode === "dark" ? '#333' : '#e0e0e0',
+            borderColor: mode === "dark" ? '#444' : '#bdbdbd'
           },
         }}
       >
@@ -2115,13 +2191,18 @@ if (msg.type === "system") {
         setAnchorEl(null);
       }}
       sx={{
-        color: "#fff",
-        width: 36,
-        height: 36,
-        bgcolor: "#292929",
-        borderRadius: "12px",
-        "&:hover": {
-          bgcolor: "#3a3a3a",
+        width: 38,
+        height: 38,
+        bgcolor: mode === "dark" ? '#292929d9' : '#ffffffff',
+        borderRadius: 2,
+        color: mode === "dark" ? "#fff" : "#222",
+        border: mode === "dark" ? '1.5px solid #232323' : '1.5px solid #e0e0e0',
+        boxShadow: mode === "dark" ? '0 2px 8px #0004' : '0 2px 8px #bbb2',
+        backdropFilter: mode === "dark" ? 'blur(10px)' : 'blur(2px)',
+        transition: 'all 0.18s cubic-bezier(0.4,0,0.2,1)',
+        '&:hover': {
+          bgcolor: mode === "dark" ? '#333' : '#e0e0e0',
+          borderColor: mode === "dark" ? '#444' : '#bdbdbd'
         },
       }}
     >
@@ -2137,9 +2218,23 @@ if (msg.type === "system") {
       handleReply(selectedMsg);
       setAnchorEl(null);
     }}
-    sx={{ fontWeight: 500, fontSize: 15 }}
-  >
-    💬 Reply
+        sx={{
+          fontWeight: 500,
+          fontSize: 15,
+          borderRadius: 2,
+          mx: 0.5,
+          my: 0.2,
+          backdropFilter: mode === "dark" ? 'blur(2px)' : 'blur(2px)',
+          color: mode === "dark" ? "#fff" : "#222",
+          '&:hover': { bgcolor: mode === "dark" ? '#232323' : '#ffffffff' },
+          transition: 'background 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+        }}
+      >
+        <ReplyIcon fontSize="small" sx={{ color: mode === "dark" ? "#fff" : "#222" }} />
+        Reply
   </MenuItem>
 
   {selectedMsg?.senderId === currentUser.uid && (
@@ -2149,18 +2244,44 @@ if (msg.type === "system") {
           handleEdit(selectedMsg);
           setAnchorEl(null);
         }}
-        sx={{ fontWeight: 500, fontSize: 15 }}
+        sx={{
+          fontWeight: 500,
+          fontSize: 15,
+          borderRadius: 2,
+          mx: 0.5,
+          my: 0.2,
+          backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
+          color: mode === "dark" ? "#fff" : "#222",
+          '&:hover': { bgcolor: mode === "dark" ? '#232323' : '#ffffffff' },
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+        }}
       >
-        ✏️ Edit
+        <EditIcon fontSize="small" sx={{ color: mode === "dark" ? "#fff" : "#222" }} />
+        Edit
       </MenuItem>
       <MenuItem
         onClick={() => {
           handleDelete(selectedMsg?.id);
           setAnchorEl(null);
         }}
-        sx={{ color: "#ff4444", fontWeight: 500, fontSize: 15 }}
+        sx={{
+          color: '#ff4444',
+          fontWeight: 500,
+          fontSize: 15,
+          borderRadius: 2,
+          mx: 0.5,
+          my: 0.2,
+          backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
+          '&:hover': { bgcolor: mode === "dark" ? '#2a1818' : '#ffe2e2ff' },
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+        }}
       >
-        🗑️ Delete
+        <DeleteOutlineIcon fontSize="small" sx={{ color: '#ff4444' }} />
+        Delete
       </MenuItem>
     </>
   )}
@@ -2173,9 +2294,21 @@ if (msg.type === "system") {
       setNotification("Message copied!");
       setAnchorEl(null);
     }}
-    sx={{ fontSize: 15 }}
+    sx={{
+      fontSize: 15,
+      borderRadius: 2,
+      mx: 0.5,
+      my: 0.2,
+      backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
+      color: mode === "dark" ? "#fff" : "#222",
+      '&:hover': { bgcolor: mode === "dark" ? '#232323' : '#ffffffff' },
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1,
+    }}
   >
-    📋 Copy Text
+    <ContentCopyIcon fontSize="small" sx={{ color: mode === "dark" ? "#fff" : "#222" }} />
+    Copy Text
   </MenuItem>
 
   {selectedMsg?.text?.length > 10 && (
@@ -2187,14 +2320,27 @@ if (msg.type === "system") {
         );
         setAnchorEl(null);
       }}
-      sx={{ fontSize: 15 }}
-    >
-      🔎 Search on Google
+            sx={{
+              fontSize: 15,
+              borderRadius: 2,
+              mx: 0.5,
+              my: 0.2,
+              backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
+              color: mode === "dark" ? "#fff" : "#222",
+              '&:hover': { bgcolor: mode === "dark" ? '#232323' : '#ffffffff' },
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+          >
+            <SearchIcon fontSize="small" sx={{ color: mode === "dark" ? "#fff" : "#222" }} />
+            Search on Google
     </MenuItem>
   )}
 </Menu>
 
-<Menu
+<SwipeableDrawer
+  anchor="bottom"
   anchorEl={reactionAnchorEl}
   open={Boolean(reactionAnchorEl) && !showEmojiPicker}
   onClose={() => {
@@ -2204,14 +2350,46 @@ if (msg.type === "system") {
   PaperProps={{
     sx: {
       minWidth: 220,
-      borderRadius: 2,
-      bgcolor: "#181818",
-      color: "#fff",
-      boxShadow: "0 4px 24px #000a",
-      p: 0.5,
+      borderRadius: "25px 25px 0 0",
+      bgcolor: mode === "dark" ? "#00000026" : "#ffffffde",
+      color: mode === "dark" ? "#fff" : "#222",
+      boxShadow: mode === "dark" ? "0 12px 32px #000c" : "0 8px 32px #8882",
+      p: 2,
+      backdropFilter: "blur(40px)",
+      border: "none",
+      overflow: 'hidden',
+      transition: "box-shadow 0.3s, background 0.3s",
     },
   }}
 >
+    <Box
+      sx={{
+        width: 40,
+        height: 4,
+        bgcolor: mode === "dark" ? '#6a6a6aff' : '#818181ff',
+        borderRadius: 3,
+        mx: 'auto',
+        mb: 1.5,
+        opacity: 0.5,
+        cursor: "grab"
+      }}
+    />
+    <Typography
+      variant="subtitle2"
+      sx={{
+        color: mode === "dark" ? "#fff" : "#222",
+        textAlign: "center",
+        mb: 1,
+        letterSpacing: 1,
+        fontWeight: 600,
+        opacity: 0.8,
+        textShadow: mode === "dark" ? "0 2px 8px #0008" : "none"
+      }}
+    >
+      Reactions
+    </Typography>
+    <Divider sx={{ mb: 1, bgcolor: "#696969ff", borderRadius: 2 }} />
+      <Box sx={{ px: 1, pb: 1 }}>
   {reactionMsg &&
     Object.entries(getGroupedReactions(reactionMsg, allUsers)).map(
       ([emoji, users]) => (
@@ -2225,38 +2403,97 @@ if (msg.type === "system") {
               setReactionAnchorEl(null);
               setReactionMsg(null);
             }
-          }}
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            py: 1,
-          }}
+          }}sx={{
+              display: "flex",
+              alignItems: "center",
+              borderRadius: 3,
+              mx: 0.5,
+              my: 0.7,
+              px: 2,
+              py: 1.2,
+              bgcolor: mode === "dark" ? "#0000003d" : "#31313121",
+              color: mode === "dark"
+                ? "#fff"
+                : "#222",
+              fontWeight: 500,
+              fontSize: 17,
+              boxShadow: "none",
+              backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
+              border: "none",
+              transition: "background 0.2s",
+              '&:hover': {
+                bgcolor: mode === "dark" ? '#232323' : '#e0e0e0',
+                borderColor: mode === "dark" ? "#444" : "#bdbdbd"
+              },
+              flexDirection: "column",
+              gap: 0.5,
+            }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
-            <Typography variant="body1">{emoji}</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
                 {users.map((u) => (
                   <Tooltip title={u.name} key={u.uid}>
-                    <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 1, fontSize: 12, ml: 1 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", flex: 1 }}>
                         <Avatar
                           src={u.photoURL || ""}
-                          sx={{ width: 22, height: 22 }}
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            mr: 1.2,
+                            border: mode === "dark" ? "2px solid #232323" : "2px solid #e0e0e0",
+                            bgcolor: mode === "dark" ? "#222" : "#fafafa",
+                            color: mode === "dark" ? "#fff" : "#222",
+                            fontWeight: 700,
+                            fontSize: 18,
+                          }}
                           />
 {users.map((u) => (
-  <Box key={u.uid}>
-    {u.uid === currentUser.uid ? 'You' : u.name}
+  <Box key={u.uid} sx={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontWeight: 700,
+                      color: mode === "dark" ? "#fff" : "#222",
+                      fontSize: 13,
+                      flex: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap"
+                    }}
+                  >{u.uid === currentUser.uid ? 'You' : u.name}</Typography>
+    
+    {u.uid === currentUser?.uid && (
+      <Typography
+        variant="caption"
+        sx={{
+          color: mode === "dark" ? "#b4b4b4ff" : "#333333ff",
+          fontWeight: 500,
+          opacity: 0.8,
+          fontSize: 10,
+          letterSpacing: 0.1,
+          userSelect: "none"
+        }}
+      >
+        Tap to remove reaction
+      </Typography>
+    )}
   </Box>
 ))}
-
                       </Box>
                   </Tooltip>
                 ))}
+            <Typography variant="body1">{emoji}</Typography>
           </Box>
         </MenuItem>
       )
     )}
 
-</Menu>
+    {!reactionMsg && (
+      <Typography variant="body2" sx={{ color: mode === "dark" ? "#bbb" : "#888", textAlign: "center", py: 2 }}>
+        No reactions yet.
+      </Typography>
+    )}
+  </Box>
+</SwipeableDrawer>
 
 
 <Popover
@@ -2276,7 +2513,7 @@ if (msg.type === "system") {
       bgcolor: "#222",
       borderRadius: 3,
       boxShadow: "0 4px 24px #000a",
-      p: 1,
+      p: 0,
     },
   }}
 >
@@ -2285,7 +2522,7 @@ if (msg.type === "system") {
     handleReaction(emojiData.emoji, reactionMsg);
     setShowEmojiPicker(false);
   }}
-  theme="dark"
+  theme={mode === "dark" ? "dark" : "light"}
 />
 </Popover>
 
@@ -2321,11 +2558,11 @@ if (msg.type === "system") {
     position: 'fixed',
     bottom: 0,
     left: 0,
-    width: '96vw',
+    width: '95vw',
     zIndex: '1200',
     alignItems: 'center',
     borderTop: '0px solid #5E5E5E',
-    background: 'linear-gradient(to top, #000000, #00000090, #00000000)',
+    background: mode === "dark" ? 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to bottom, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
   }}
 >
   {(() => {
@@ -2344,8 +2581,8 @@ if (msg.type === "system") {
             p: 1,
             textAlign: 'center',
             width: '100%',
-            backgroundColor: "#000000ff",
-            borderTop: "1px solid #333"
+            backgroundColor: mode === "dark" ? "#000000ff" : "#ffffff",
+            borderTop: "1px solid #737373ff"
           }}
         >
           🔒 Only Admins can send messages in this group.
@@ -2367,7 +2604,7 @@ if (msg.type === "system") {
     zIndex: '1200',
     alignItems: 'center',
     borderTop: '0px solid #5e5e5e81',
-    background: 'linear-gradient(to top, #000000, #00000090, #00000000)',
+    background: mode === "dark" ? 'linear-gradient(to top, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to top, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
   }}
 >
   
@@ -2379,23 +2616,25 @@ sx={{
     px: 0.5,
     backgroundColor: "rgba(0, 0, 0, 0.17)",
     border: "1px solid #757575ff",
-      borderRadius: '40px',
-      backdropFilter: "blur(30px)",
-      mr: 0.7
-}}>
+    borderRadius: '40px',
+    backdropFilter: "blur(30px)",
+    mr: 0.7,
+    height: '40px',
+}}
+>
     <Button
     sx={{
       display: editingMsg ? "none" : "flex",
-      backgroundColor: '#f1f1f11c',
+      backgroundColor: mode === "dark" ? '#f1f1f11c' : "#ffffff1c",
       backdropFilter: "blur(80px)",
-      height: '40px',
+      height: '30px',
       px: 0,
-      minWidth: '40px',
+      minWidth: '30px',
       borderRadius: 40,
     }}
     onClick={(e) => setMoreAnchorEl(e.currentTarget)}
   >
-    <AddIcon sx={{ color: '#ffffffff', fontSize: 24 }} />
+    <AddIcon sx={{ color: mode === "dark" ? '#ffffffff' : "#000000", fontSize: 24 }} />
   </Button>
 
   <TextField
@@ -2406,49 +2645,49 @@ sx={{
     placeholder={editingMsg ? "Edit message..." : "Type a message..."}
     size="small"
     fullWidth
-    sx={{
-      zIndex: '1500',
-      mr: 0,
-      input: {
-        color: '#FFFFFF',
-        height: '30px',
-        width: "53vw",
-        borderRadius: '40px'
-      },
-      '& .MuiOutlinedInput-root': {
-        '& fieldset': {
-          borderColor: '#5e5e5e00',
-          borderRadius: '40px'
-        },
-        '&:hover fieldset': {
-          borderColor: '#75757500',
-          borderRadius: '40px'
-        },
-        '&.Mui-focused fieldset': {
-          borderColor: '#75757500',
-          borderRadius: '40px'
-        },
-      },
-      '& .MuiInputBase-input::placeholder': {
-        color: '#757575'
-      }
-    }}
+          sx={{
+            zIndex: '1500',
+            mr: 1,
+            borderRadius: '40px',
+            input: {
+              color: mode === "dark" ? "#fff" : "#000",
+              height: '28px',
+              borderRadius: '40px',
+            },
+            '& .MuiOutlinedInput-root': {
+              '& fieldset': {
+                borderColor: '#5E5E5E00',
+                borderRadius: '40px'
+              },
+              '&:hover fieldset': {
+                borderColor: '#39393900',
+                borderRadius: '40px'
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#75757500',
+                borderRadius: '40px'
+              },
+            },
+            '& .MuiInputBase-input::placeholder': {
+              color: mode === "dark" ? "#cccccc" : "#343434ff"
+            }
+          }}
   />
 </Box>
 
   {editingMsg ? (
     <>
       <Button
-        sx={{ backgroundColor: '#430400ff', height: '50px', width: '50px', borderRadius: 40, mr: 1 }}
+        sx={{ backgroundColor: mode === "dark" ? '#430400ff' : '#ffd2cfff', height: '45px', width: '45px', borderRadius: 40, mr: 1 }}
         onClick={() => {
           setEditingMsg(null);
           setEditText("");
         }}
       >
-        <CloseIcon sx={{ color: '#ffd2cfff' }} />
+        <CloseIcon sx={{ color: mode === "dark" ? '#ffd2cfff' : '#430400ff' }} />
       </Button> 
       <Button
-        sx={{ backgroundColor: '#ffffffff', height: '50px', width: '50px', borderRadius: 40 }}
+        sx={{ backgroundColor: mode === "dark" ? '#ffffffff' : "#000000", height: '45px', width: '45px', borderRadius: 40 }}
         onClick={async () => {
           try {
             const msgRef = doc(
@@ -2470,67 +2709,117 @@ sx={{
           }
         }}
       >
-        <CheckIcon sx={{ color: '#000' }} />
+        <CheckIcon sx={{ color: mode === "dark" ? '#000' : "#fff" }} />
       </Button>
 
     </>
   ) : (
     <>
     <Button
-      sx={{ backgroundColor: '#ffffffff', height: '50px', width: '50px', borderRadius: 40 }}
+      sx={{ backgroundColor: mode === "dark" ? '#ffffffff' : "#000000", height: '45px', width: '54px', borderRadius: 40 }}
       onClick={sendMessage}
     >
-      <SendIcon sx={{ color: '#000' }} />
+      <SendIcon sx={{ color: mode === "dark" ? '#000' : "#fff" }} />
     </Button>
   </>
   )}
 
   {/* --- More Options Menu --- */}
-  <Menu
-    anchor="bottom"
-    top={0}
-    position={"fixed"}
-    anchorEl={moreAnchorEl}
-    open={Boolean(moreAnchorEl)}
-    onClose={() => setMoreAnchorEl(null)}
-    PaperProps={{
-      sx: {
-        bgcolor: "#2323231b",
-        color: "#fff",
-        borderRadius: 1,
-        maxWidth: 370,
-        backdropFilter: "blur(40px)",
-        width: 370,
-        position: "static",
-        margin: "auto",
-        marginTop: "177%",
-      }
-    }}
-  >
+<Menu
+  anchorEl={moreAnchorEl}
+  open={Boolean(moreAnchorEl)}
+  onClose={() => setMoreAnchorEl(null)}
+  PaperProps={{
+    sx: {
+      bgcolor: mode === "dark" ? "#232323e6" : "#f7f7f7e6",
+      color: mode === "dark" ? "#fff" : "#222",
+      borderRadius: 3,
+      maxWidth: 370,
+      minWidth: 260,
+      backdropFilter: "blur(24px)",
+      boxShadow: mode === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
+      p: 1,
+      mx: "auto",
+      my: 2,
+      border: "none",
+      boxShadow: "none",
+      transition: "box-shadow 0.3s, background 0.3s",
+    }
+  }}
+  anchorOrigin={{
+    vertical: "bottom",
+    horizontal: "center"
+  }}
+  transformOrigin={{
+    vertical: "top",
+    horizontal: "center"
+  }}
+>
   <MenuItem
     onClick={async () => {
       const items = await fetchTripTimeline();
       await sendStructuredMessage("Timeline", items);
       setMoreAnchorEl(null);
     }}
+    sx={{
+      fontWeight: 600,
+      fontSize: 16,
+      borderRadius: 2,
+      mb: 1,
+      px: 2,
+      py: 1.5,
+      color: mode === "dark" ? "#fff" : "#222",
+      '&:hover': {
+        bgcolor: mode === "dark" ? "#232323" : "#e0e0e0"
+      },
+      transition: "background 0.2s"
+    }}
   >
     📅 Send Timeline
   </MenuItem>
-
   <MenuItem
     onClick={async () => {
       const items = await fetchTripChecklist();
       await sendStructuredMessage("Checklist", items);
       setMoreAnchorEl(null);
     }}
+    sx={{
+      fontWeight: 600,
+      fontSize: 16,
+      borderRadius: 2,
+      mb: 1,
+      px: 2,
+      py: 1.5,
+      color: mode === "dark" ? "#fff" : "#222",
+      '&:hover': {
+        bgcolor: mode === "dark" ? "#232323" : "#e0e0e0"
+      },
+      transition: "background 0.2s"
+    }}
   >
     ✅ Send Checklist
   </MenuItem>
-{/* 
-    <MenuItem onClick={() => { setShowPollDialog(true); setMoreAnchorEl(null); }}>
+  {/* 
+  <MenuItem
+    onClick={() => { setShowPollDialog(true); setMoreAnchorEl(null); }}
+    sx={{
+      fontWeight: 600,
+      fontSize: 16,
+      borderRadius: 2,
+      mb: 1,
+      px: 2,
+      py: 1.5,
+      color: mode === "dark" ? "#fff" : "#222",
+      '&:hover': {
+        bgcolor: mode === "dark" ? "#232323" : "#e0e0e0"
+      },
+      transition: "background 0.2s"
+    }}
+  >
     📊 Create Poll
-  </MenuItem> */}
-  </Menu>
+  </MenuItem>
+  */}
+</Menu>
 
 <Dialog
   open={showPollDialog}
@@ -2676,16 +2965,16 @@ sx={{
 </Avatar>
 
 
-            <Typography variant="h5" sx={{ fontWeight: 600 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
               {groupInfo.name || groupName}
               {groupInfo.name === "BM - Beta members" && (
             <Box
               component="span"
               sx={{
                 ml: 1,
-                px: 1,
-                py: 0.3,
-                fontSize: 12,
+                px: 0.5,
+                py: 0.1,
+                fontSize: 11,
                 backgroundColor: '#00f72133',
                 color: '#00f721',
                 borderRadius: 1.5,
@@ -2699,9 +2988,9 @@ sx={{
               component="span"
               sx={{
                 ml: 1,
-                px: 1,
-                py: 0.3,
-                fontSize: 12,
+                px: 0.5,
+                py: 0.1,
+                fontSize: 11,
                 backgroundColor: '#66ccff33',
                 color: '#66ccff',
                 borderRadius: 1.5,
@@ -2723,7 +3012,8 @@ sx={{
                 mb: 2,
                 px: 1.5,
                 py: 0.5,
-                borderRadius: 1
+                borderRadius: 3,
+                boxShadow: "none",
               }}
             >
 {groupInfo.description && (
@@ -2755,7 +3045,8 @@ sx={{
       backgroundColor: "#f1f1f101",
       backgroundPosition: "center",
       color: "#fff",
-      borderRadius: 1,
+      borderRadius: 3,
+      boxShadow: "none",
     }}
   >
 
@@ -2801,7 +3092,8 @@ sx={{
                   flexDirection: "column",
                   gap: 0.5,
                   mt: 2,
-                  mx: "auto"
+                  mx: "auto",
+                  boxShadow: "none",
                 }}
               >
                 {canEditGroupInfo && (
@@ -2809,7 +3101,7 @@ sx={{
                       variant="contained"
                       onClick={() => setEditingGroupInfo(true)}
                       sx={{
-                        bgcolor: '#f1f1f111', color: '#fff', borderRadius: 1, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5
+                        bgcolor: '#f1f1f111', color: '#fff', borderRadius: 3, boxShadow: "none", py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5
                       }}
                     >
                     <EditIcon sx={{ fontSize: 24 }} />
@@ -2824,7 +3116,7 @@ sx={{
                     variant="contained"
                     onClick={() => setGroupSettingsOpen(true)}
                     sx={{
-                        bgcolor: '#f1f1f111', color: '#fff', borderRadius: 1, py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5
+                        bgcolor: '#f1f1f111', color: '#fff', borderRadius: 3, boxShadow: "none", py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5
                     }}
                   >
                     <SettingsOutlinedIcon sx={{ fontSize: 24 }} />
@@ -2844,7 +3136,7 @@ sx={{
                   backgroundColor: "#f1f1f111",
                   p: 1,
                   mt: 2,
-                  borderRadius: 1
+                  borderRadius: 3
                 }}
               >
              <Typography
@@ -2862,9 +3154,9 @@ sx={{
   <Button
     variant="contained"
     onClick={() => setInviteDrawerOpen(true)}
-    sx={{ mt: 0, backgroundColor: "#f1f1f111", boxShadow: "none", color: "#fff", justifyContent: "left", alignItems: "center", borderRadius: 1, gap: 1, px: 1, display: "flex" }}
+    sx={{ mt: 0, backgroundColor: "#f1f1f111", boxShadow: "none", color: "#fff", justifyContent: "left", alignItems: "center", borderRadius: 2, gap: 1, px: 1, display: "flex" }}
   >
-    <AddIcon sx={{ backgroundColor: "#fff", color: "#000", padding: 1, borderRadius: 4 }} />
+    <AddIcon sx={{ backgroundColor: "#fff", color: "#000", padding: 1, borderRadius: 8 }} />
      Add Members
   </Button>
 )}
@@ -2884,7 +3176,7 @@ sx={{
           display="flex"
           alignItems="center"
           justifyContent="space-between"
-          sx={{ background: "#f1f1f111", p: 1, borderRadius: 1 }}
+          sx={{ background: "#f1f1f111", p: 1, borderRadius: 2 }}
         >
           <Box display="flex" alignItems="center" gap={1} onClick={() => window.location.href=`/chat/${memberUid}`}>
             <Avatar src={member?.photoURL} sx={{ width: 40, height: 40, mr: 1 }} />
@@ -2892,10 +3184,10 @@ sx={{
               <Typography variant='body1'>
                 {member?.name || memberUid.slice(0, 6)}
                 {isOwner && (
-                  <Chip label="Admin" size="small" sx={{ ml: 1, background: "#ffffff36", color: "#fff", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 0.5 }} />
+                  <Chip label="Admin" size="small" sx={{ ml: 1, background: "#ffffff36", color: "#fff", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1.5 }} />
                 )}
                 {isAdmin && !isOwner && (
-                  <Chip label="Admin" size="small" sx={{ ml: 1, background: "#ffffff36", color: "#fff", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 0.5 }} />
+                  <Chip label="Admin" size="small" sx={{ ml: 1, background: "#ffffff36", color: "#fff", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1.5 }} />
                 )}
               </Typography>
               <Typography variant='body2'>{member?.username || memberUid.slice(0, 6)}</Typography>
@@ -2936,7 +3228,7 @@ sx={{
         <Button
           variant="contained"
           size="small"
-          sx={{ mt: 2, height: 50, px: 2, backgroundColor: "#f1f1f124", boxShadow: "none", color: "#fff", justifyContent: "space-between", alignItems: "center", borderRadius: 1, gap: 1, display: "flex" }}
+          sx={{ mt: 2, height: 50, px: 2, backgroundColor: "#f1f1f124", boxShadow: "none", color: "#fff", justifyContent: "space-between", alignItems: "center", borderRadius: 2.5, gap: 1, display: "flex" }}
           onClick={() => setMembersDrawerOpen(true)}
         >
           <Typography variant='body1'>
@@ -2968,7 +3260,7 @@ sx={{
                       bgcolor: '#f1f1f111',
                       color: '#ff6767',
                       fontSize: 16,
-                      borderRadius: 1,
+                      borderRadius: 3,
                       py: 1.4,
                       px: 2,
                       display: "flex",
@@ -2986,18 +3278,67 @@ sx={{
               </Box>
 </Box>
 
- <Dialog
+<Dialog
   open={confirmDialogOpen}
   onClose={() => setConfirmDialogOpen(false)}
+  PaperProps={{
+    sx: {
+      bgcolor: mode === "dark" ? "#00000061" : "#f1f1f161",
+      color: mode === "dark" ? "#fff" : "#222",
+      backdropFilter: "blur(20px)",
+      borderRadius: 4,
+      boxShadow: mode === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
+      p: 2,
+      minWidth: 320,
+      maxWidth: 400,
+    }
+  }}
 >
-  <DialogTitle>Remove Member</DialogTitle>
-  <DialogContent>
-    <Typography>
+  <DialogTitle sx={{
+    color: mode === "dark" ? "#ff4444" : "#d32f2f",
+    fontWeight: 700,
+    fontSize: 20,
+    textAlign: "center",
+    pb: 1,
+    letterSpacing: 1,
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "center",
+  }}>
+    <RemoveCircleOutlineIcon sx={{ mr: 1, color: mode === "dark" ? "#ff4444" : "#d32f2f" }} />
+    Remove Member
+  </DialogTitle>
+  <DialogContent sx={{ textAlign: "center", py: 2 }}>
+    <Typography sx={{
+      color: mode === "dark" ? "#fff" : "#222",
+      fontSize: 16,
+      mb: 2,
+    }}>
       Are you sure you want to remove this member from the group?
     </Typography>
+    <Typography variant="caption" sx={{ color: mode === "dark" ? "#9b9b9bff" : "#333" }}>
+      This action cannot be undone.
+    </Typography>
   </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+  <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
+    <Button
+      onClick={() => setConfirmDialogOpen(false)}
+      variant="outlined"
+      sx={{
+        color: mode === "dark" ? "#fff" : "#222",
+        borderColor: mode === "dark" ? "#555" : "#ccc",
+        fontWeight: 600,
+        px: 3,
+        borderRadius: 8,
+        mr: 1,
+        backgroundColor: mode === "dark" ? "#23232300" : "#f7f7f700",
+        "&:hover": {
+          backgroundColor: mode === "dark" ? "#333" : "#e0e0e0"
+        }
+      }}
+    >
+      Cancel
+    </Button>
     <Button
       onClick={async () => {
         await handleRemoveMember(selectedMemberToRemove);
@@ -3005,12 +3346,22 @@ sx={{
       }}
       color="error"
       variant="contained"
+      sx={{
+        fontWeight: 700,
+        px: 3,
+        borderRadius: 8,
+        bgcolor: "#ff4444",
+        color: "#fff",
+        boxShadow: "none",
+        "&:hover": {
+          bgcolor: "#d32f2f"
+        }
+      }}
     >
       Remove
     </Button>
   </DialogActions>
 </Dialog>
-
 
           </Box>
 
@@ -3021,50 +3372,77 @@ sx={{
   onOpen={() => {}} // Required for SwipeableDrawer
   PaperProps={{
     sx: {
-      p: 3,
-      bgcolor: "#121212",
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      boxShadow: "0 -2px 20px rgba(0, 0, 0, 0.6)",
+      p: { xs: 2, sm: 3 },
+      bgcolor: mode === "dark" ? "#18181821" : "#f7f7f741",
+      backdropFilter: "blur(80px)",
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      boxShadow: "0 -2px 20px rgba(0,0,0,0.6)",
+      minHeight: "40vh",
+      maxWidth: 420,
+      mx: "auto",
     },
   }}
 >
-
-                  <Box
-            sx={{
-              width: 40,
-              height: 5,
-              backgroundColor: '#666',
-              borderRadius: 3,
-              mx: 'auto',
-              mb: 2,
-              opacity: 0.7,
-            }}
-          />
-  
-  <Typography variant="h6" sx={{ color: "#fff", mb: 2 }}>
+  <Box
+    sx={{
+      width: 40,
+      height: 5,
+      backgroundColor: "#8b8b8bff",
+      borderRadius: 3,
+      mx: "auto",
+      mb: 2,
+      opacity: 0.7,
+    }}
+  />
+  <Typography variant="h6" sx={{ color: mode === "dark" ? "#fff" : "#222", mb: 2, textAlign: "center", fontWeight: 700 }}>
     Invite to Group
   </Typography>
 
-  {/* Add Members Button */}
   <Button
     variant="contained"
     onClick={() => setAddUserDialogOpen(true)}
     fullWidth
-    sx={{ mt: 0, backgroundColor: "#f1f1f111", boxShadow: "none", color: "#fff", justifyContent: "left", alignItems: "center", borderRadius: 1, gap: 1, px: 1, display: "flex" }}
+    sx={{
+      mt: 0,
+      backgroundColor: mode === "dark" ? "#23232331" : "#e0e0e031",
+      boxShadow: "none",
+      color: mode === "dark" ? "#fff" : "#222",
+      justifyContent: "left",
+      alignItems: "center",
+      borderRadius: 3,
+      gap: 1.5,
+      px: 2,
+      py: 1.2,
+      fontWeight: 600,
+      fontSize: 16,
+      mb: 2,
+      "&:hover": {
+        backgroundColor: mode === "dark" ? "#333" : "#f1f1f1"
+      }
+    }}
   >
-    <PersonAddIcon sx={{ backgroundColor: "#ffffffdc", color: "#000000", padding: 1, borderRadius: 4 }} />
+    <PersonAddIcon sx={{ backgroundColor: "#fff", color: "#000", padding: 1, borderRadius: 8 }} />
     Add Members
   </Button>
 
-    {/* Divider */}
   <Divider sx={{ my: 2, borderColor: "#444", color: "#aaa" }}>
     Or add members directly
   </Divider>
 
-  {/* Invite Link Section */}
   <Box
-    sx={{ mb: 4, backgroundColor: "#f1f1f111", boxShadow: "none", color: "#fff", justifyContent: "left", alignItems: "center", borderRadius: 1, gap: 1, px: 1, py: 1, display: "flex" }}
+    sx={{
+      mb: 4,
+      backgroundColor: mode === "dark" ? "#23232331" : "#f1f1f131",
+      color: mode === "dark" ? "#fff" : "#222",
+      borderRadius: 3,
+      gap: 1,
+      px: 2,
+      py: 1.5,
+      display: "flex",
+      alignItems: "center",
+      boxShadow: "none",
+    }}
   >
     <TextField
       value={inviteLink}
@@ -3072,14 +3450,22 @@ sx={{
       variant="standard"
       InputProps={{
         disableUnderline: true,
-        sx: { color: "#fff", fontSize: 18 },
+        sx: { color: mode === "dark" ? "#fff" : "#222", fontSize: 18 },
         endAdornment: (
           <IconButton
             onClick={() => {
               navigator.clipboard.writeText(inviteLink);
               setNotification("🔗 Invite link copied!");
             }}
-            sx={{ backgroundColor: "#f1f1f111", color: "#ffffffff" }}
+            sx={{
+              backgroundColor: mode === "dark" ? "#232323" : "#e0e0e0",
+              color: mode === "dark" ? "#fff" : "#222",
+              ml: 1,
+              borderRadius: 8,
+              "&:hover": {
+                backgroundColor: mode === "dark" ? "#333" : "#f1f1f1"
+              }
+            }}
           >
             <ContentCopyIcon />
           </IconButton>
@@ -3088,53 +3474,52 @@ sx={{
     />
   </Box>
 
-  {/* QR Code */}
   <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
-    <Box sx={{ p: 2, backgroundColor: "#ffffff", borderRadius: 1 }}>
+    <Box sx={{ p: 2, backgroundColor: "#fff", borderRadius: 3, boxShadow: "0 2px 8px #0002" }}>
       <QRCodeCanvas value={inviteLink} size={180} />
     </Box>
   </Box>
 
-  {/* Share Button */}
   <Button
     variant="contained"
     onClick={handleShare}
     fullWidth
     sx={{
-      bgcolor: "#ffffffff",
-      color: "#000",
-      fontWeight: 600,
-      borderRadius: 1,
+      bgcolor: mode === "dark" ? "#fff" : "#000",
+      color: mode === "dark" ? "#000" : "#fff",
+      fontWeight: 700,
+      borderRadius: 2,
       py: 1.2,
-      mb: 3,
+      mb: 2,
+      fontSize: 16,
+      boxShadow: "none",
       "&:hover": {
-        bgcolor: "#ccccccff",
+        bgcolor: "#00c721",
       },
     }}
   >
     <ShareIcon sx={{ mr: 1, fontSize: 18 }} /> Share Invite Link
   </Button>
 
-<Snackbar
-  open={Boolean(notification)}
-  autoHideDuration={2500}
-  onClose={() => setNotification(null)}
-  message={notification}
-  anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-  ContentProps={{
-    sx: {
-      bgcolor: "#fff",
-      color: "#000",
-      fontSize: 14,
-      px: 2,
-      py: 1.5,
-      borderRadius: 1,
-    },
-  }}
-/>
-
+  <Snackbar
+    open={Boolean(notification)}
+    autoHideDuration={2500}
+    onClose={() => setNotification(null)}
+    message={notification}
+    anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+    ContentProps={{
+      sx: {
+        bgcolor: mode === "dark" ? "#232323" : "#fff",
+        color: mode === "dark" ? "#fff" : "#000",
+        fontSize: 14,
+        px: 2,
+        py: 1.5,
+        borderRadius: 2,
+        boxShadow: "none",
+      },
+    }}
+  />
 </SwipeableDrawer>
-
 
 <SwipeableDrawer
   anchor="bottom"
@@ -3142,59 +3527,80 @@ sx={{
   onClose={() => setMembersDrawerOpen(false)}
   PaperProps={{
     sx: {
-      p: 2,
-      backgroundColor: "#111",
-      color: "#fff",
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      p: { xs: 2, sm: 3 },
+      backgroundColor: mode === "dark" ? "#181818f2" : "#f7f7f7f2",
+      color: mode === "dark" ? "#fff" : "#222",
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      boxShadow: "0 -2px 20px rgba(0,0,0,0.18)",
       minHeight: "60vh",
       maxHeight: "80vh",
+      mx: "auto",
+      transition: "background 0.3s",
+      backdropFilter: "blur(60px)",
     },
   }}
 >
   <Box>
-                <Box
-            sx={{
-              width: 40,
-              height: 5,
-              backgroundColor: '#666',
-              borderRadius: 3,
-              mx: 'auto',
-              mb: 2,
-              opacity: 0.7,
-            }}
-          />
-          
-  <Typography variant="h6" sx={{ mb: 2 }}>
-    All Group Members
-  </Typography>
-  <TextField
-    fullWidth
-    placeholder="Search member"
-    value={memberSearch}
-    onChange={e => setMemberSearch(e.target.value)}
-    sx={{
-      mb: 2,
-      input: { color: "#fff" },
-      label: { color: "#ccc" },
-      '& .MuiOutlinedInput-root': {
-        '& fieldset': { borderColor: '#555' },
-        '&:hover fieldset': { borderColor: '#888' },
-        '&.Mui-focused fieldset': { borderColor: '#ffffffff' },
-      },
-    }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: "#777" }} />
-                </InputAdornment>
-              ),
-            }}
-  />
+    <Box
+      sx={{
+        width: 40,
+        height: 5,
+        backgroundColor: mode === "dark" ? "#888" : "#bbb",
+        borderRadius: 3,
+        mx: "auto",
+        mb: 2,
+        opacity: 0.7,
+      }}
+    />
+    <Typography
+      variant="h6"
+      sx={{
+        mb: 2,
+        textAlign: "center",
+        fontWeight: 700,
+        letterSpacing: 1,
+        color: mode === "dark" ? "#fff" : "#222",
+      }}
+    >
+      All Group Members
+    </Typography>
+    <TextField
+      fullWidth
+      placeholder="Search member"
+      value={memberSearch}
+      onChange={e => setMemberSearch(e.target.value)}
+      sx={{
+        mb: 2,
+        input: { color: mode === "dark" ? "#fff" : "#222" },
+        label: { color: "#ccc" },
+        '& .MuiOutlinedInput-root': {
+          '& fieldset': { borderColor: '#555' },
+          '&:hover fieldset': { borderColor: '#888' },
+          '&.Mui-focused fieldset': { borderColor: '#00f721' },
+        },
+        borderRadius: 2,
+        backgroundColor: mode === "dark" ? "#23232344" : "#f1f1f144",
+      }}
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">
+            <SearchIcon sx={{ color: "#777" }} />
+          </InputAdornment>
+        ),
+      }}
+    />
   </Box>
 
-
-  <List sx={{ maxHeight: "60vh", overflowY: "auto" }}>
+  <List sx={{
+    maxHeight: "60vh",
+    overflowY: "auto",
+    px: 1,
+    py: 1,
+    borderRadius: 3,
+    backgroundColor: mode === "dark" ? "#23232322" : "#f1f1f122",
+    boxShadow: "none",
+  }}>
     <Stack spacing={1}>
       {(groupInfo.members || [])
         .filter(uid => {
@@ -3219,323 +3625,401 @@ sx={{
               alignItems="center"
               justifyContent="space-between"
               sx={{
-                background: "#f1f1f111",
-                p: 1,
-                borderRadius: 1,
+                background: mode === "dark" ? "#23232344" : "#f1f1f144",
+                p: 1.2,
+                borderRadius: 2,
+                boxShadow: "0 1px 6px #0001",
+                transition: "background 0.2s",
+                "&:hover": {
+                  background: mode === "dark" ? "#23232388" : "#e0e0e088",
+                },
               }}
             >
-              <Box display="flex" alignItems="center" gap={1} onClick={() => window.location.href=`/chat/${memberUid}`}>
-                <Avatar src={member?.photoURL} sx={{ width: 40, height: 40, mr: 1 }} />
+              <Box display="flex" alignItems="center" gap={1.5} sx={{ cursor: "pointer" }} onClick={() => window.location.href=`/chat/${memberUid}`}>
+                <Avatar src={member?.photoURL} sx={{
+                  width: 40,
+                  height: 40,
+                  mr: 1,
+                  boxShadow: "0 2px 8px #0002",
+                  border: mode === "dark" ? "2px solid #444" : "2px solid #eee",
+                }} />
                 <Box>
-                  <Typography variant='body1'>
+                  <Typography variant='body1' sx={{ fontWeight: 600, color: mode === "dark" ? "#fff" : "#222" }}>
                     {member?.name || memberUid.slice(0, 6)}
                     {isOwner && (
-                      <Chip label="Admin" size="small" sx={{ ml: 1, background: "#ffffff36", color: "#fff", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 0.5 }} />
+                      <Chip label="Owner" size="small" sx={{ ml: 1, background: "#00f72144", color: "#fff", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1 }} />
                     )}
                     {isAdmin && !isOwner && (
-                      <Chip label="Admin" size="small" sx={{ ml: 1, background: "#ffffff36", color: "#fff", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 0.5 }} />
+                      <Chip label="Admin" size="small" sx={{ ml: 1, background: "#ffffff36", color: "#fff", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1 }} />
                     )}
                   </Typography>
-                  <Typography variant='body2'>{member?.username || memberUid.slice(0, 6)}</Typography>
+                  <Typography variant='body2' sx={{ color: "#aaa" }}>{member?.username || memberUid.slice(0, 6)}</Typography>
                 </Box>
               </Box>
-              
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Tooltip title="Call">
-              {member?.mobile ? (
-                <IconButton
-                  onClick={() => window.open(`tel:${member.mobile}`, '_self')}
-                  sx={{ color: "#fff", backgroundColor: "#f1f1f111", padding: 1 }}
-                >
-                  <PhoneOutlinedIcon />
-                </IconButton>
-              ) : null}
-            </Tooltip>
-
-            {(groupInfo?.createdBy === user?.uid || (groupInfo?.admins || []).includes(user?.uid)) &&
-              memberUid !== groupInfo?.createdBy &&
-              !(groupInfo?.admins || []).includes(memberUid) &&
-              memberUid !== user?.uid && (
-                <Tooltip title="Remove User From Group">
-                  <IconButton
-                    onClick={() => {
-                      setSelectedMemberToRemove(memberUid);
-                      setConfirmDialogOpen(true);
-                    }}
-                    sx={{ color: "#fbb", backgroundColor: "#ff000030", padding: 1 }}
-                  >
-                    <RemoveCircleOutlineIcon />
-                  </IconButton>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Tooltip title="Call">
+                  {member?.mobile ? (
+                    <IconButton
+                      onClick={() => window.open(`tel:${member.mobile}`, '_self')}
+                      sx={{
+                        color: "#fff",
+                        backgroundColor: mode === "dark" ? "#23232344" : "#f1f1f144",
+                        padding: 1,
+                        borderRadius: 2,
+                        "&:hover": {
+                          backgroundColor: mode === "dark" ? "#333" : "#e0e0e0",
+                        }
+                      }}
+                    >
+                      <PhoneOutlinedIcon />
+                    </IconButton>
+                  ) : null}
                 </Tooltip>
-            )}
-          </Box>
+                {(groupInfo?.createdBy === user?.uid || (groupInfo?.admins || []).includes(user?.uid)) &&
+                  memberUid !== groupInfo?.createdBy &&
+                  !(groupInfo?.admins || []).includes(memberUid) &&
+                  memberUid !== user?.uid && (
+                    <Tooltip title="Remove User From Group">
+                      <IconButton
+                        onClick={() => {
+                          setSelectedMemberToRemove(memberUid);
+                          setConfirmDialogOpen(true);
+                        }}
+                        sx={{
+                          color: "#fbb",
+                          backgroundColor: "#ff000030",
+                          padding: 1,
+                          borderRadius: 2,
+                          "&:hover": {
+                            backgroundColor: "#ff4444",
+                            color: "#fff",
+                          }
+                        }}
+                      >
+                        <RemoveCircleOutlineIcon />
+                      </IconButton>
+                    </Tooltip>
+                )}
+              </Box>
             </Box>
           )
         })}
       {groupInfo.members?.length === 0 && (
-        <Typography sx={{ color: "#aaa", mt: 2, textAlign: "center" }}>
+        <Typography sx={{ color: "#aaa", mt: 2, textAlign: "center", fontStyle: "italic" }}>
           No members
         </Typography>
       )}
     </Stack>
   </List>
-  <Box textAlign="center" mt={2}>
-  </Box>
+  <Box textAlign="center" mt={2}></Box>
 </SwipeableDrawer>
-
 
 <Drawer
   anchor="bottom"
-  fullHeight
   open={groupSettingsOpen}
   onClose={() => setGroupSettingsOpen(false)}
   PaperProps={{
     sx: {
-      p: 3,
-      backgroundColor: "#111",
-      color: "#fff",
+      p: { xs: 3, sm: 4 },
+      backgroundColor: mode === "dark" ? "#181818f2" : "#f7f7f7f2",
+      color: mode === "dark" ? "#fff" : "#222",
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      boxShadow: "0 -4px 32px rgba(0,0,0,0.18)",
       maxWidth: 480,
       mx: "auto",
-      height: "95vh"
+      height: "95vh",
+      backdropFilter: "blur(60px)",
+      transition: "background 0.3s",
     },
   }}
 >
-
-
-  <Box display="flex" flexDirection="column" gap={3} maxHeight={"93vh"} overflowY={"auto"} mb={2}>
-
-  <Box display="flex" alignItems="center">
-  <IconButton onClick={() => setGroupSettingsOpen(false)} sx={{ color: "#fff", mr: 1 }}>
-    <ArrowBackIcon />
-  </IconButton>
-  <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-    Group Settings
-  </Typography>
-</Box>
+  <Box display="flex" flexDirection="column" gap={3} maxHeight="93vh" overflowY="auto" mb={2}>
+    <Box display="flex" alignItems="center" sx={{ mb: 1 }}>
+      <IconButton onClick={() => setGroupSettingsOpen(false)} sx={{ color: "#fff", mr: 1 }}>
+        <ArrowBackIcon />
+      </IconButton>
+      <Typography variant="h5" sx={{ fontWeight: "bold", letterSpacing: 1 }}>
+        Group Settings
+      </Typography>
+    </Box>
 
     {/* Section: Permission Toggles */}
-    <Box>
-      <Typography variant="h6" sx={{ mb: 1 }}>
+    <Box sx={{
+      background: mode === "dark" ? "#23232344" : "#f1f1f144",
+      borderRadius: 3,
+      p: 2,
+      boxShadow: "none",
+      mb: 2,
+    }}>
+      <Typography variant="h6" sx={{ mb: 2, color: mode === "dark" ? "#fff" : "#222", fontWeight: 700 }}>
         Permissions
       </Typography>
-<Stack spacing={3}>
-  {/* Edit Access Section */}
-  <Box>
-    <Typography variant="subtitle2" sx={{ mb: 1, color: "#ccc" }}>
-      Who can edit group info?
-    </Typography>
-    <Stack direction="row" spacing={2}>
-      {["admin", "all"].map((role) => (
-        <Button
-          key={role}
-          variant={groupInfo?.editAccess === role ? "contained" : "outlined"}
-          onClick={() => handlePermissionChange("editAccess", role)}
-          sx={{
-            color: groupInfo?.editAccess === role ? "#000" : "#fff",
-            backgroundColor:
-              groupInfo?.editAccess === role ? "#fff" : "transparent",
-            textTransform: "none",
-            fontWeight: 600,
-            px: 3,
-            borderRadius: 2,
-          }}
-        >
-          {role === "admin" ? "Admins Only" : "All Members"}
-        </Button>
-      ))}
-    </Stack>
-  </Box>
+      <Stack spacing={3}>
+        {/* Edit Access Section */}
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 1, color: "#ccc", fontWeight: 600 }}>
+            Who can edit group info?
+          </Typography>
+          <Stack direction="row" spacing={2}>
+            {["admin", "all"].map((role) => (
+              <Button
+                key={role}
+                variant={groupInfo?.editAccess === role ? "contained" : "outlined"}
+                onClick={() => handlePermissionChange("editAccess", role)}
+                sx={{
+                  color: groupInfo?.editAccess === role ? "#000" : "#fff",
+                  backgroundColor: groupInfo?.editAccess === role ? "#fff" : "transparent",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  px: 3,
+                  borderRadius: 2,
+                  boxShadow: "none",
+                  border: groupInfo?.editAccess === role ? "none" : "1.5px solid #555",
+                  "&:hover": {
+                    backgroundColor: groupInfo?.editAccess === role ? "#e0e0e0" : "#23232344",
+                  },
+                  transition: "background 0.2s",
+                }}
+              >
+                {role === "admin" ? "Admins Only" : "All Members"}
+              </Button>
+            ))}
+          </Stack>
+        </Box>
 
-  {/* Invite Access Section */}
-  <Box>
-    <Typography variant="subtitle2" sx={{ mb: 1, color: "#ccc" }}>
-      Who can add members?
-    </Typography>
-    <Stack direction="row" spacing={2}>
-      {["admin", "all"].map((role) => (
-        <Button
-          key={role}
-          variant={groupInfo?.inviteAccess === role ? "contained" : "outlined"}
-          onClick={() => handlePermissionChange("inviteAccess", role)}
-          sx={{
-            color: groupInfo?.inviteAccess === role ? "#000" : "#fff",
-            backgroundColor:
-              groupInfo?.inviteAccess === role ? "#fff" : "transparent",
-            textTransform: "none",
-            fontWeight: 600,
-            px: 3,
-            borderRadius: 2,
-          }}
-        >
-          {role === "admin" ? "Admins Only" : "All Members"}
-        </Button>
-      ))}
-    </Stack>
-  </Box>
+        {/* Invite Access Section */}
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 1, color: "#ccc", fontWeight: 600 }}>
+            Who can add members?
+          </Typography>
+          <Stack direction="row" spacing={2}>
+            {["admin", "all"].map((role) => (
+              <Button
+                key={role}
+                variant={groupInfo?.inviteAccess === role ? "contained" : "outlined"}
+                onClick={() => handlePermissionChange("inviteAccess", role)}
+                sx={{
+                  color: groupInfo?.inviteAccess === role ? "#000" : "#fff",
+                  backgroundColor: groupInfo?.inviteAccess === role ? "#fff" : "transparent",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  px: 3,
+                  borderRadius: 2,
+                  boxShadow: "none",
+                  border: groupInfo?.inviteAccess === role ? "none" : "1.5px solid #555",
+                  "&:hover": {
+                    backgroundColor: groupInfo?.inviteAccess === role ? "#e0e0e0" : "#23232344",
+                  },
+                  transition: "background 0.2s",
+                }}
+              >
+                {role === "admin" ? "Admins Only" : "All Members"}
+              </Button>
+            ))}
+          </Stack>
+        </Box>
 
-  {/* Send Messages Access Section */}
-  <Box>
-    <Typography variant="subtitle2" sx={{ mb: 1, color: "#ccc" }}>
-      Who can send messages?
-    </Typography>
-    <Stack direction="row" spacing={2}>
-      {["admin", "all"].map((role) => (
-        <Button
-          key={role}
-          variant={groupInfo?.sendAccess === role ? "contained" : "outlined"}
-          onClick={() => handlePermissionChange("sendAccess", role)}
-          sx={{
-            color: groupInfo?.sendAccess === role ? "#000" : "#fff",
-            backgroundColor:
-              groupInfo?.sendAccess === role ? "#fff" : "transparent",
-            textTransform: "none",
-            fontWeight: 600,
-            px: 3,
-            borderRadius: 2,
-          }}
-        >
-          {role === "admin" ? "Admins Only" : "All Members"}
-        </Button>
-      ))}
-    </Stack>
-  </Box>
-</Stack>
-
-
-
+        {/* Send Messages Access Section */}
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 1, color: "#ccc", fontWeight: 600 }}>
+            Who can send messages?
+          </Typography>
+          <Stack direction="row" spacing={2}>
+            {["admin", "all"].map((role) => (
+              <Button
+                key={role}
+                variant={groupInfo?.sendAccess === role ? "contained" : "outlined"}
+                onClick={() => handlePermissionChange("sendAccess", role)}
+                sx={{
+                  color: groupInfo?.sendAccess === role ? "#000" : "#fff",
+                  backgroundColor: groupInfo?.sendAccess === role ? "#fff" : "transparent",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  px: 3,
+                  borderRadius: 2,
+                  boxShadow: "none",
+                  border: groupInfo?.sendAccess === role ? "none" : "1.5px solid #555",
+                  "&:hover": {
+                    backgroundColor: groupInfo?.sendAccess === role ? "#e0e0e0" : "#23232344",
+                  },
+                  transition: "background 0.2s",
+                }}
+              >
+                {role === "admin" ? "Admins Only" : "All Members"}
+              </Button>
+            ))}
+          </Stack>
+        </Box>
+      </Stack>
     </Box>
 
     {/* Section: Member List and Admin Toggle */}
-<Box mt={3} mb={3}>
-  <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-    <Typography variant="h6">Members & Admins</Typography>
-    <Button
-      variant="contained"
-      size="small"
-      sx={{ color: "#ffffffff", backgroundColor: "#f1f1f121", display: "flex", alignItems: "center" }}
-      onClick={() => setShowSearchBar(prev => !prev)}
-    >
-      {showSearchBar ? <CloseIcon sx={{ fontSize: "18px", mr: 1 }} /> : <SearchIcon sx={{ fontSize: "18px", mr: 1 }} /> }
-      {showSearchBar ? "Hide Search" : "Search"}
-    </Button>
-  </Box>
+    <Box mt={3} mb={3} sx={{
+      background: mode === "dark" ? "#23232344" : "#f1f1f144",
+      borderRadius: 3,
+      p: 2,
+      boxShadow: "none",
+    }}>
+      <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: mode === "dark" ? "#fff" : "#222" }}>
+          Members & Admins
+        </Typography>
+        <Button
+          variant="contained"
+          size="small"
+          sx={{
+            color: "#fff",
+            backgroundColor: "#23232388",
+            display: "flex",
+            alignItems: "center",
+            borderRadius: 2,
+            boxShadow: "none",
+            px: 2,
+            py: 0.5,
+            fontWeight: 600,
+            "&:hover": { backgroundColor: "#333" }
+          }}
+          onClick={() => setShowSearchBar(prev => !prev)}
+        >
+          {showSearchBar ? <CloseIcon sx={{ fontSize: "18px", mr: 1 }} /> : <SearchIcon sx={{ fontSize: "18px", mr: 1 }} />}
+          {showSearchBar ? "Hide Search" : "Search"}
+        </Button>
+      </Box>
 
-  {showSearchBar && (
-    <TextField
-      placeholder="Search members by name or email..."
-      value={searchMembersText}
-      onChange={(e) => setSearchMembersText(e.target.value)}
-      size="small"
-      fullWidth
-      sx={{
-        mb: 2,
-        input: { color: "#fff" },
-        '& label': { color: '#ccc' },
-        '& .MuiOutlinedInput-root': {
-          '& fieldset': { borderColor: '#555' },
-          '&:hover fieldset': { borderColor: '#888' },
-          '&.Mui-focused fieldset': { borderColor: '#ffffffff' },
-        },
-      }}
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <SearchIcon sx={{ color: "#777" }} />
-          </InputAdornment>
-        ),
-      }}
-    />
-  )}
+      {showSearchBar && (
+        <TextField
+          placeholder="Search members by name or email..."
+          value={searchMembersText}
+          onChange={(e) => setSearchMembersText(e.target.value)}
+          size="small"
+          fullWidth
+          sx={{
+            mb: 2,
+            input: { color: "#fff" },
+            '& label': { color: '#ccc' },
+            '& .MuiOutlinedInput-root': {
+              '& fieldset': { borderColor: '#555' },
+              '&:hover fieldset': { borderColor: '#888' },
+              '&.Mui-focused fieldset': { borderColor: '#00f721' },
+            },
+            borderRadius: 2,
+            backgroundColor: mode === "dark" ? "#23232344" : "#f1f1f144",
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ color: "#777" }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+      )}
 
-  <Stack spacing={1} sx={{ maxHeight: "47vh", overflowY: "auto" }}>
-    {(groupInfo?.members || [])
-      .filter((uid) => {
-        const m = memberInfo[uid];
-        if (!searchMembersText) return true;
-        const search = searchMembersText.toLowerCase();
-        return (
-          m?.name?.toLowerCase().includes(search) ||
-          m?.email?.toLowerCase().includes(search) ||
-          m?.username?.toLowerCase().includes(search)
-        );
-      })
-      .map((uid) => {
-        const member = memberInfo[uid];
-        const isCreator = uid === groupInfo?.createdBy;
-        const isAdmin = (groupInfo?.admins || []).includes(uid);
-        const canChangeRole =
-          !isCreator &&
-          (groupInfo?.createdBy === currentUser?.uid ||
-            (groupInfo?.admins || []).includes(currentUser?.uid));
+      <Stack spacing={1} sx={{ maxHeight: "47vh", overflowY: "auto" }}>
+        {(groupInfo?.members || [])
+          .filter((uid) => {
+            const m = memberInfo[uid];
+            if (!searchMembersText) return true;
+            const search = searchMembersText.toLowerCase();
+            return (
+              m?.name?.toLowerCase().includes(search) ||
+              m?.email?.toLowerCase().includes(search) ||
+              m?.username?.toLowerCase().includes(search)
+            );
+          })
+          .map((uid) => {
+            const member = memberInfo[uid];
+            const isCreator = uid === groupInfo?.createdBy;
+            const isAdmin = (groupInfo?.admins || []).includes(uid);
+            const canChangeRole =
+              !isCreator &&
+              (groupInfo?.createdBy === currentUser?.uid ||
+                (groupInfo?.admins || []).includes(currentUser?.uid));
 
-        return (
-          <Paper
-            elevation={0}
-            key={uid}
-            sx={{
-              p: 1.5,
-              borderRadius: 1,
-              bgcolor: "#f1f1f111",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-            }}
-          >
-            <Box display="flex" alignItems="center" gap={2}>
-              <Avatar src={member?.photoURL}>
-                {member?.name?.[0]?.toUpperCase() || "U"}
-              </Avatar>
-              <Box>
-                <Typography variant="body1">
-                  {member?.name || member?.email}
-                </Typography>
-                <Typography variant="body2" color="#aaa">
-                  {member?.username || ""}
-                </Typography>
-              </Box>
-            </Box>
-
-            {canChangeRole ? (
-              <FormControl size="small" sx={{ minWidth: 100 }}>
-                <Select
-                  value={isAdmin ? "admin" : "member"}
-                  onChange={e => toggleAdminStatus(uid)}
-                  sx={{
-                    bgcolor: "transparent",
-                    color: isAdmin ? "#ffffffff" : "#8e8e8eff",
-                    fontWeight: 600,
-                    fontSize: "0.9rem",
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: "#555"
-                    }
-                  }}
-                  MenuProps={{
-                    PaperProps: { sx: { bgcolor: "#232323", color: "#fff" } }
-                  }}
-                >
-                  <MenuItem value="member">Member</MenuItem>
-                  <MenuItem value="admin">Admin</MenuItem>
-                </Select>
-              </FormControl>
-            ) : (
-              <Chip
-                label={isCreator ? "Owner" : "Member"}
-                size="small"
+            return (
+              <Paper
+                elevation={0}
+                key={uid}
                 sx={{
-                  bgcolor: isAdmin ? "#ffffff44" : "#ffffff44",
-                  color: isAdmin ? "#fff" : "#fff",
-                  fontWeight: 600,
-                  fontSize: "0.8rem"
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: mode === "dark" ? "#23232344" : "#f1f1f144",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1,
+                  boxShadow: "0 1px 6px #0001",
+                  transition: "background 0.2s",
+                  "&:hover": {
+                    background: mode === "dark" ? "#23232388" : "#e0e0e088",
+                  },
                 }}
-              />
-            )}
-          </Paper>
-        );
-      })}
-  </Stack>
-</Box>
+              >
+                <Box display="flex" alignItems="center" gap={2}>
+                  <Avatar src={member?.photoURL} sx={{
+                    bgcolor: "#232323",
+                    color: "#fff",
+                    width: 40,
+                    height: 40,
+                    fontWeight: 700,
+                    fontSize: 20,
+                    boxShadow: "0 2px 8px #0002",
+                    border: mode === "dark" ? "2px solid #444" : "2px solid #eee",
+                  }}>
+                    {member?.name?.[0]?.toUpperCase() || "U"}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="body1" sx={{ fontWeight: 600, color: mode === "dark" ? "#fff" : "#222" }}>
+                      {member?.name || member?.email}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#aaa" }}>
+                      {member?.username || ""}
+                    </Typography>
+                  </Box>
+                </Box>
 
+                {canChangeRole ? (
+                  <FormControl size="small" sx={{ minWidth: 100 }}>
+                    <Select
+                      value={isAdmin ? "admin" : "member"}
+                      onChange={e => toggleAdminStatus(uid)}
+                      sx={{
+                        bgcolor: "transparent",
+                        color: isAdmin ? "#fff" : "#8e8e8e",
+                        fontWeight: 600,
+                        fontSize: "0.9rem",
+                        borderRadius: 2,
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: "#555"
+                        }
+                      }}
+                      MenuProps={{
+                        PaperProps: { sx: { bgcolor: "#232323", color: "#fff" } }
+                      }}
+                    >
+                      <MenuItem value="member">Member</MenuItem>
+                      <MenuItem value="admin">Admin</MenuItem>
+                    </Select>
+                  </FormControl>
+                ) : (
+                  <Chip
+                    label={isCreator ? "Owner" : "Member"}
+                    size="small"
+                    sx={{
+                      bgcolor: isAdmin ? "#00f72144" : "#ffffff44",
+                      color: "#fff",
+                      fontWeight: 600,
+                      fontSize: "0.8rem",
+                      borderRadius: 1,
+                    }}
+                  />
+                )}
+              </Paper>
+            );
+          })}
+      </Stack>
+    </Box>
   </Box>
 </Drawer>
 

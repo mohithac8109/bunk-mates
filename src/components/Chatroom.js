@@ -1346,7 +1346,7 @@ const removeUserReaction = async (msg, emoji) => {
           mx: 0.5,
           my: 0.2,
           backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
-          '&:hover': { bgcolor: mode === "dark" ? '#2a1818' : '#ffffffff' },
+          '&:hover': { bgcolor: mode === "dark" ? '#2a1818' : '#ffe2e2ff' },
           display: 'flex',
           alignItems: 'center',
           gap: 1,
@@ -1698,7 +1698,7 @@ const removeUserReaction = async (msg, emoji) => {
           sx={{
             bgcolor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
             color: mode === "dark" ? "#aaa" : "#333",
-            borderRadius: 0.7,
+            borderRadius: 1.2,
             py: 1.4,
             px: 2,
             display: 'flex',
@@ -1717,7 +1717,7 @@ const removeUserReaction = async (msg, emoji) => {
     
     {/* Action Buttons */}
     <Stack spacing={0.5} mt={3} mb={2} sx={{ backgroundColor: "#f1f1f100", borderRadius: 1, p: 1 }}>
-      <IconButton
+      {/* <IconButton
         onClick={() => window.open(`mailto:${friendDetails.email}`, '_blank')}
         disabled={!friendDetails.email}
         sx={{
@@ -1736,7 +1736,7 @@ const removeUserReaction = async (msg, emoji) => {
         <Typography variant="body1" sx={{ fontSize: 16, color: mode === "dark" ? "#aaa" : "#333" }}>
           {friendDetails.email || 'Email not available'}
         </Typography>
-      </IconButton>
+      </IconButton> */}
 
       {friendDetails.mobile && (
         <IconButton
@@ -1746,7 +1746,7 @@ const removeUserReaction = async (msg, emoji) => {
             color: mode === "dark" ? "#fff" : "#000",
             py: 1.4,
             px: 2,
-            borderRadius: "7px",
+            borderRadius: "20px 20px 7px 7px",
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'left',
@@ -2012,7 +2012,7 @@ const removeUserReaction = async (msg, emoji) => {
   PaperProps={{
     sx: {
       borderTopLeftRadius: 20, borderTopRightRadius: 20,
-      backgroundColor: "#0c0c0c0a",
+      backgroundColor: mode === "dark" ? "#0c0c0c0a" : "#f1f1f19a",
       backdropFilter: 'blur(70px)',
       color: mode === "dark" ? "#fff" : "#000",
       maxWidth: 470, mx: 'auto',
@@ -2033,7 +2033,7 @@ const removeUserReaction = async (msg, emoji) => {
       size="small"
       variant="outlined"
       InputProps={{
-        style: { color: "#fafafa", borderRadius: 8 },
+        style: { color: mode === "dark" ? "#fafafa" : "#0c0c0c", borderRadius: 8 },
         startAdornment: (
           <InputAdornment position="start">
             <SearchIcon sx={{ color: "#777" }} />
@@ -2051,7 +2051,7 @@ const removeUserReaction = async (msg, emoji) => {
         )
         .map(group => (
           <Card key={group.id}
-            sx={{ bgcolor: '#0c0c0c21', color: mode === "dark" ? "#fff" : "#000", borderRadius: 2, mb: 1, overflow: "hidden" }}>
+            sx={{ bgcolor: mode === "dark" ? '#0c0c0c11' : '#ffffff31', color: mode === "dark" ? "#fff" : "#000", borderRadius: 2, mb: 0.5, boxShadow: "none", overflow: "hidden" }}>
             <CardActionArea onClick={() => {
               setAllCommonGroupsDrawerOpen(false);
               history(`/group/${group.id}`);
@@ -2064,7 +2064,7 @@ const removeUserReaction = async (msg, emoji) => {
                   {group.emoji || group.name?.charAt(0)}
                 </Avatar>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="body1" color={mode === "dark" ? "#fff" : "#000"} fontWeight="bolder" noWrap>
+                  <Typography variant="body1" color={mode === "dark" ? "#fff" : "#000"} fontWeight="regular" noWrap>
                     {group.name}
                   </Typography>
                   <Box
@@ -2073,7 +2073,7 @@ const removeUserReaction = async (msg, emoji) => {
                       overflow: 'hidden',
                       whiteSpace: 'nowrap',
                       textOverflow: 'ellipsis',
-                      fontSize: 13,
+                      fontSize: 11,
                       color: mode === "dark" ? "#ccc" : "#555",
                     }}
                   >
@@ -2099,7 +2099,7 @@ const removeUserReaction = async (msg, emoji) => {
   onClose={() => setShowAllTripsDrawer(false)}
   onOpen={() => {}}
   PaperProps={{
-    sx: { borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: "#0c0c0c0a", backdropFilter: 'blur(70px)', color: mode === "dark" ? "#fff" : "#000", maxWidth: 470, mx: 'auto', p: 2, height: '90vh' }
+    sx: { borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: mode === "dark" ? "#0c0c0c0a" : "#f1f1f19a", backdropFilter: 'blur(70px)', color: mode === "dark" ? "#fff" : "#000", maxWidth: 470, mx: 'auto', p: 2, height: '90vh' }
   }}
 >
       <Box sx={{ width: 40, height: 5, bgcolor: '#555', borderRadius: 3, mx: 'auto', mb: 2 }} />
@@ -2114,7 +2114,7 @@ const removeUserReaction = async (msg, emoji) => {
       size="small"
       variant="outlined"
       sx={{ mb: 2 }}
-      InputProps={{ style: { borderRadius: 8, color: "#fafafa" },
+      InputProps={{ style: { borderRadius: 8, color: mode === "dark" ? "#fafafa" : "#0c0c0c" },
         startAdornment: (
           <InputAdornment position="start">
             <SearchIcon sx={{ color: "#777" }} />
@@ -2132,34 +2132,35 @@ const removeUserReaction = async (msg, emoji) => {
           background: `url(${trip.iconURL})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          color: "#fff",
-          borderRadius: 2,
-          mb: 1, overflow: "hidden",
+          color: mode === "dark" ? "#fff" : "#000",
+          mb: 1,
+          overflow: "hidden",
+          boxShadow: "none",
         }}>
-          <CardContent sx={{ backdropFilter: "blur(20px)", backgroundColor: "#0c0c0c21" }}>
+          <CardContent sx={{ backdropFilter: "blur(20px)", borderRadius: 3 }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: '100%' }}>
               <Typography variant="h6" noWrap>{trip.name}</Typography>
               {timelineStatsMap?.[trip.id] && (
                 <Box minWidth={110}>
-                  <Typography variant="caption" sx={{ color: "#cbcbcbff" }}>
+                  <Typography variant="caption" sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>
                     {timelineStatsMap[trip.id]?.completed} / {timelineStatsMap[trip.id]?.total} complete
                   </Typography>
                   <LinearProgress
                     value={timelineStatsMap[trip.id]?.percent}
                     variant="determinate"
                     sx={{
-                      mt: 0.5, borderRadius: 20, height: 7, bgcolor: "#ffffff36",
-                      "& .MuiLinearProgress-bar": { bgcolor: "#ffffffff" }
+                      mt: 0.5, borderRadius: 20, height: 7, bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
+                      "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#1e1e1eff" }
                     }}
                   />
                 </Box>
               )}
             </Box>
-            <Typography variant="body2" sx={{ color: "#fff" }}>
+            <Typography variant="body2" sx={{ color: mode === "dark" ? "#aaa" : "#333", display: "flex", flexDirection: "row", alignItems: "center" }}>
               <LocationOn sx={{ fontSize: 14, mr: 1 }} />
               {trip.from} → {trip.location}
             </Typography>
-            <Typography variant="body2" sx={{ color: "#e7e7e7" }}>
+            <Typography variant="body2" sx={{ color: mode === "dark" ? "#ccc" : "#555", display: "flex", flexDirection: "row", alignItems: "center" }}>
               <AccessTime sx={{ fontSize: 14, mr: 1 }} />
               {trip.startDate} → {trip.endDate}
             </Typography>
@@ -2181,7 +2182,7 @@ const removeUserReaction = async (msg, emoji) => {
                       sx: {
                         borderTopLeftRadius: 20,
                         borderTopRightRadius: 20,
-                        backgroundColor: "#00000011",
+                        backgroundColor: mode === "dark" ? "#00000011" : "#ffffffd1",
                         backdropFilter: "blur(80px)",
                         p: 3,
                         maxWidth: 400,
@@ -2208,12 +2209,12 @@ const removeUserReaction = async (msg, emoji) => {
                           sx: {
                             fontSize: 22,
                             fontWeight: 600,
-                            color: "#fff",
+                            color: mode === "dark" ? "#fff" : "#000",
                             mb: 1,
                           },
                         }}
                         InputLabelProps={{ 
-                          style: { color: "#aaa" }
+                          style: { color: mode === "dark" ? "#aaa" : "#333" }
                         }}
                       />
                       <Box 
@@ -2225,9 +2226,9 @@ const removeUserReaction = async (msg, emoji) => {
                       >
                         <Button
                         sx={{ 
-                          backgroundColor: "#f1f1f111",
+                          backgroundColor: mode === "dark" ? "#f1f1f111" : "#0c0c0c11",
                           fontSize: 14,
-                          color: "#fff",
+                          color: mode === "dark" ? "#fff" : "#000",
                           width: "100vw",
                           px: 2,
                           py: 1,
@@ -2241,9 +2242,9 @@ const removeUserReaction = async (msg, emoji) => {
                         </Button>
                         <Button 
                         sx={{ 
-                          backgroundColor: "#f1f1f1",
+                          backgroundColor: mode === "dark" ? "#f1f1f1" : "#0c0c0c",
                           fontSize: 14,
-                          color: "#000",
+                          color: mode === "dark" ? "#000" : "#fff",
                           width: "100vw",
                           px: 2,
                           py: 1,
