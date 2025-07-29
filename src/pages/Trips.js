@@ -46,31 +46,8 @@ import {
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import ProfilePic from "../components/Profile";
-
-// 🌓 DARK THEME
-const darkTheme = createTheme({
-  palette: {
-    mode: "dark",
-    background: {
-      default: "#121212",
-      paper: "#1F1F1F",
-    },
-    text: {
-      primary: "#E0E0E0",
-      secondary: "#AAAAAA",
-    },
-    primary: {
-      main: "#ffffffff",
-    },
-  },
-  shape: {
-    borderRadius: 12,
-  },
-  typography: {
-    fontFamily: "'Inter', sans-serif",
-  },
-});
-
+import { useThemeToggle } from "../contexts/ThemeToggleContext";
+import { getTheme } from "../theme";
 
 export default function Trips() {
   const [trips, setTrips] = useState([]);
@@ -89,6 +66,10 @@ export default function Trips() {
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [memberInput, setMemberInput] = useState("");
   const [latestTripId, setLatestTripId] = useState(null);
+
+  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const theme = getTheme(mode, accent);
+
 
   const navigate = useNavigate();
   const user = auth.currentUser;
@@ -378,11 +359,11 @@ const handleAddMemberByInput = async () => {
     backdropFilter: "blur(12px)",
     backgroundImage: `url(${trip?.iconURL})`,
     backgroundSize: "cover",
-    backgroundColor: "#3b3b3b",
+    backgroundColor: mode === "dark" ? "#3b3b3b" : "#fdfdfdff",
     backgroundPosition: "center",
     borderRadius: "20px",
     overflow: "hidden",
-    color: "#fff",
+    color: mode === "dark" ? "#fff" : "#000",
     transition: "transform 0.3s ease",
     '&:hover': {
       transform: "scale(1.015)"
@@ -390,7 +371,7 @@ const handleAddMemberByInput = async () => {
   }}
 >
   <CardContent
-    sx={{ p: 3, backgroundColor: "rgba(0, 0, 0, 0.4)", backdropFilter: "blur(10px)" }}
+    sx={{ p: 3, backgroundColor: mode === "dark" ? "#00000066" : "#ffffff66", backdropFilter: "blur(10px)" }}
     onClick={() => navigate(`/trips/${trip.id}`)}
 >
 
@@ -438,19 +419,31 @@ const handleAddMemberByInput = async () => {
               ? (trip.budget.used / trip.budget.amount) * 100
               : 0
           }
-          sx={{ mt: 0.5, borderRadius: 20, height: 6 }}
+            sx={{
+              mt: 0.5,
+              borderRadius: 20,
+              height: 7,
+              bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
+              "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff" },
+            }}
         />
       </Box>
     )}
 
     <Box mt={2}>
-<Typography variant="caption" color="#ccc">
+<Typography variant="caption" color={mode === "dark" ? "#ccc" : "#555"}>
   Timeline: {trip.timelineStats?.completed || 0} / {trip.timelineStats?.total || 0} completed
 </Typography>
       <LinearProgress
         value={trip.timelineProgress || 0}
         variant="determinate"
-        sx={{ mt: 0.5, borderRadius: 20, height: 6 }}
+        sx={{
+          mt: 0.5,
+          borderRadius: 20,
+          height: 7,
+          bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
+          "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff" },
+        }}
       />
     </Box>
 
@@ -462,8 +455,8 @@ const handleAddMemberByInput = async () => {
   };
 
   return (
-    <ThemeProvider theme={darkTheme}>
-      <Container sx={{ pt: 4, pb: 10, px: 3, color: "white" }}>
+    <ThemeProvider theme={theme}>
+      <Container sx={{ pt: 4, pb: 10, px: 3, color: mode === "dark" ? "#fff" : "#000" }}>
                   <Box
                     sx={{
                       display: "flex",
@@ -473,21 +466,21 @@ const handleAddMemberByInput = async () => {
                       mb: 2
                     }}
                   >
-                    <Button onClick={goBack} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
+                    <Button onClick={goBack} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 8, height: '50px', color: mode === "dark" ? "#fff" : "#000", backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0" , }}>
                       <ArrowBackIcon />
                     </Button>
                     <ProfilePic />
                   </Box>
 
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h5" fontWeight="bold" mb={2}>
+          <Typography variant="h5" fontWeight="bold" mb={0}>
             Your Trips
           </Typography>
 
           <Button
             variant="contained"
             startIcon={<Add />}
-            sx={{ borderRadius: 2, fontWeight: "bold", width: "auto" }}
+            sx={{ borderRadius: 8, fontWeight: "bold", width: "auto", backgroundColor: mode === "dark" ? "#fff" : "#000", color: mode === "dark" ? "#000" : "#fff" }}
             onClick={() => setCreateDialogOpen(true)}
             fullWidth
           >
@@ -502,7 +495,7 @@ const handleAddMemberByInput = async () => {
         </Stack>
 
         {/* Past Trips */}
-        <Box mt={5} sx={{ backgroundColor: "#1f1f1f6c", p: 1, borderRadius: 1.9 }}>
+        <Box mt={5} sx={{ backgroundColor: mode === "dark" ? "#1f1f1f6c" : "#ffffff", p: 1, borderRadius: 3 }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" onClick={() => setShowPast(!showPast)} sx={{ cursor: "pointer"}}>
             <Typography variant="h6" px={2}>Past Trips</Typography>
             <IconButton>
@@ -524,12 +517,12 @@ const handleAddMemberByInput = async () => {
           fullWidth height={"100vh"}
           sx={{
             padding: 2,
-            backgroundColor: "#000000",
-            color: "#fff",
+            backgroundColor: mode === "dark" ? "#000000" : "#ffffff",
+            color: mode === "dark" ? "#fff" : "#000",
             height: "100vh",
             '& .MuiDrawer-paper': {
-              backgroundColor: "#000000",
-              color: "#fff",
+              backgroundColor: mode === "dark" ? "#000000" : "#ffffff",
+              color: mode === "dark" ? "#fff" : "#000",
               height: "100vh",
             }
             }}
@@ -590,7 +583,7 @@ const handleAddMemberByInput = async () => {
         )
       }
       variant="outlined"
-      sx={{ backgroundColor: "#222", color: "#fff" }}
+      sx={{ backgroundColor: mode === "dark" ? "#222" : "#ccc", color: mode === "dark" ? "#fff" : "#000" }}
     />
   ))}
 </Box>
@@ -670,8 +663,8 @@ const handleAddMemberByInput = async () => {
 
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-            <Button variant="contained" onClick={handleCreateTrip}>Create</Button>
+            <Button sx={{ border: "1px solid #bbb", borderRadius: 8}} color={mode === "dark" ? "#ccc" : "#333"} onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
+            <Button variant="contained" sx={{ backgroundColor: mode === "dark" ? "#ffffff" : "#000000", borderRadius: 8, color: mode === "dark" ? "#000000" : "#ffffff" }} onClick={handleCreateTrip}>Create</Button>
           </DialogActions>
         </Drawer>
       </Container>

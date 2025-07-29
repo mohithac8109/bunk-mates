@@ -28,16 +28,9 @@ import InstagramIcon from '@mui/icons-material/Instagram';
 import TwitterIcon from '@mui/icons-material/Twitter';
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { useWeather } from "../contexts/WeatherContext";
+import { useThemeToggle } from "../contexts/ThemeToggleContext";
+import { getTheme } from "../theme";
 
-const darkTheme = createTheme({
-  palette: {
-    mode: "dark",
-    background: { default: "#121212", paper: "#1E1E1E" },
-    text: { primary: "#ffffff", secondary: "#bbbbbb" },
-    primary: { main: "#ffffffff" },
-  },
-  shape: { borderRadius: 12 },
-});
 
 export default function TripDetails() {
   const { id } = useParams();
@@ -66,6 +59,9 @@ export default function TripDetails() {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { getWeather } = useWeather();
   const [weather, setWeather] = useState(null);
+
+  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const theme = getTheme(mode, accent);
 
   // New states for expenses drawer
   const [expenseDrawerOpen, setExpenseDrawerOpen] = useState(false);
@@ -519,19 +515,19 @@ const fetchCoverImage = async (location) => {
   const upcomingIndex = timeline.findIndex(item => new Date(item.time) > now);
 
   return (
-    <ThemeProvider theme={darkTheme}>
-      <Box sx={{ color: "#ffffff", minHeight: "100vh" }}>
+    <ThemeProvider theme={theme}>
+      <Box sx={{ color: mode === "dark" ? "#fff" : "#000", minHeight: "100vh" }}>
         <Button
           startIcon={<ArrowBackIcon />}
           onClick={goBack}
           sx={{
             mb: 2,
-            borderRadius: 2,
-            color: "#fff",
+            borderRadius: 8,
+            color: mode === "dark" ? "#fff" : "#000",
             position: "absolute",
             top: 16,
             left: 16,
-            backgroundColor: "#00000047",
+            backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
             backdropFilter: "blur(180px)",
           }}
         >
@@ -553,9 +549,9 @@ const fetchCoverImage = async (location) => {
               onClick={() => setShareDrawerOpen(true)}
               sx={{
                 mb: 2,
-                borderRadius: 2,
-                color: "#fff",
-                backgroundColor: "#00000047",
+                borderRadius: 8,
+                color: mode === "dark" ? "#fff" : "#000",
+                backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
                 backdropFilter: "blur(180px)",
                 border: "none",
               }}
@@ -567,9 +563,9 @@ const fetchCoverImage = async (location) => {
               onClick={() => navigate(`/group/${id}`)}
               sx={{
                 mb: 2,
-                borderRadius: 2,
-                color: "#fff",
-                backgroundColor: "#00000047",
+                borderRadius: 8,
+                color: mode === "dark" ? "#fff" : "#000",
+                backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
                 backdropFilter: "blur(180px)",
                 border: "none",
               }}
@@ -583,9 +579,9 @@ const fetchCoverImage = async (location) => {
             backgroundImage: `url(${trip?.iconURL})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
-            backgroundColor: "#1d1d1dff",
+            backgroundColor: mode === "dark" ? "#1d1d1dff" : "#ffffff",
             height: { xs: 470, sm: 320 },
-            boxShadow: "0 6px 16px rgba(0,0,0,0.4)",
+            boxShadow: "none",
           }}
         />
 
@@ -593,7 +589,7 @@ const fetchCoverImage = async (location) => {
         <Container sx={{ py: 0, px: 0, position: "absolute", top: 250}}>
 
           {weather && (
-  <Box m={1} sx={{ backgroundColor: "#27272773", py: 1, px: 2, width: 220, borderRadius: 1, backdropFilter: "blur(30px)" }}>
+  <Box m={1} sx={{ backgroundColor: mode === "dark" ? "#27272773" : "#ffffffa3", py: 1, px: 2, width: 220, borderRadius: 3, backdropFilter: "blur(30px)" }}>
     <Typography variant="subtitle2" color="text.secondary">
       Weather in {trip?.location}:
     </Typography> 
@@ -606,7 +602,7 @@ const fetchCoverImage = async (location) => {
   </Box>
 )}
 
-          <Container sx={{ borderRadius: 1.5, backdropFilter: "blur(80px)", py: 2 }}>
+          <Container sx={{ borderRadius: 5, backgroundColor: mode === "dark" ? "#00000000" : "#ffffffa3", backdropFilter: "blur(80px)", py: 2 }}>
             
           {/* Title + Edit */}
           <Box display="flex" flexDirection="column" gap={1} px={3} py={2}>
@@ -638,7 +634,7 @@ const fetchCoverImage = async (location) => {
                 />
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  <LocationOn sx={{ fontSize: 16, mr: 0.5 }} /> {trip?.location}
+                  <LocationOn sx={{ fontSize: 16, mr: 0.5, color: mode === "dark" ? "#fff" : "#333" }} /> {trip?.location}
                 </Typography>
               )}
             </Typography>
@@ -689,15 +685,15 @@ const fetchCoverImage = async (location) => {
                     {trip.from} → {trip.to}
                   </Typography>
                   <Button
-                    color="primary"
                     href={mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     sx={{
-                      backgroundColor: "#f1f1f111",
+                      backgroundColor: "#ffffff11",
                       width: 40,
                       height: 40,
                       borderRadius: 3,
+                      color: mode === "dark" ? "#fff" : "#333",
                     }}
                   >
                     <DirectionsIcon />
@@ -707,7 +703,7 @@ const fetchCoverImage = async (location) => {
             )}
 
 {editMode && (
-  <Button variant="contained" onClick={handleSaveEdit} sx={{ mt: 2 }}>
+  <Button variant="contained" onClick={handleSaveEdit} sx={{ mt: 2, backgroundColor: mode === "dark" ? "#fff" : "#000", color: mode === "dark" ? "#000" : "#fff", borderRadius: 8 }}>
     Save Changes
   </Button>
 )}
@@ -730,9 +726,9 @@ const fetchCoverImage = async (location) => {
                 <Box>
                   <>
                   {trip?.createdBy === currentUseruid && (
-                    <Button size="small" onClick={() => setBudgetDrawerOpen(true)}>Edit</Button>
+                    <Button size="small" color={theme.palette.text.primary} onClick={() => setBudgetDrawerOpen(true)}>Edit</Button>
                   )}
-                  <Button size="small" onClick={() => setExpenseDrawerOpen(true)} sx={{ ml: 1 }}>
+                  <Button size="small" color={theme.palette.text.primary} onClick={() => setExpenseDrawerOpen(true)} sx={{ ml: 1 }}>
                     Add Expense
                   </Button>
                   </>
@@ -746,7 +742,13 @@ const fetchCoverImage = async (location) => {
               <LinearProgress
                 value={budget?.total ? (budget.used / budget.total) * 100 : 0}
                 variant="determinate"
-                sx={{ mt: 1, borderRadius: 2, height: 6 }}
+                sx={{
+                  mt: 0.5,
+                  borderRadius: 20,
+                  height: 7,
+                  bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
+                  "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff" },
+                }}
               />
 
               {(budget?.contributors?.length > 0 || budget?.expenses?.length > 0) && (
@@ -781,7 +783,7 @@ const fetchCoverImage = async (location) => {
                             {exp.name || "Unnamed"} — ₹{exp.amount}
                           </Typography>
 
-                          <Typography variant="caption" color="text.secondary" backgroundColor="#f1f1f111" px={1} py={0.2} borderRadius={1} sx={{ ml: 1 }}>
+                          <Typography variant="caption" color="text.secondary" backgroundColor="#ffffff11" px={1} py={0.2} borderRadius={1} sx={{ ml: 1 }}>
                             {exp.category}
                           </Typography>
                         </Typography>
@@ -820,7 +822,7 @@ const fetchCoverImage = async (location) => {
               <Button
                 variant="outlined"
                 onClick={() => setChecklistDrawerOpen(true)}
-                sx={{ px: 2 }}
+                sx={{ px: 2, color: theme.palette.text.primary, borderColor: mode === "dark" ? "#fff" : "#000", borderRadius: 3 }}
               >
                 + Add
               </Button>
@@ -854,7 +856,7 @@ const fetchCoverImage = async (location) => {
           primaryTypographyProps={{
             sx: {
               textDecoration: task.completed ? "line-through" : "none",
-              color: task.completed ? "#888" : "#fff",
+              color: task.completed ? "#888" : theme.palette.text.primary,
             },
           }}
         />
@@ -870,7 +872,7 @@ const fetchCoverImage = async (location) => {
       left: "-2px",
       right: "-2px",
       height: 60,
-      background: "linear-gradient(to top, #0c0c0c, #0c0c0ca4, #00000000)",
+      background: mode === "dark" ? 'linear-gradient(to top, #0c0c0c, #0c0c0cd9, #0c0c0cc9, #0c0c0c90, #0c0c0c00)' : 'linear-gradient(to top, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
       pointerEvents: "none", // allows interaction with list behind
       borderBottomLeftRadius: 8,
       borderBottomRightRadius: 8,
@@ -893,7 +895,7 @@ const fetchCoverImage = async (location) => {
   <Button
     variant="outlined"
     onClick={() => setTimelineDrawerOpen(true)}
-    sx={{ px: 2 }}
+    sx={{ px: 2, color: theme.palette.text.primary, borderColor: mode === "dark" ? "#fff" : "#000", borderRadius: 3 }}
   >
     + Add
   </Button>
@@ -927,9 +929,9 @@ const fetchCoverImage = async (location) => {
               backgroundColor: isUpcoming
                 ? "#bc751835" // Indigo for upcoming
                 : isCompleted
-                ? "#000000"
-                : "#1c1c1c",
-              borderRadius: 1.5,
+                ? mode === "dark" ? "#000000" : "#ffffff"
+                : mode === "dark" ? "#1c1c1c" : "#f0f0f0ff",
+              borderRadius: 3,
               mb: 1,
               px: 2,
               py: 0.1,
@@ -958,7 +960,7 @@ const fetchCoverImage = async (location) => {
                 <Typography
                   variant="body1"
                   fontWeight={isUpcoming ? "bold" : isCompleted ? "normal" : "medium"}
-                  color={isCompleted ? "#888" : isUpcoming ? "#ffffff" : "#ffffff"}
+                  color={isCompleted ? "#888" : isUpcoming ? theme.palette.text.primary : theme.palette.text.primary}
                   sx={{
                     textDecoration: isCompleted ? "line-through" : "none",
                   }}
@@ -985,7 +987,7 @@ const fetchCoverImage = async (location) => {
       left: "-2px",
       right: "-2px",
       height: 60,
-      background: "linear-gradient(to top, #0c0c0c, #0c0c0ca4, #00000000)",
+      background: mode === "dark" ? 'linear-gradient(to top, #0c0c0c, #0c0c0cd9, #0c0c0cc9, #0c0c0c90, #0c0c0c00)' : 'linear-gradient(to top, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
       pointerEvents: "none", // allows interaction with list behind
       borderBottomLeftRadius: 8,
       borderBottomRightRadius: 8,
@@ -1019,7 +1021,7 @@ const fetchCoverImage = async (location) => {
             <Button
               variant="outlined"
               fullWidth
-              sx={{ mt: 2 }}
+              sx={{ mt: 2, color: theme.palette.text.primary, borderColor: mode === "dark" ? "#fff" : "#000", borderRadius: 3 }}
               onClick={() => setShareDrawerOpen(true)}
             >
               Invite Members
@@ -1033,7 +1035,7 @@ const fetchCoverImage = async (location) => {
     fullWidth
     startIcon={<DeleteOutlineIcon />}
     color="error"
-    sx={{ mt: 1 }}
+    sx={{ mt: 1, borderRadius: 3, backgroundColor: "#ff000010" }}
     onClick={() => setConfirmDeleteOpen(true)} // ✅ Corrected here
   >
     Delete Trip
@@ -1057,9 +1059,9 @@ const fetchCoverImage = async (location) => {
   PaperProps={{
     sx: {
       p: 3,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      backgroundColor: "#1E1E1E",
+      borderTopLeftRadius: 26,
+      borderTopRightRadius: 26,
+      backgroundColor: mode === "dark" ? "#1E1E1E" : "#f1f1f1",
     },
   }}
 >
@@ -1082,15 +1084,15 @@ const fetchCoverImage = async (location) => {
       sx={{
         width: 180,
         height: 180,
-        backgroundColor: "#ffffff",
-        p: 2,
-        borderRadius: 1.4,
+        backgroundColor: "#fff",
+        padding: 2,
+        borderRadius: 3,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
       }}
     >
-      <QRCodeSVG value={inviteLink} size={180} bgColor="#fff" fgColor="#000000" />
+      <QRCodeSVG value={inviteLink} size={180} bgColor="#fff" fgColor="#000000" p={3} />
     </Box>
   </Box>
 
@@ -1126,7 +1128,7 @@ const fetchCoverImage = async (location) => {
           `You're invited to join our trip "${trip?.name}" on BunkMate! 🚀\nClick to join: ${inviteLink}`
         )}`}
         target="_blank"
-        sx={{ color: "#ffffff", p: 1.5, backgroundColor: "#25D366" }}
+        sx={{ color: mode === "dark" ? "#fff" : "#000", p: 1.5, backgroundColor: "#25D366" }}
       >
         <WhatsAppIcon />
       </IconButton>
@@ -1139,7 +1141,7 @@ const fetchCoverImage = async (location) => {
           `Join our "${trip?.name}" trip on BunkMate! 🚀`
         )}`}
         target="_blank"
-        sx={{ color: "#ffffff", p: 1.5, backgroundColor: "#229ED9" }}
+        sx={{ color: mode === "dark" ? "#fff" : "#000", p: 1.5, backgroundColor: "#229ED9" }}
       >
         <TelegramIcon />
       </IconButton>
@@ -1151,7 +1153,7 @@ const fetchCoverImage = async (location) => {
           navigator.clipboard.writeText(inviteLink);
           setSnackbar({ open: true, message: "Copied! Share it on Instagram." });
         }}
-        sx={{ color: "#ffffff", p: 1.5, backgroundColor: "#E1306C" }}
+        sx={{ color: mode === "dark" ? "#fff" : "#000", p: 1.5, backgroundColor: "#E1306C" }}
       >
         <InstagramIcon />
       </IconButton>
@@ -1164,7 +1166,7 @@ const fetchCoverImage = async (location) => {
           `Join my trip "${trip?.name}" on BunkMate! ${inviteLink}`
         )}`}
         target="_blank"
-        sx={{ color: "#1DA1F2", p: 1.5, backgroundColor: "#ffffff" }}
+        sx={{ color: "#1DA1F2", p: 1.5, backgroundColor: mode === "dark" ? "white" : "#d5d5d5ff" }}
       >
         <TwitterIcon />
       </IconButton>
@@ -1177,7 +1179,7 @@ const fetchCoverImage = async (location) => {
       fullWidth
       variant="contained"
       startIcon={<ShareIcon />}
-      sx={{ mb: 1, borderRadius: 1, py: 1.5 }}
+      sx={{ mb: 1, borderRadius: 8, py: 1.5, backgroundColor: theme.palette.text.primary, color: mode === "dark" ? "#000" : "#fff" }}
       onClick={() =>
         navigator.share({
           title: `Join our trip on BunkMate`,
@@ -1454,7 +1456,7 @@ const fetchCoverImage = async (location) => {
   onClose={() => setConfirmDeleteOpen(false)}
   PaperProps={{ sx: { backgroundColor: "#0000002b", p: 2, borderRadius: 2, backdropFilter: "blur(20px)" } }}
 >
-  <DialogTitle sx={{ color: "#fff" }}>Confirm Delete</DialogTitle>
+  <DialogTitle sx={{ color: mode === "dark" ? "#fff" : "#000" }}>Confirm Delete</DialogTitle>
   <DialogContent>
     <Typography color="text.secondary">
       Are you sure you want to permanently delete this trip? This action cannot be undone.

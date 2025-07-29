@@ -39,7 +39,7 @@ import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 
 import { signOut, updateProfile } from "firebase/auth";
-import { doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 import { weatherColors } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
@@ -96,6 +96,12 @@ const ProfilePic = () => {
   const [firestoreDataLoaded, setFirestoreDataLoaded] = useState(false);
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   const { settings, setSettings } = useSettings();
+
+  const [feedback, setFeedback] = useState("");
+  const [feedbackEmail, setFeedbackEmail] = useState("");
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
+
 
   const themeOptions = ["dark", "light"];
   const accentOptions = ["default", "blue", "green", "red", "purple"];
@@ -210,41 +216,46 @@ const [features] = useState([
   ];
 
   // Fetch user data on drawer open or when editProfile page is shown
-  useEffect(() => {
-    if (drawerOpen && drawerPage === "editProfile") {
-      const fetchUserData = async () => {
-        setLoading(true);
-        const user = auth.currentUser;
-        if (user) {
-          const { displayName, email, photoURL, phoneNumber, userBio, uid } = user;
-          const userDocRef = doc(firestore, "users", uid);
-          try {
-            const userDoc = await getDoc(userDocRef);
-            const userDocData = userDoc.data();
+useEffect(() => {
+  if (drawerOpen && drawerPage === "editProfile") {
+    const fetchUserData = async () => {
+      setLoading(true);
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const userDocRef = doc(firestore, "users", user.uid);
+          const userDocSnap = await getDoc(userDocRef);
+
+          if (userDocSnap.exists()) {
+            const data = userDocSnap.data();
+            console.log("Fetched user data:", data);
 
             setUserData({
-              name: displayName || userDocData?.name || "",
-              username: userDocData?.username || "",
-              email: email || "",
-              mobile: phoneNumber || userDocData?.mobile || "Not provided",
-              photoURL: photoURL || userDocData?.photoURL || "",
-              bio: userBio || userDocData?.bio || "",
-              type: userDocData?.type || "",
+              name: user.displayName || data.name || "",
+              username: data.username || "",
+              email: user.email || data.email || "",
+              mobile: user.phoneNumber || data.mobile || "",
+              photoURL: user.photoURL || data.photoURL || "",
+              bio: data.bio || "",
+              userType: data.userType || data.type || "",   // consistent field here
             });
-
-            setUserType(userDocData?.type || "");
+            setUserType(data.userType || data.type || "");
             setFirestoreDataLoaded(true);
-          } catch (error) {
-            console.error("Error fetching user data:", error);
+          } else {
+            console.warn("User doc not found!");
           }
-        } else {
-          navigate("/login");
+        } catch (error) {
+          console.error("Error fetching user data:", error);
         }
-        setLoading(false);
-      };
-      fetchUserData();
-    }
-  }, [drawerOpen, drawerPage, navigate]);
+      } else {
+        navigate("/login");
+      }
+      setLoading(false);
+    };
+    fetchUserData();
+  }
+}, [drawerOpen, drawerPage, navigate]);
+
 
   // Save profile changes
 const handleSave = async () => {
@@ -260,6 +271,7 @@ const handleSave = async () => {
       email: userData.email,
       mobile: userData.mobile,
       photoURL: userData.photoURL,
+      type: userData.userType,
       bio: userData.bio,
     });
 
@@ -315,13 +327,14 @@ const handleSave = async () => {
         }
       }
 
-      const { displayName, email, photoURL, phoneNumber, userBio } = user;
+      const { displayName, email, photoURL, phoneNumber, userBio, userType } = user;
       const newUserData = {
         name: displayName || "User",
         email: email || "",
         mobile: phoneNumber || "Not provided",
         photoURL: photoURL || "",
         bio: userBio || "",
+        userType: userType || "",
       };
 
       setUserData(newUserData);
@@ -350,6 +363,26 @@ const handleLogout = async () => {
   } catch (error) {
     console.error("Error logging out:", error);
   }
+};
+
+const handleFeedbackSubmit = async (e) => {
+  e.preventDefault();
+  setFeedbackLoading(true);
+  try {
+    await addDoc(collection(firestore, "feedback"), {
+  message: feedback,
+  email: feedbackEmail || userData.email || "",
+  name: userData.name || "",
+  appVersion: packageJson.version || "",
+  createdAt: serverTimestamp(),
+    }); 
+    setFeedback("");
+    setFeedbackEmail("");
+    setFeedbackSuccess(true);
+  } catch (err) {
+    alert("Failed to send feedback. Please try again.");
+  }
+  setFeedbackLoading(false);
 };
 
   const handleProfileClick = () => {
@@ -496,6 +529,15 @@ sx={{
             </ListItemButton>
           </ListItem>
 
+          <ListItem sx={{ pb: 0 }}>
+            <ListItemButton onClick={() => setDrawerPage("feedback")} sx={{ backgroundColor: mode === "dark" ? "#f1f1f111" : "#c1c1c195",  borderRadius: 5,  py: 2, '&:hover': { bgcolor: '#f1f1f121'}}}>
+              <ListItemIcon>
+                <HelpOutlineIcon sx={{ color: theme.palette.text.primary }} />
+              </ListItemIcon>
+              <ListItemText primary="Report & Feedback" />
+            </ListItemButton>
+          </ListItem>
+
           <ListItem>
             <ListItemButton onClick={() => setConfirmLogout(true)} sx={{ backgroundColor: mode === "dark" ? "#ff191982" : "#ff8e8e82", borderRadius: 5,  py: 2.2, '&:hover': { bgcolor: '#ff000086', color: '#ff000046'}}}>
               <ListItemIcon>
@@ -551,7 +593,7 @@ sx={{
             px: 3, py: 0.5,
             fontWeight: 600,
             fontSize: "1rem",
-            backgroundColor: mode === "dark" ? "#000000ff" : "transparent",
+            backgroundColor: mode === "dark" ? "#121212ff" : "transparent",
             color: mode === "dark" ? "#fff" : theme.palette.text.primary,
             borderColor: "#aaa",
             boxShadow: "none",
@@ -930,7 +972,7 @@ sx={{
         // Navigate to community page (adjust if using react-router or other navigation)
         window.open("/community", "_blank");
       }}
-      sx={{ fontWeight: "bold", textTransform: "none", mb: 3, backgroundColor: '#f1f1f131', color: '#fff', border: 'transparent', boxShadow: 'none' }}
+      sx={{ fontWeight: "bold", textTransform: "none", mb: 3, borderRadius: 3, backgroundColor: mode === "dark" ? '#f1f1f131' : "#0c0c0c10", color: theme.palette.text.primary, border: 'transparent', boxShadow: 'none' }}
     >
       Visit Our Community
     </Button>
@@ -1044,6 +1086,96 @@ sx={{
   </Container>
 )}
 
+{drawerPage === "feedback" && (
+  <Container sx={{ mt: 2, mb: 4 }}>
+    {/* Back Button */}
+    <Button
+      startIcon={<ArrowBackIcon />}
+      onClick={() => setDrawerPage("main")}
+      sx={{
+        mb: 3,
+        borderRadius: 8,
+        color: theme.palette.text.primary,
+        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071",
+        '&:hover': { backgroundColor: "#f1f1f121" },
+      }}
+    >
+      Back
+    </Button>
+
+    {/* Header */}
+    <Typography variant="h5" fontWeight="bold" sx={{ mb: 2 }}>
+      Report & Feedback
+    </Typography>
+
+    <Typography variant="body1" sx={{ mb: 3, color: mode === "dark" ? "#aaa" : "#333" }}>
+      We value your feedback! Please let us know if you have any suggestions, feature requests, or want to report a bug.
+    </Typography>
+
+    {/* Feedback Form */}
+    <Box
+      component="form"
+      onSubmit={handleFeedbackSubmit}
+      sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+    >
+      <TextField
+        label="Your Email (optional)"
+        name="email"
+        type="email"
+        value={feedbackEmail}
+        onChange={e => setFeedbackEmail(e.target.value)}
+        fullWidth
+        sx={{
+          backgroundColor: mode === "dark" ? "#23232344" : "#f1f1f144",
+          borderRadius: 4,
+        }}
+      />
+      <TextField
+        label="Your Feedback"
+        name="message"
+        required
+        multiline
+        minRows={4}
+        value={feedback}
+        onChange={e => setFeedback(e.target.value)}
+        fullWidth
+        sx={{
+          backgroundColor: mode === "dark" ? "#23232344" : "#f1f1f144",
+          borderRadius: 4,
+        }}
+      />
+      <Button
+        type="submit"
+        variant="contained"
+        disabled={feedbackLoading}
+        sx={{
+          mt: 2,
+          borderRadius: 3,
+          fontWeight: 600,
+          backgroundColor: mode === "dark" ? "#ffffffff" : "#222",
+          color: mode === "dark" ? "#000" : "#fff",
+          boxShadow: "none",
+          '&:hover': {
+            backgroundColor: mode === "dark" ? "#ecececff" : "#111"
+          }
+        }}
+      >
+        {feedbackLoading ? "Sending..." : "Submit Feedback"}
+      </Button>
+      {feedbackSuccess && (
+        <Typography color="success.main" sx={{ mt: 1 }}>
+          Thank you for your feedback!
+        </Typography>
+      )}
+    </Box>
+    
+    <Box sx={{ mt: 4 }}>
+      <Typography variant="body2" sx={{ color: "#888" }}>
+        For urgent issues, email us at <a href="mailto:jayendrachoudhary.am@gmail.com" style={{ color: "#888888ff" }}>jayendrachoudhary.am@gmail.com</a>
+      </Typography>
+    </Box>
+  </Container>
+)}
 
   </SwipeableDrawer>
 

@@ -1168,7 +1168,7 @@ const canEditExpenses = (() => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon sx={{ color: buttonWeatherBg }} />
+                  <SearchIcon sx={{ color: mode === "dark" ? "#fff" : "#000" }} />
                 </InputAdornment>
               ),
             }}
@@ -1305,7 +1305,7 @@ const canEditExpenses = (() => {
                   handleMenuClose();
                 }}
               >
-                <IconButton size="small" sx={{ color: "#fff", pr: 1, pl: "-10px" }}>
+                <IconButton size="small" sx={{ color: mode === "dark" ? "#fff" : "#000", pr: 1, pl: "-10px" }}>
                   <EditOutlinedIcon />
                 </IconButton>
                 Edit
@@ -1369,7 +1369,7 @@ const canEditExpenses = (() => {
                     top: 0,
                     right: 0,
                     height: "100vh",
-                    bgcolor: "#f1f1f100",
+                    bgcolor: mode === "dark" ? "#0c0c0c" : "#f1f1f1",
                     backdropFilter: "blur(80px)",
                     p: 3,
                     pr: 0,
@@ -1402,10 +1402,10 @@ const canEditExpenses = (() => {
     mr: 2,
     width: "30px",
     fontSize: 3,
-    borderRadius: 2,
+    borderRadius: 8,
     height: "50px",
-    color: "#fff",
-    backgroundColor: "#f1f1f111",
+    color: mode === "dark" ? "#fff" : "#000",
+    backgroundColor: mode === "dark" ? "#f1f1f111" : "#0c0c0c20",
   }}
 >
   <ArrowBackIcon />
@@ -1413,13 +1413,13 @@ const canEditExpenses = (() => {
 
 
                   <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 1 }}>
-                    <Typography variant="h4" sx={{ color: "#fff", fontWeight: "bold" }}>
+                    <Typography variant="h4" sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: "bold" }}>
                       {selectedBudget?.name || "Unnamed Budget"}
                     </Typography>
                       <Tooltip title="About this budget">
                         <IconButton
                           size="small"
-                          sx={{ color: "#fff" }}
+                          sx={{ color: mode === "dark" ? "#fff" : "#000" }}
                           onClick={() => setAboutDrawerOpen(true)}
                         >
                           <InfoOutlinedIcon />
@@ -1433,26 +1433,26 @@ const canEditExpenses = (() => {
                     {selectedBudget ? (
                       <Box sx={{ p: 2 }}>
                         {/* Current Budget Left Section */}
-                        <Card sx={{ mb: 2, p: 2, backgroundColor: "#b4ffa621", color: "#c2ffca", borderRadius: 2, border: "none", boxShadow: "none" }}>
-                          <Typography variant="title" color="#a2cba7">
+                        <Card sx={{ mb: 2, p: 2, backgroundColor: mode === "dark" ? "#b4ffa621" : "#b3ffa677", color: mode === "dark" ? "#c2ffca" : "#008011ff", borderRadius: 5, border: "none", boxShadow: "none" }}>
+                          <Typography variant="title" color={mode === "dark" ? "#a2cba7" : "#004007ff"}>
                             Current Budget Left
                           </Typography>
-                          <Typography variant="h4">
+                          <Typography variant="h4" fontWeight={"bold"}>
                             ₹{currentBudget.toFixed(2)}
                           </Typography>
                         </Card>
                         {/* Row: Total Expense & Total Budget */}
                         <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-                          <Card sx={{ flex: 1, p: 2, backgroundColor: "#ff000019", color: "#ffd2d2", borderRadius: 2, border: "none", boxShadow: "none" }}>
+                          <Card sx={{ flex: 1, p: 2, backgroundColor: "#ff000019", color: mode === "dark" ? "#ffd2d2" : "#932020ff", borderRadius: 5, border: "none", boxShadow: "none" }}>
                             <Typography variant="title">Total Expenses</Typography>
-                            <Typography variant="h6">₹{totalExpense.toFixed(2)}</Typography>
+                            <Typography variant="h6" fontWeight={"bold"}>₹{totalExpense.toFixed(2)}</Typography>
                           </Card>
                           {selectedBudget && (
-                            <Card sx={{ p: 2, backgroundColor: "#f1f1f111", color: "#fff", borderRadius: 2, border: "none", boxShadow: "none" }}>
-                              <Typography variant="title" color="#d1d1d1">
+                            <Card sx={{ p: 2, backgroundColor: mode === "dark" ? "#f1f1f111" : "#0c0c0c20", color: mode === "dark" ? "#ffffff" : "#222222ff", borderRadius: 5, border: "none", boxShadow: "none" }}>
+                              <Typography variant="title" color={mode === "dark" ? "#d1d1d1" : "#333333"}>
                                 Current Budget
                               </Typography>
-                              <Typography variant="h4">
+                              <Typography variant="h4" fontWeight={"bold"}>
                                 ₹{selectedBudget.amount.toFixed(2)}
                               </Typography>
                             </Card>
@@ -1461,35 +1461,13 @@ const canEditExpenses = (() => {
 
   {selectedBudget?.contributors?.length > 0 && (
     <>
-      <Stack direction="row" spacing={1} flexWrap="wrap" mt={1}>
-        {selectedBudget.contributors.map((c, i) => (
-          <Chip
-            key={i}
-            label={
-              typeof c === "object" && c !== null
-                ? (c.username || c.uid || JSON.stringify(c))
-                : c
-            }
-            size="small"
-            variant="outlined"
-            sx={{
-              fontSize: "0.8rem",
-              borderRadius: '10px',
-              borderColor: buttonWeatherBg,
-              color: 'text.secondary',
-              mb: 0.5,
-              backgroundColor: "#222",
-            }}
-          />
-        ))}
-      </Stack>
-      <Typography variant="caption" sx={{ color: "#aaa", mt: 0.5 }}>
+      <Typography variant="caption" sx={{ color: mode === "dark" ? "#aaa" : "#333", mt: 0.5, px: 1 }}>
         {selectedBudget.contributors.length} contributor{selectedBudget.contributors.length > 1 ? "s" : ""}
       </Typography>
     </>
   )}
         
-                        <Typography variant="h5" sx={{ mt: 4, mb: 1, color: "#fff" }}>
+                        <Typography variant="h5" sx={{ mt: 4, mb: 1, color: mode === "dark" ? "#fff" : "#000" }}>
                           Existing Expenses
                         </Typography>
 {selectedBudget?.expenses?.length > 0 ? (
@@ -1502,13 +1480,13 @@ const canEditExpenses = (() => {
         alignItems: "center",
         mb: 1,
         p: 1,
-        border: "1px solid #333",
-        borderRadius: 2,
-        color: "#fff",
+        border: mode === "dark" ? "1px solid #333333" : "1px solid #b0b0b0ff",
+        borderRadius: 5,
+        color: mode === "dark" ? "#fff" : "#000",
       }}
     >
       <Box sx={{ pl: 2, pr: 2 }}>
-        <Typography variant="body1" sx={{ color: "#fff" }}>₹{expense.amount}</Typography>
+        <Typography variant="body1" sx={{ color: mode === "dark" ? "#fff" : "#000" }}>₹{expense.amount}</Typography>
         <Typography variant="caption" sx={{ color: "#999" }}>
           <strong color="#fff">{expense.name || "Unnamed"}</strong> | {expense.category || "No Category"} <br />
           {new Date(expense.date).toLocaleDateString()}{" "}
@@ -1520,7 +1498,7 @@ const canEditExpenses = (() => {
           size="small"
           onClick={() => canEditExpenses && handleEditExpense(expIndex)}
           sx={{ 
-            color: "#fff", 
+            color: mode === "dark" ? "#fff" : "#000", 
             backgroundColor: "#f1f1f111", 
             p: 1.2,
             display: canEditExpenses ? "flex" : "none"
@@ -1601,9 +1579,9 @@ const canEditExpenses = (() => {
   onClose={() => setAboutDrawerOpen(false)}
   PaperProps={{
     sx: {
-      backgroundColor: "#00000000",
+      backgroundColor: mode === "dark" ? "#00000000" : "#f1f1f1",
       backdropFilter: "blur(80px)",
-      color: "#fff",
+      color: mode === "dark" ? "#fff" : "#000",
       p: 3,
       width: "90vw"
     },
@@ -1611,7 +1589,7 @@ const canEditExpenses = (() => {
 >
   <Box sx={{ p: 2 }}>
     <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-      <Button onClick={() => setAboutDrawerOpen(false)} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 2, height: '50px', color: "#fff", backgroundColor: "#f1f1f111", }}>
+      <Button onClick={() => setAboutDrawerOpen(false)} sx={{ mr: 2, width: '30px', fontSize: 3, borderRadius: 2, height: '50px', color: mode === "dark" ? "#fff" : "#000", backgroundColor: "#f1f1f111", }}>
         <ArrowBackIcon />
       </Button>
     <Typography variant="h5" fontWeight="bold">
@@ -1622,7 +1600,7 @@ const canEditExpenses = (() => {
        {selectedBudget?.name}
     </Typography>
     <Typography variant="body1" sx={{ mb: 1 }}>
-      <strong>Created By:</strong> @{selectedBudget?.contributors?.[0]?.username || "Unknown"}
+      <strong>Created By:</strong> {selectedBudget?.contributors?.[0]?.name || "Unknown"}
     </Typography>
     <Typography variant="body1" sx={{ mb: 1 }}>
       <strong>Contributors:</strong>
@@ -1630,7 +1608,7 @@ const canEditExpenses = (() => {
     <Stack spacing={1} sx={{ mb: 2 }}>
       {selectedBudget?.contributors?.map((c, idx) => (
         <Box
-          key={c.uid || c.username || idx}
+          key={c.username || c.name || idx}
           sx={{
             display: "flex",
             alignItems: "center",
@@ -1642,7 +1620,7 @@ const canEditExpenses = (() => {
           }}
         >
           <Typography>
-            {c.username || c.uid || "Unknown"}
+            {c.name || c.username || "Unknown"}
             <span style={{
               fontSize: "0.8em",
               backgroundColor: "#333",
@@ -1690,7 +1668,7 @@ const canEditExpenses = (() => {
                 updatedItems[selectedIndex].contributors = updated;
                 setBudgetItems(updatedItems);
               }}
-              sx={{ minWidth: 90, ml: 1, background: "#111", borderRadius: 1, position: "absolute", right: 40 }}
+              sx={{ minWidth: 90, ml: 1, background: mode === "dark" ? "#000" : "#fff", borderRadius: 1, position: "absolute", right: 40 }}
             >
               <MenuItem value="admin">Admin</MenuItem>
               <MenuItem value="editor">Editor</MenuItem>
@@ -1700,7 +1678,7 @@ const canEditExpenses = (() => {
         </Box>
       ))}
     </Stack>
-    <Typography variant="caption" sx={{ color: "#aaa" }}>
+    <Typography variant="caption" sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>
       Only the owner (admin) can manage contributor roles and permissions.
     </Typography>
   </Box>
@@ -1727,7 +1705,7 @@ const canEditExpenses = (() => {
                 >
                   <Box
                     sx={{
-                      bgcolor: "#0c0c0c10",
+                      bgcolor: mode === "dark" ? "#0c0c0c10" : "#ffffff",
                       backdropFilter: "blur(180px)",
                       p: 3,
                       mx: "auto",
@@ -1736,12 +1714,12 @@ const canEditExpenses = (() => {
                     }}
                   >
                     <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-                      <Typography variant="h6" sx={{ color: "#fff", fontWeight: "bold" }}>
+                      <Typography variant="h6" sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: "bold" }}>
                         Add New Expense
                       </Typography>
                       <ButtonBase
                         onClick={() => setAddDrawerOpen(false)}
-                        sx={{ color: "#fff", backgroundColor: "f1f1f111", fontSize: 24, p: 1 }}
+                        sx={{ color: mode === "dark" ? "#fff" : "#000", backgroundColor: "f1f1f111", fontSize: 24, p: 1 }}
                       >
                         &times;
                       </ButtonBase>
@@ -1753,13 +1731,13 @@ const canEditExpenses = (() => {
                       fullWidth
                       variant="outlined"
                       size="small"
-                      sx={{ mb: 2, color: "#fff", borderRadius: 2, border: "2px solid #f1f1f111" }}
+                      sx={{ mb: 2, color: mode === "dark" ? "#fff" : "#000", borderRadius: 2, border: "2px solid #f1f1f111" }}
                       value={newExpense.amount}
                       onChange={(e) =>
                         setNewExpense({ ...newExpense, amount: e.target.value })
                       }
-                      InputLabelProps={{ style: { color: "#fff" } }}
-                      InputProps={{ style: { color: "#fff" } }}
+                      InputLabelProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+                      InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
                     />
                     <TextField
                       label="Name"
@@ -1771,8 +1749,8 @@ const canEditExpenses = (() => {
                       onChange={(e) =>
                         setNewExpense({ ...newExpense, name: e.target.value })
                       }
-                      InputLabelProps={{ style: { color: "#fff" } }}
-                      InputProps={{ style: { color: "#fff" } }}
+                      InputLabelProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+                      InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
                     />
 <TextField
   select
@@ -1790,8 +1768,8 @@ const canEditExpenses = (() => {
   variant="outlined"
   size="small"
   sx={{ mb: newExpense.category === "" ? 0 : 2, borderRadius: 2, border: "2px solid #f1f1f111" }}
-  InputLabelProps={{ style: { color: "#fff" } }}
-  InputProps={{ style: { color: "#fff" } }}
+  InputLabelProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+  InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
 >
   {EXP_PREDEFINED_CATEGORIES.map((cat) => (
     <MenuItem key={cat} value={cat}>
@@ -1813,8 +1791,8 @@ const canEditExpenses = (() => {
                       onChange={(e) =>
                         setNewExpense({ ...newExpense, date: e.target.value })
                       }
-                      InputLabelProps={{ shrink: true, style: { color: "#fff" } }}
-                      InputProps={{ style: { color: "#00ff00" } }}
+                      InputLabelProps={{ shrink: true, style: { color: mode === "dark" ? "#fff" : "#000" } }}
+                      InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
                     />
                     <TextField
                       label="Time"
@@ -1827,8 +1805,8 @@ const canEditExpenses = (() => {
                       onChange={(e) =>
                         setNewExpense({ ...newExpense, time: e.target.value })
                       }
-                      InputLabelProps={{ shrink: true, style: { color: "#fff" } }}
-                      InputProps={{ style: { color: "#00ff00" } }}
+                      InputLabelProps={{ shrink: true, style: { color: mode === "dark" ? "#fff" : "#000" } }}
+                      InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
                     />
                     {addError && (
                       <Typography sx={{ color: "#ff4444", mb: 2 }}>{addError}</Typography>
@@ -1837,7 +1815,7 @@ const canEditExpenses = (() => {
                       variant="contained"
                       color="success"
                       fullWidth
-                      sx={{ color: "#000", backgroundColor: buttonWeatherBg, mb: 2, p: 1, borderRadius: 20 }}
+                      sx={{ color: mode === "dark" ? "#000" : "#fff", backgroundColor: mode === "dark" ? "#ffffff" : "#000000", mb: 2, p: 1, borderRadius: 20 }}
                       onClick={() => {
                         handleAddExpense();
                         setAddDrawerOpen(false);
@@ -1884,7 +1862,7 @@ const canEditExpenses = (() => {
             sx: {
               borderTopLeftRadius: 16,
               borderTopRightRadius: 16,
-              backgroundColor: "#00000000",
+              backgroundColor: mode === "dark" ? "#00000000" : "#ffffff",
               backdropFilter: "blur(180px)",
               padding: 3,
             },
@@ -1900,8 +1878,8 @@ const canEditExpenses = (() => {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               fullWidth
               variant="outlined"
-              InputProps={{ style: { color: "#fff" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
+              InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+              InputLabelProps={{ style: { color: mode === "dark" ? "#aaa" : "#333" } }}
             />
             <TextField
   select
@@ -1917,8 +1895,8 @@ const canEditExpenses = (() => {
   }}
   fullWidth
   variant="outlined"
-  InputProps={{ style: { color: "#fff" } }}
-  InputLabelProps={{ style: { color: "#aaa" } }}
+  InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+  InputLabelProps={{ style: { color: mode === "dark" ? "#aaa" : "#333" } }}
   sx={{ mb: customCategory ? 0 : 2 }}
 >
   {PREDEFINED_CATEGORIES.map((cat) => (
@@ -1938,8 +1916,8 @@ const canEditExpenses = (() => {
               fullWidth
               type="number"
               variant="outlined"
-              InputProps={{ style: { color: "#fff" } }}
-              InputLabelProps={{ style: { color: "#aaa" } }}
+              InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+              InputLabelProps={{ style: { color: mode === "dark" ? "#aaa" : "#333" } }}
             />
 <TextField
   label="Add Contributor"
@@ -1968,8 +1946,8 @@ const canEditExpenses = (() => {
   }}
   fullWidth
   variant="outlined"
-  InputProps={{ style: { color: "#fff" } }}
-  InputLabelProps={{ style: { color: "#aaa" } }}
+  InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
+  InputLabelProps={{ style: { color: mode === "dark" ? "#aaa" : "#333" } }}
 />
 <Stack direction="row" spacing={1} mt={1} flexWrap="wrap">
   {formData.contributors.map((c, i) => (
@@ -1999,11 +1977,11 @@ const canEditExpenses = (() => {
   variant="contained"
   color="success"
   sx={{
-    backgroundColor: buttonWeatherBg,
+    backgroundColor: mode === "dark" ? "#fff" : "#000",
     borderRadius: 4,
     px: 2,
     py: 2,
-    color: "#000",
+    color: mode === "dark" ? "#000" : "#fff",
     fontWeight: "bold",
   }}
   onClick={async () => {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { auth } from '../firebase';
 import { db } from '../firebase';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
   collection,
   addDoc,
@@ -16,7 +16,6 @@ import {
   arrayUnion,
   arrayRemove,
   deleteDoc,
-  where,
   limit
 } from 'firebase/firestore';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -32,12 +31,7 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemAvatar,
   Dialog,
-  AppBar,
-  Toolbar,
-  createTheme,
-  keyframes,
   ThemeProvider,
   Stack,
   Chip,
@@ -55,16 +49,10 @@ import {
   MenuItem,
   Grid,
   Snackbar,
-  Radio,
-  RadioGroup,
-  FormLabel,
-  FormControlLabel,
   Tooltip,
   Menu,
-  Switch,
   InputAdornment,
   Card,
-  AvatarGroup,
   LinearProgress,
   CardContent,
 } from '@mui/material';
@@ -73,7 +61,6 @@ import {
 } from "@mui/icons-material";
 import EmojiPicker from 'emoji-picker-react';
 import Popover from '@mui/material/Popover';
-import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
 import { styled } from '@mui/system';
 import BetaAccessGuard from "../components/BetaAccessGuard";
 import SendIcon from '@mui/icons-material/Send';
@@ -98,23 +85,9 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import { QRCodeCanvas } from 'qrcode.react';
 
-import { motion, AnimatePresence, useAnimation } from 'framer-motion';
+import { motion, useAnimation } from 'framer-motion';
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
-
-
-// Generate a consistent color per user based on their name
-const generateUserColor = (userName = '') => {
-  let hash = 0;
-  for (let i = 0; i < userName.length; i++) {
-    hash = userName.charCodeAt(i) + ((hash << 5) - hash);
-  }
-
-  const color = '#' + (Math.abs(hash) % 0xffffff).toString(16).padStart(6, '0');
-  return color;
-};
-
-
 
 const MessageContainer = styled(Box)({
     flex: 1,
@@ -125,19 +98,6 @@ const MessageContainer = styled(Box)({
     justifyContent: 'flex-end',
     bottom: '0'
   });
-  
-  const MessageBubble = styled(Paper)(({ isCurrentUser }) => ({
-    backgroundColor: isCurrentUser ? '#005c4b' : '#353535', // Darker bubbles
-    borderRadius: isCurrentUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-    color: '#FFFFFF', // Light text
-    padding: '12px 10px',
-    fontSize: '14px',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-    position: 'relative',
-    maxWidth: '82%',
-    alignSelf: isCurrentUser ? 'flex-end' : 'flex-start',
-    marginBottom: '10px',
-  }));
   
   const MessageTime = styled(Typography)({
     fontSize: '10px',
@@ -157,187 +117,33 @@ const MessageContainer = styled(Box)({
     color: '#FFFFFF',
   });
   
-// Fade-in animation keyframes
-const fadeIn = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-`;
-
-// Custom dark theme based on your detailed colors
-const theme = createTheme({
-  palette: {
-    mode: "dark",
-    background: {
-      default: "#02020200", // almost transparent black for main background
-      paper: "#0c0c0c", // deep black for dialogs/paper
-    },
-    primary: {
-      main: "#ffffffff", // bright green solid for buttons and accents
-      contrastText: "#000000", // black text on bright green buttons
-    },
-    secondary: {
-      main: "#444444ea", // dark grey with transparency for popups or secondary backgrounds
-    },
-    text: {
-      primary: "#FFFFFF", // pure white for main text
-      secondary: "#BDBDBD", // light grey for secondary text
-      disabled: "#f0f0f0", // off-white for less prominent text or backgrounds
-    },
-    action: {
-      hover: "#ccccccff", // bright green hover for interactive elements
-      selected: "#131313", // dark black for selected states
-      disabledBackground: "rgba(0,155,89,0.16)", // dark green transparent backgrounds for outlines
-      disabled: "#BDBDBD",
-    },
-    divider: "rgb(24, 24, 24)", // very dark grey for borders
-  },
-  typography: {
-    fontFamily: "Roboto, Arial, sans-serif",
-    h6: {
-      fontWeight: "bold",
-      color: "#FFFFFF",
-    },
-    body1: {
-      fontSize: "1rem",
-      lineHeight: "1.5",
-      color: "#FFFFFF",
-    },
-    body2: {
-      fontSize: "0.875rem",
-      color: "#BDBDBD",
-    },
-  },
-  shape: {
-    borderRadius: 12,
-  },
-  components: {
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#0c0c0c40",
-          backdropFilter: "blur(40px)", // dark grey/black for app bar background
-          boxShadow: "none",
-          borderBottom: "1px solid rgb(24, 24, 24, 0.5)",
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#2c2c2c00", // dark grey card background
-          color: "#FFFFFF",
-          boxShadow: "none",
-          borderRadius: 16,
-          transition: "box-shadow 0.3s ease, transform 0.3s ease",
-          cursor: "pointer",
-          "&:hover": {
-            transform: "translateY(-4px)",
-            backgroundColor: "#131313",
-          },
-          animation: `${fadeIn} 0.6s ease forwards`,
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-          fontWeight: 600,
-          borderRadius: "12px",
-          transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-          color: "#000",
-          backgroundColor: "#fff",
-          boxShadow: "none",
-          "&:hover": {
-            boxShadow: "none", // translucent dark green hover
-          },
-        },
-      },
-    },
-    MuiAvatar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: "#f0f0f0", // off-white avatar background
-          color: "#000",
-        },
-      },
-    },
-    MuiMenu: {
-      styleOverrides: {
-        paper: {
-          backgroundColor: "#0c0c0c40", // deep black menu background
-          color: "#FFFFFF",
-          backdropFilter: "blur(40px)",
-          borderRadius: 10,
-          border: "1px solid rgb(24, 24, 24)",
-        },
-      },
-    },
-    MuiMenuItem: {
-      styleOverrides: {
-        root: {
-          "&:hover": {
-            backgroundColor: "#2c2c2c", // translucent dark green hover
-          },
-        },
-      },
-    },
-    MuiBox: {
-      styleOverrides: {
-        root: {
-          // General box overrides if needed
-        },
-      },
-    },
-  },
-});
-  
-
 function GroupChat() {
   const { groupName } = useParams();
-  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const { mode, accent, } = useThemeToggle();
   const theme = getTheme(mode, accent);
   const [messages, setMessages] = useState([]);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
-  const [messageStatus, setMessageStatus] = useState({});
-  const { groupId } = useParams();
   const [groupInfo, setGroupInfo] = useState({});
-  const [userColors, setUserColors] = useState({});
   const bottomRef = useRef(null);
   const navigate = useNavigate();
   const [createdByUser, setCreatedByUser] = useState(null);
   const [memberUsers, setMemberUsers] = useState([]);
   const currentUser = auth.currentUser;
-  const [showScrollButton, setShowScrollButton] = useState(false);
-  const [newMessageCount, setNewMessageCount] = useState(0);
-  const messageContainerRef = useRef(null);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
-  const safeResults = Array.isArray(searchResults) ? searchResults : [];
   const [selectedUsers, setSelectedUsers] = useState([]);
-  const [addUserDialog, setAddUserDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, message: null });
   const [replyTo, setReplyTo] = useState(null);
   const [longPressTimer, setLongPressTimer] = useState(null);
-  const [newMessage, setNewMessage] = useState('');
   const controls = useAnimation();
-  const [selectedGroup, setSelectedGroup] = useState(null);
   const [user, setUser] = useState(null)
   const [memberInfo, setMemberInfo] = useState({});
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedMemberToRemove, setSelectedMemberToRemove] = useState(null);
   const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [groupDesc, setGroupDesc] = useState(groupInfo?.description || "");
   const [groupIconType, setGroupIconType] = useState(groupInfo?.iconURL?.startsWith("http") ? "image" : "emoji");
   const [groupIconValue, setGroupIconValue] = useState(groupInfo?.iconURL || "");
   const [editingGroupInfo, setEditingGroupInfo] = useState(false);
@@ -359,11 +165,8 @@ function GroupChat() {
   const [searchMembersText, setSearchMembersText] = useState("");
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [tripInfo, setTripInfo] = useState(null);
-  const [tripMembers, setTripMembers] = useState([]);
   const [timelineStats, setTimelineStats] = useState(null);
-  const [tripBudget, setTripBudget] = useState(null);
   const [moreAnchorEl, setMoreAnchorEl] = useState(null);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [checklist, setChecklist] = useState([]);
   const [timeline, setTimeline] = useState([]);
   const [showPollDialog, setShowPollDialog] = useState(false);
@@ -372,10 +175,6 @@ function GroupChat() {
   const [inviteDrawerOpen, setInviteDrawerOpen] = useState(false);
   const [highlightedMsgId, setHighlightedMsgId] = useState(null);
   const messageRefs = useRef({});
-
-  const addedBy = user?.displayName || user?.email || "Someone";
-  
-  const isAdmin = groupInfo?.createdBy === user?.uid;
 
 useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -408,18 +207,6 @@ useEffect(() => {
 }, [groupInfo?.tripId]);
 
 useEffect(() => {
-  if (!tripInfo?.members) return setTripMembers([]);
-  Promise.all(
-    tripInfo.members.map(uid =>
-      getDoc(doc(db, "users", uid)).then(d =>
-        d.exists() ? { uid: d.id, ...(d.data() || {}) } : null
-      )
-    )
-  ).then(arr => setTripMembers(arr.filter(Boolean)));
-}, [tripInfo]);
-
-
-useEffect(() => {
   if (!tripInfo?.id) return setTimelineStats(null);
   getDocs(collection(db, "trips", tripInfo.id, "timeline")).then(snap => {
     const events = snap.docs.map(d => d.data());
@@ -428,16 +215,6 @@ useEffect(() => {
     setTimelineStats({ completed, total, percent: Math.round((completed / total) * 100) });
   });
 }, [tripInfo]);
-
-useEffect(() => {
-  if (!groupInfo?.tripId) return setTripBudget(null);
-  const fetch = async () => {
-    const budgetRef = doc(db, "budgets", groupInfo.tripId);
-    const budgetSnap = await getDoc(budgetRef);
-    setTripBudget(budgetSnap.exists() ? budgetSnap.data() : null);
-  };
-  fetch();
-}, [groupInfo?.tripId]);
 
 const handleToggleChecklistItem = async (itemId, checked) => {
   if (!groupInfo?.tripId || !currentUser) return;
@@ -613,10 +390,6 @@ const canEditGroupInfo =
   groupInfo?.createdBy === currentUser?.uid ||
   groupInfo?.admins?.includes(currentUser?.uid);
 
-const canSendMessages = groupInfo?.sendAccess === "all" ||
-  groupInfo?.createdBy === auth.currentUser?.uid ||
-  groupInfo?.admins?.includes(auth.currentUser?.uid);
-  
 useEffect(() => {
   const fetchMembers = async () => {
     if (!groupInfo?.members) return;
@@ -660,7 +433,6 @@ useEffect(() => {
         const uid = doc.id;
 
         const isAlreadyInGroup = groupInfo?.members?.includes(uid);
-        const alreadySelected = selectedUsers.includes(uid);
         const alreadyInResults = searchResults.some((u) => u.uid === uid);
 
         const matchesSearch =
@@ -692,7 +464,7 @@ useEffect(() => {
   };
 
   fetchUsers();
-}, [searchTerm, groupInfo?.members]);
+}, [searchTerm, searchResults, groupInfo?.members]);
 
 const handleUpdateGroupInfo = async () => {
   if (!groupName) {
@@ -773,31 +545,10 @@ const handleUpdateGroupInfo = async () => {
 
 useEffect(() => {
   if (editingGroupInfo && groupInfo) {
-    setGroupDesc(groupInfo.description || "");
     setGroupIconType(groupInfo.iconURL ? "image" : "emoji");
     setGroupIconValue(groupInfo.iconURL || groupInfo.emoji || "💬");
   }
 }, [editingGroupInfo, groupInfo]);
-
-
-
-const fetchGroupDetails = async (groupId) => {
-  try {
-    const groupRef = doc(db, "groupChats", groupId);
-    const groupSnap = await getDoc(groupRef);
-
-    if (groupSnap.exists()) {
-      const groupData = { id: groupSnap.id, ...groupSnap.data() };
-      setSelectedGroup(groupData);
-      setEditingGroupInfo(true); // optionally open drawer here
-    } else {
-      console.warn("Group not found in Firestore.");
-    }
-  } catch (err) {
-    console.error("Error fetching group details:", err.message);
-  }
-};
-
 
 const handleGroupIconUpload = (e) => {
   const file = e.target.files[0];
@@ -1222,11 +973,6 @@ const handleShare = async () => {
   }
 };
 
-
-  const handleContextMenu = (event, message) => {
-    event.preventDefault();
-    setContextMenu({ visible: true, x: event.clientX, y: event.clientY, message });
-  };
   
   const handleTouchStart = (message) => {
     const timer = setTimeout(() => {
@@ -1246,13 +992,6 @@ const handleShare = async () => {
     setContextMenu({ ...contextMenu, visible: false });
   };
   
-  
-  const handleAddReaction = (msg, emoji) => {
-    // Example: You can update Firestore to add emoji reaction
-    console.log(`Reacted to ${msg.id} with ${emoji}`);
-    setContextMenu({ ...contextMenu, visible: false });
-  };
-  
 const handleDelete = async (messageId) => {
   if (!messageId || !groupName) return;
   try {
@@ -1263,16 +1002,6 @@ const handleDelete = async (messageId) => {
   }
 };
 
-  const handleLongPress = (e, message) => {
-    e.preventDefault();
-    setContextMenu({
-      visible: true,
-      x: window.innerWidth / 2,
-      y: e.touches[0].clientY,
-      message,
-    });
-  };
-  
   useEffect(() => {
     const handleClickOutside = () => {
       if (contextMenu.visible) {
@@ -1285,32 +1014,11 @@ const handleDelete = async (messageId) => {
     };
   }, [contextMenu]);
   
-
-  const handleAddUser = (user) => {
-    setSelectedUsers([...selectedUsers, user]);
-    setSearchTerm('');
-  };
-  
-  const handleRemoveUser = (uid) => {
-    setSelectedUsers(prev => prev.filter(u => u.uid !== uid));
-  };
   
   const handleBackButton = () => navigate(-1);
 
-  const groupEmoji = groupInfo.emoji || '';
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  useEffect(() => {
-    const colors = {};
-    messages.forEach((msg) => {
-      if (!colors[msg.senderId]) {
-        colors[msg.senderId] = generateUserColor(msg.senderName);
-      }
-    });
-    setUserColors(colors);
   }, [messages]);
 
   if (!currentUser) return <div>Loading...</div>;
@@ -1409,7 +1117,6 @@ const getGroupedReactions = (msg, allUsers = {}) => {
       alignItems: 'center',
       background: mode === "dark" ? 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to bottom, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
       height: '64px',
-      backdropFilter: 'blur(0px)',
     }}
   >
     <IconButton onClick={handleBackButton} sx={{ mr: 1 }} style={{ color: mode === "dark" ? "#fff" : "#000" }}>
@@ -1488,6 +1195,25 @@ const getGroupedReactions = (msg, allUsers = {}) => {
             >
               🧪 Dev Beta
             </Box>
+          )}
+        </Typography>
+        <Typography
+          variant="caption"
+          sx={{
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            color: mode === "dark" ? "#ccc" : "#555",
+            mt: 0.1,
+          }}
+        >
+          {memberUsers.length === 0 ? (
+            'None'
+          ) : (
+            <>
+              {memberUsers.slice(0, 2).map((user) => user.name).join(', ')}
+              {memberUsers.length > 2 && `...`}
+            </>
           )}
         </Typography>
       </Box>
@@ -2116,26 +1842,6 @@ if (msg.type === "system") {
               </Box>
             ))
           )}
-          {showScrollButton && (
-  <Button
-    onClick={() => {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-      setNewMessageCount(0);
-    }}
-    sx={{
-      position: 'fixed',
-      bottom: 80,
-      right: 20,
-      zIndex: 1000,
-      backgroundColor: '#1ac635',
-      color: '#000',
-      borderRadius: '20px',
-      padding: '10px 20px',
-    }}
-  >
-    {newMessageCount} New Message{newMessageCount > 1 ? 's' : ''}
-  </Button>
-)}
 
 <Menu
   anchorEl={anchorEl}
@@ -2742,7 +2448,6 @@ sx={{
       mx: "auto",
       my: 2,
       border: "none",
-      boxShadow: "none",
       transition: "box-shadow 0.3s, background 0.3s",
     }
   }}
@@ -2834,7 +2539,7 @@ sx={{
     }
   }}
 >
-  <DialogTitle sx={{ color: "#fff", fontWeight: "bold" }}>
+  <DialogTitle sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: "bold" }}>
     📊 Create Poll
   </DialogTitle>
 
@@ -2847,7 +2552,7 @@ sx={{
       variant="outlined"
       sx={{ mb: 3 }}
       InputLabelProps={{ style: { color: '#aaa' } }}
-      InputProps={{ style: { color: '#fff' } }}
+      InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
     />
 
     {pollOptions.map((option, index) => (
@@ -2858,7 +2563,7 @@ sx={{
           value={option}
           onChange={(e) => handleOptionChange(index, e.target.value)}
           InputLabelProps={{ style: { color: '#aaa' } }}
-          InputProps={{ style: { color: '#fff' } }}
+          InputProps={{ style: { color: mode === "dark" ? "#fff" : "#000" } }}
         />
         <IconButton
           onClick={() => removeOption(index)}
@@ -2917,10 +2622,10 @@ sx={{
         PaperProps={{
           sx: {
             height: '100vh',
-            backgroundColor: 'rgba(12, 12, 12, 0.32)',
+            backgroundColor: mode === "dark" ? '#0c0c0c' : "#f1f1f1",
             backdropFilter: 'blur(40px)',
-            color: '#fff',
-            boxShadow: '0 -5px 20px rgba(0, 0, 0, 0.3)',
+            color: mode === "dark" ? '#fff' : "#000",
+            boxShadow: 'none',
             transition: 'transform 0.3s ease', // Ensure smooth transition on open/close
           },
         }}
@@ -2936,11 +2641,11 @@ sx={{
         <Box display="flex" alignItems="center">
           <IconButton
             onClick={() => setProfileOpen(false)}
-            sx={{ color: '#ccc' }}
+            sx={{ color: mode === "dark" ? "#ccc" : "#000" }}
           >
             <ArrowBackIcon />
           </IconButton>
-          <Typography variant="h6">
+          <Typography variant="h6" color={ mode === "dark" ? "#ccc" : "#000" }>
             Group Info
           </Typography>
         </Box>
@@ -2957,7 +2662,7 @@ sx={{
     mb: 2,
     boxShadow: '0 0 15px rgba(26, 26, 26, 0.37)',
     backgroundColor: '#232323',
-    color: '#fff',
+    color: mode === "dark" ? "#fff" : "#000",
   }}
 >
   {/* Only show emoji fallback if no image */}
@@ -3007,7 +2712,7 @@ sx={{
                 display: "flex",
                 flexDirection: "column",
                 gap: 0.5,
-                backgroundColor: "#f1f1f111",
+                backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0",
                 mt: 2,
                 mb: 2,
                 px: 1.5,
@@ -3020,7 +2725,7 @@ sx={{
   <Typography
     variant="body2"
     sx={{
-      color: '#B0BEC5',
+      color: mode === "dark" ? "#ccc" : "#000",
       mt: 0.5,
       whiteSpace: 'pre-wrap', // ✅ preserves \n line breaks and spaces
       wordBreak: 'break-word',
@@ -3031,7 +2736,7 @@ sx={{
 )}
 
               {createdByUser && (
-                <Typography variant="caption" sx={{ color: '#bbb', mb: 1 }}>
+                <Typography variant="caption" sx={{ color: mode === "dark" ? "#bbb" : "#333", mb: 1 }}>
                   Created by <strong>{createdByUser.name}</strong>
                 </Typography>
               )}
@@ -3042,9 +2747,9 @@ sx={{
     sx={{
       background: `url(${groupInfo.iconURL})`,
       backgroundSize: "cover",
-      backgroundColor: "#f1f1f101",
+      backgroundColor: mode === "dark" ? "#f1f1f101" : "#e0e0e0",
       backgroundPosition: "center",
-      color: "#fff",
+      color: mode === "dark" ? "#fff" : "#000",
       borderRadius: 3,
       boxShadow: "none",
     }}
@@ -3053,7 +2758,7 @@ sx={{
     <CardContent sx={{ backdropFilter: "blur(20px)" }}>
     <Box display="flex" alignItems="start" gap={2} mb={1}>  
       <Box>
-        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>
+        <Typography variant="h6" sx={{ color: "#ffffffff", fontWeight: 800, mb: 1 }}>
           {tripInfo.name}
         </Typography>
         <Typography variant="body2" sx={{ color: "#ffffffff", display: "flex", alignItems: "center" }}>
@@ -3101,7 +2806,7 @@ sx={{
                       variant="contained"
                       onClick={() => setEditingGroupInfo(true)}
                       sx={{
-                        bgcolor: '#f1f1f111', color: '#fff', borderRadius: 3, boxShadow: "none", py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5
+                        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", color: mode === "dark" ? "#fff" : "#000", borderRadius: 3, boxShadow: "none", py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5
                       }}
                     >
                     <EditIcon sx={{ fontSize: 24 }} />
@@ -3116,7 +2821,7 @@ sx={{
                     variant="contained"
                     onClick={() => setGroupSettingsOpen(true)}
                     sx={{
-                        bgcolor: '#f1f1f111', color: '#fff', borderRadius: 3, boxShadow: "none", py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5
+                        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", color: mode === "dark" ? "#fff" : "#000", borderRadius: 3, boxShadow: "none", py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5
                     }}
                   >
                     <SettingsOutlinedIcon sx={{ fontSize: 24 }} />
@@ -3133,7 +2838,7 @@ sx={{
                   flexDirection: "column",
                   gap: 0.5,
                   alignContent: "left",
-                  backgroundColor: "#f1f1f111",
+                  backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e020",
                   p: 1,
                   mt: 2,
                   borderRadius: 3
@@ -3142,7 +2847,7 @@ sx={{
              <Typography
               variant="body2"
               sx={{
-                color: '#a5a5a5ff',
+                color: mode === "dark" ? "#a5a5a5ff" : "#4f4f4fff",
                 fontWeight: 500,
                 p: 1
               }}
@@ -3154,9 +2859,9 @@ sx={{
   <Button
     variant="contained"
     onClick={() => setInviteDrawerOpen(true)}
-    sx={{ mt: 0, backgroundColor: "#f1f1f111", boxShadow: "none", color: "#fff", justifyContent: "left", alignItems: "center", borderRadius: 2, gap: 1, px: 1, display: "flex" }}
+    sx={{ mt: 0, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", boxShadow: "none", color: mode === "dark" ? "#fff" : "#000", justifyContent: "left", alignItems: "center", borderRadius: 2, gap: 1, px: 1, display: "flex" }}
   >
-    <AddIcon sx={{ backgroundColor: "#fff", color: "#000", padding: 1, borderRadius: 8 }} />
+    <AddIcon sx={{ backgroundColor: mode === "dark" ? "#fff" : "#000", color: mode === "dark" ? "#000" : "#fff", padding: 1, borderRadius: 8 }} />
      Add Members
   </Button>
 )}
@@ -3184,10 +2889,10 @@ sx={{
               <Typography variant='body1'>
                 {member?.name || memberUid.slice(0, 6)}
                 {isOwner && (
-                  <Chip label="Admin" size="small" sx={{ ml: 1, background: "#ffffff36", color: "#fff", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1.5 }} />
+                  <Chip label="Admin" size="small" sx={{ ml: 1, background: mode === "dark" ? "#ffffff36" : "#00000036", color: mode === "dark" ? "#fff" : "#000", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1.5 }} />
                 )}
                 {isAdmin && !isOwner && (
-                  <Chip label="Admin" size="small" sx={{ ml: 1, background: "#ffffff36", color: "#fff", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1.5 }} />
+                  <Chip label="Admin" size="small" sx={{ ml: 1, background: mode === "dark" ? "#ffffff36" : "#00000036", color: mode === "dark" ? "#fff" : "#000", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1.5 }} />
                 )}
               </Typography>
               <Typography variant='body2'>{member?.username || memberUid.slice(0, 6)}</Typography>
@@ -3198,7 +2903,7 @@ sx={{
               {member?.mobile ? (
                 <IconButton
                   onClick={() => window.open(`tel:${member.mobile}`, '_self')}
-                  sx={{ color: "#fff", backgroundColor: "#f1f1f111", padding: 1 }}
+                  sx={{ color: mode === "dark" ? "#fff" : "#000", backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", padding: 1 }}
                 >
                   <PhoneOutlinedIcon />
                 </IconButton>
@@ -3214,7 +2919,7 @@ sx={{
                       setSelectedMemberToRemove(memberUid);
                       setConfirmDialogOpen(true);
                     }}
-                    sx={{ color: "#fbb", backgroundColor: "#ff000030", padding: 1 }}
+                    sx={{ color: mode === "dark" ? "#ffbbbb" : "#ff3333ff", backgroundColor: "#ff000020", padding: 1 }}
                   >
                     <RemoveCircleOutlineIcon />
                   </IconButton>
@@ -3228,7 +2933,7 @@ sx={{
         <Button
           variant="contained"
           size="small"
-          sx={{ mt: 2, height: 50, px: 2, backgroundColor: "#f1f1f124", boxShadow: "none", color: "#fff", justifyContent: "space-between", alignItems: "center", borderRadius: 2.5, gap: 1, display: "flex" }}
+          sx={{ mt: 2, height: 50, px: 2, backgroundColor: mode === "dark" ? "#f1f1f124" : "#13131324", boxShadow: "none", color: mode === "dark" ? "#fff" : "#000", justifyContent: "space-between", alignItems: "center", borderRadius: 2.5, gap: 1, display: "flex" }}
           onClick={() => setMembersDrawerOpen(true)}
         >
           <Typography variant='body1'>
@@ -3257,7 +2962,7 @@ sx={{
                 ) : (
                   <Button
                     sx={{
-                      bgcolor: '#f1f1f111',
+                      backgroundColor: mode === "dark" ? "#f1f1f111" : "#ff000010",
                       color: '#ff6767',
                       fontSize: 16,
                       borderRadius: 3,
@@ -3351,7 +3056,7 @@ sx={{
         px: 3,
         borderRadius: 8,
         bgcolor: "#ff4444",
-        color: "#fff",
+        color: mode === "dark" ? "#fff" : "#000",
         boxShadow: "none",
         "&:hover": {
           bgcolor: "#d32f2f"
@@ -3373,7 +3078,7 @@ sx={{
   PaperProps={{
     sx: {
       p: { xs: 2, sm: 3 },
-      bgcolor: mode === "dark" ? "#18181821" : "#f7f7f741",
+      bgcolor: mode === "dark" ? "#18181821" : "#f7f7f7",
       backdropFilter: "blur(80px)",
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
@@ -3422,7 +3127,7 @@ sx={{
       }
     }}
   >
-    <PersonAddIcon sx={{ backgroundColor: "#fff", color: "#000", padding: 1, borderRadius: 8 }} />
+    <PersonAddIcon sx={{ backgroundcolor: mode === "dark" ? "#fff" : "#000", color: "#000", padding: 1, borderRadius: 8 }} />
     Add Members
   </Button>
 
@@ -3475,7 +3180,7 @@ sx={{
   </Box>
 
   <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
-    <Box sx={{ p: 2, backgroundColor: "#fff", borderRadius: 3, boxShadow: "0 2px 8px #0002" }}>
+    <Box sx={{ p: 2, backgroundcolor: mode === "dark" ? "#fff" : "#000", borderRadius: 3, boxShadow: "none" }}>
       <QRCodeCanvas value={inviteLink} size={180} />
     </Box>
   </Box>
@@ -3493,9 +3198,6 @@ sx={{
       mb: 2,
       fontSize: 16,
       boxShadow: "none",
-      "&:hover": {
-        bgcolor: "#00c721",
-      },
     }}
   >
     <ShareIcon sx={{ mr: 1, fontSize: 18 }} /> Share Invite Link
@@ -3647,13 +3349,13 @@ sx={{
                   <Typography variant='body1' sx={{ fontWeight: 600, color: mode === "dark" ? "#fff" : "#222" }}>
                     {member?.name || memberUid.slice(0, 6)}
                     {isOwner && (
-                      <Chip label="Owner" size="small" sx={{ ml: 1, background: "#00f72144", color: "#fff", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1 }} />
+                      <Chip label="Owner" size="small" sx={{ ml: 1, background: "#00f72144", color: mode === "dark" ? "#fff" : "#000", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1 }} />
                     )}
                     {isAdmin && !isOwner && (
-                      <Chip label="Admin" size="small" sx={{ ml: 1, background: "#ffffff36", color: "#fff", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1 }} />
+                      <Chip label="Admin" size="small" sx={{ ml: 1, background: mode === "dark" ? "#ffffff36" : "#00000036", color: mode === "dark" ? "#fff" : "#000", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1 }} />
                     )}
                   </Typography>
-                  <Typography variant='body2' sx={{ color: "#aaa" }}>{member?.username || memberUid.slice(0, 6)}</Typography>
+                  <Typography variant='body2' sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>{member?.username || memberUid.slice(0, 6)}</Typography>
                 </Box>
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -3662,7 +3364,7 @@ sx={{
                     <IconButton
                       onClick={() => window.open(`tel:${member.mobile}`, '_self')}
                       sx={{
-                        color: "#fff",
+                        color: mode === "dark" ? "#fff" : "#000",
                         backgroundColor: mode === "dark" ? "#23232344" : "#f1f1f144",
                         padding: 1,
                         borderRadius: 2,
@@ -3686,13 +3388,13 @@ sx={{
                           setConfirmDialogOpen(true);
                         }}
                         sx={{
-                          color: "#fbb",
+                          color: mode === "dark" ? "#ffbbbb" : "#ff4747ff",
                           backgroundColor: "#ff000030",
                           padding: 1,
                           borderRadius: 2,
                           "&:hover": {
                             backgroundColor: "#ff4444",
-                            color: "#fff",
+                            color: mode === "dark" ? "#fff" : "#000",
                           }
                         }}
                       >
@@ -3723,8 +3425,6 @@ sx={{
       p: { xs: 3, sm: 4 },
       backgroundColor: mode === "dark" ? "#181818f2" : "#f7f7f7f2",
       color: mode === "dark" ? "#fff" : "#222",
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
       boxShadow: "0 -4px 32px rgba(0,0,0,0.18)",
       maxWidth: 480,
       mx: "auto",
@@ -3736,7 +3436,7 @@ sx={{
 >
   <Box display="flex" flexDirection="column" gap={3} maxHeight="93vh" overflowY="auto" mb={2}>
     <Box display="flex" alignItems="center" sx={{ mb: 1 }}>
-      <IconButton onClick={() => setGroupSettingsOpen(false)} sx={{ color: "#fff", mr: 1 }}>
+      <IconButton onClick={() => setGroupSettingsOpen(false)} sx={{ color: mode === "dark" ? "#fff" : "#000", mr: 1 }}>
         <ArrowBackIcon />
       </IconButton>
       <Typography variant="h5" sx={{ fontWeight: "bold", letterSpacing: 1 }}>
@@ -3746,8 +3446,6 @@ sx={{
 
     {/* Section: Permission Toggles */}
     <Box sx={{
-      background: mode === "dark" ? "#23232344" : "#f1f1f144",
-      borderRadius: 3,
       p: 2,
       boxShadow: "none",
       mb: 2,
@@ -3758,7 +3456,7 @@ sx={{
       <Stack spacing={3}>
         {/* Edit Access Section */}
         <Box>
-          <Typography variant="subtitle2" sx={{ mb: 1, color: "#ccc", fontWeight: 600 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, color: mode === "dark" ? "#ccc" : "#555", fontWeight: 600 }}>
             Who can edit group info?
           </Typography>
           <Stack direction="row" spacing={2}>
@@ -3768,16 +3466,17 @@ sx={{
                 variant={groupInfo?.editAccess === role ? "contained" : "outlined"}
                 onClick={() => handlePermissionChange("editAccess", role)}
                 sx={{
-                  color: groupInfo?.editAccess === role ? "#000" : "#fff",
-                  backgroundColor: groupInfo?.editAccess === role ? "#fff" : "transparent",
+                  color: groupInfo?.editAccess === role ? mode === "dark" ? "#000" : "#fff" :  mode === "dark" ? "#fff" : "#000",
+                  backgroundColor: groupInfo?.editAccess === role ?  mode === "dark" ? "#fff" : "#000" : "transparent",
                   textTransform: "none",
                   fontWeight: 600,
                   px: 3,
-                  borderRadius: 2,
+                  borderRadius: 8,
                   boxShadow: "none",
                   border: groupInfo?.editAccess === role ? "none" : "1.5px solid #555",
                   "&:hover": {
                     backgroundColor: groupInfo?.editAccess === role ? "#e0e0e0" : "#23232344",
+                    boxShadow: "none",
                   },
                   transition: "background 0.2s",
                 }}
@@ -3790,7 +3489,7 @@ sx={{
 
         {/* Invite Access Section */}
         <Box>
-          <Typography variant="subtitle2" sx={{ mb: 1, color: "#ccc", fontWeight: 600 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, color: mode === "dark" ? "#ccc" : "#555", fontWeight: 600 }}>
             Who can add members?
           </Typography>
           <Stack direction="row" spacing={2}>
@@ -3800,16 +3499,17 @@ sx={{
                 variant={groupInfo?.inviteAccess === role ? "contained" : "outlined"}
                 onClick={() => handlePermissionChange("inviteAccess", role)}
                 sx={{
-                  color: groupInfo?.inviteAccess === role ? "#000" : "#fff",
-                  backgroundColor: groupInfo?.inviteAccess === role ? "#fff" : "transparent",
+                  color: groupInfo?.inviteAccess === role ? mode === "dark" ? "#000" : "#fff" :  mode === "dark" ? "#fff" : "#000",
+                  backgroundColor: groupInfo?.inviteAccess === role ?  mode === "dark" ? "#fff" : "#000" : "transparent",
                   textTransform: "none",
                   fontWeight: 600,
                   px: 3,
-                  borderRadius: 2,
+                  borderRadius: 8,
                   boxShadow: "none",
                   border: groupInfo?.inviteAccess === role ? "none" : "1.5px solid #555",
                   "&:hover": {
                     backgroundColor: groupInfo?.inviteAccess === role ? "#e0e0e0" : "#23232344",
+                    boxShadow: "none",
                   },
                   transition: "background 0.2s",
                 }}
@@ -3822,7 +3522,7 @@ sx={{
 
         {/* Send Messages Access Section */}
         <Box>
-          <Typography variant="subtitle2" sx={{ mb: 1, color: "#ccc", fontWeight: 600 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, color: mode === "dark" ? "#ccc" : "#555", fontWeight: 600 }}>
             Who can send messages?
           </Typography>
           <Stack direction="row" spacing={2}>
@@ -3832,16 +3532,17 @@ sx={{
                 variant={groupInfo?.sendAccess === role ? "contained" : "outlined"}
                 onClick={() => handlePermissionChange("sendAccess", role)}
                 sx={{
-                  color: groupInfo?.sendAccess === role ? "#000" : "#fff",
-                  backgroundColor: groupInfo?.sendAccess === role ? "#fff" : "transparent",
+                  color: groupInfo?.sendAccess === role ? mode === "dark" ? "#000" : "#fff" :  mode === "dark" ? "#fff" : "#000",
+                  backgroundColor: groupInfo?.sendAccess === role ?  mode === "dark" ? "#fff" : "#000" : "transparent",
                   textTransform: "none",
                   fontWeight: 600,
                   px: 3,
-                  borderRadius: 2,
+                  borderRadius: 8,
                   boxShadow: "none",
                   border: groupInfo?.sendAccess === role ? "none" : "1.5px solid #555",
                   "&:hover": {
                     backgroundColor: groupInfo?.sendAccess === role ? "#e0e0e0" : "#23232344",
+                    boxShadow: "none",
                   },
                   transition: "background 0.2s",
                 }}
@@ -3869,8 +3570,8 @@ sx={{
           variant="contained"
           size="small"
           sx={{
-            color: "#fff",
-            backgroundColor: "#23232388",
+            color: mode === "dark" ? "#fff" : "#000",
+            backgroundColor: "#23232348",
             display: "flex",
             alignItems: "center",
             borderRadius: 2,
@@ -3878,12 +3579,11 @@ sx={{
             px: 2,
             py: 0.5,
             fontWeight: 600,
-            "&:hover": { backgroundColor: "#333" }
           }}
           onClick={() => setShowSearchBar(prev => !prev)}
         >
           {showSearchBar ? <CloseIcon sx={{ fontSize: "18px", mr: 1 }} /> : <SearchIcon sx={{ fontSize: "18px", mr: 1 }} />}
-          {showSearchBar ? "Hide Search" : "Search"}
+          {showSearchBar ? "Hide" : "Search"}
         </Button>
       </Box>
 
@@ -3896,14 +3596,13 @@ sx={{
           fullWidth
           sx={{
             mb: 2,
-            input: { color: "#fff" },
+            input: { color: mode === "dark" ? "#fff" : "#000" },
             '& label': { color: '#ccc' },
             '& .MuiOutlinedInput-root': {
               '& fieldset': { borderColor: '#555' },
               '&:hover fieldset': { borderColor: '#888' },
-              '&.Mui-focused fieldset': { borderColor: '#00f721' },
             },
-            borderRadius: 2,
+            borderRadius: 4,
             backgroundColor: mode === "dark" ? "#23232344" : "#f1f1f144",
           }}
           InputProps={{
@@ -3959,7 +3658,7 @@ sx={{
                 <Box display="flex" alignItems="center" gap={2}>
                   <Avatar src={member?.photoURL} sx={{
                     bgcolor: "#232323",
-                    color: "#fff",
+                    color: mode === "dark" ? "#fff" : "#000",
                     width: 40,
                     height: 40,
                     fontWeight: 700,
@@ -3986,16 +3685,16 @@ sx={{
                       onChange={e => toggleAdminStatus(uid)}
                       sx={{
                         bgcolor: "transparent",
-                        color: isAdmin ? "#fff" : "#8e8e8e",
+                        color: isAdmin ?  mode === "dark" ? "#fff" : "#000" :  mode === "dark" ? "#ccc" : "#555",
                         fontWeight: 600,
                         fontSize: "0.9rem",
-                        borderRadius: 2,
+                        borderRadius: 3,
                         '& .MuiOutlinedInput-notchedOutline': {
                           borderColor: "#555"
                         }
                       }}
                       MenuProps={{
-                        PaperProps: { sx: { bgcolor: "#232323", color: "#fff" } }
+                        PaperProps: { sx: { bgcolor:  mode === "dark" ? "#000" : "#fff", color: mode === "dark" ? "#fff" : "#000", borderRadius: 3 } }
                       }}
                     >
                       <MenuItem value="member">Member</MenuItem>
@@ -4007,8 +3706,8 @@ sx={{
                     label={isCreator ? "Owner" : "Member"}
                     size="small"
                     sx={{
-                      bgcolor: isAdmin ? "#00f72144" : "#ffffff44",
-                      color: "#fff",
+                      bgcolor: isAdmin ? "#00f72144" : mode === "dark" ? "#ffffff44" : "#00000044",
+                      color: mode === "dark" ? "#fff" : "#000",
                       fontWeight: 600,
                       fontSize: "0.8rem",
                       borderRadius: 1,
@@ -4032,8 +3731,8 @@ sx={{
       p: 3,
       borderTopLeftRadius: 12,
       borderTopRightRadius: 12,
-      background: "#111",
-      color: "#fff",
+      background: mode === "dark" ? "#111" : "#f1f1f1",
+      color: mode === "dark" ? "#fff" : "#000",
     },
   }}
 >
@@ -4049,7 +3748,7 @@ sx={{
   onChange={(e) =>
     setGroupInfo((prev) => ({ ...prev, name: e.target.value }))
   }
-  sx={{ mb: 2, input: { color: "#fff" }, label: { color: "#ccc" } }}
+  sx={{ mb: 2, input: { color: mode === "dark" ? "#fff" : "#000" }, label: { color: mode === "dark" ? "#ccc" : "#555" } }}
 />
 
 {/* Preview */}
@@ -4068,11 +3767,11 @@ sx={{
 
 {/* Icon Type Toggle */}
 <FormControl fullWidth sx={{ mb: 2 }}>
-  <InputLabel sx={{ color: "#ccc" }}>Icon Type</InputLabel>
+  <InputLabel sx={{ color: mode === "dark" ? "#ccc" : "#555" }}>Icon Type</InputLabel>
   <Select
     value={groupIconType}
     onChange={(e) => setGroupIconType(e.target.value)}
-    sx={{ color: "#fff" }}
+    sx={{ color: mode === "dark" ? "#fff" : "#000" }}
   >
     <MenuItem value="emoji">Emoji</MenuItem>
     <MenuItem value="image">Image URL</MenuItem>
@@ -4082,7 +3781,7 @@ sx={{
 {/* Icon Selector */}
 {groupIconType === "emoji" ? (
   <>
-    <Typography variant="subtitle2" sx={{ mb: 1, color: "#ccc" }}>
+    <Typography variant="subtitle2" sx={{ mb: 1, color: mode === "dark" ? "#ccc" : "#555" }}>
       Choose an Emoji
     </Typography>
     <Grid container spacing={1} sx={{ mb: 2 }}>
@@ -4098,7 +3797,7 @@ sx={{
                 aspectRatio: "1",
                 color: groupIconValue === emoji ? "#000" : "#fff",
                 backgroundColor:
-                  groupIconValue === emoji ? "#ffffffff" : "#232323",
+                  groupIconValue === emoji ? "#ffffffff20" : "#23232349",
                 borderColor: "#555",
                 borderRadius: 2,
               }}
@@ -4117,7 +3816,7 @@ sx={{
       value={groupIconValue}
       onChange={(e) => setGroupIconValue(e.target.value)}
       fullWidth
-      sx={{ mb: 1, input: { color: "#fff" }, label: { color: "#ccc" } }}
+      sx={{ mb: 1, input: { color: mode === "dark" ? "#fff" : "#000" }, label: { color: mode === "dark" ? "#ccc" : "#555" } }}
     />
 
     <Button
@@ -4125,7 +3824,7 @@ sx={{
       component="label"
       sx={{
         mt: 1,
-        color: "#fff",
+        color: mode === "dark" ? "#fff" : "#000",
         background:"#f1f1f111",
         borderColor: "#f1f1f151",
         fontWeight: 600,
@@ -4160,7 +3859,7 @@ sx={{
   onChange={(e) =>
     setGroupInfo((prev) => ({ ...prev, description: e.target.value }))
   }
-  sx={{ mb: 3, input: { color: "#fff" }, label: { color: "#ccc" } }}
+  sx={{ mb: 3, input: { color: mode === "dark" ? "#fff" : "#000" }, label: { color: mode === "dark" ? "#ccc" : "#555" } }}
 />
 
 
@@ -4171,10 +3870,11 @@ sx={{
       onClick={() => setEditingGroupInfo(false)}
       sx={{
         flex: 1,
-        color: "#fff",
+        color: mode === "dark" ? "#fff" : "#000",
         borderColor: "#666",
         fontWeight: 500,
-        backgroundColor: "#0c0c0c"
+        backgroundColor: mode === "dark" ? "#0c0c0c" : "#f1f1f1",
+        borderRadius: 8,
       }}
     >
       Cancel
@@ -4185,16 +3885,16 @@ sx={{
       onClick={handleUpdateGroupInfo}
       sx={{
         flex: 1,
-        bgcolor: "#ffffffff",
-        color: "#000",
+        bgcolor: mode === "dark" ? "#ffffffff" : "#000000",
+        color: mode === "dark" ? "#000" : "#fff",
         fontWeight: 600,
+        borderRadius: 8,
       }}
     >
       Save Changes
     </Button>
   </Box>
 </SwipeableDrawer>
-
 
 <SwipeableDrawer
   anchor="bottom"
@@ -4212,7 +3912,7 @@ sx={{
       borderTopRightRadius: 24,
       borderTopLeftRadius: 24,
       backgroundColor: '#111',
-      color: '#fff',
+      color: mode === "dark" ? "#fff" : "#000",
       p: 2,
       mx: "auto"
     },
@@ -4229,7 +3929,7 @@ sx={{
     onChange={(e) => setSearchTerm(e.target.value)}
     sx={{
       mb: 2,
-      input: { color: '#fff' },
+      input: { color: mode === "dark" ? "#fff" : "#000" },
       label: { color: '#ccc' },
       '& .MuiOutlinedInput-root': {
         '& fieldset': { borderColor: '#555' },
@@ -4277,7 +3977,7 @@ sx={{
               <ListItemText
                 primary={user.username || user.name || user.email}
                 secondary={user.email}
-                primaryTypographyProps={{ color: '#fff' }}
+                primaryTypographyProps={{ color: mode === "dark" ? "#fff" : "#000" }}
                 secondaryTypographyProps={{ color: '#aaa' }}
               />
             </ListItemButton>
@@ -4316,7 +4016,7 @@ sx={{
           }
           sx={{
             bgcolor: '#333',
-            color: '#fff',
+            color: mode === "dark" ? "#fff" : "#000",
             borderColor: '#555',
             mb: 1
           }}
