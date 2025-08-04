@@ -505,68 +505,51 @@ useEffect(() => {
   return () => unsubscribe();
 }, [groupName]);
 
-  useEffect(() => {
+useEffect(() => {
+  // Realtime listener for messages and fetching group info and members
+  const unsubscribe = onSnapshot(doc(db, 'groupChats', groupName), async (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      setGroupInfo(data);
 
-    // Realtime listener for messages
-    const q = query(
-      collection(db, 'groupChat', groupName, 'messages'),
-      orderBy('timestamp', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const msgs = [];
-      querySnapshot.forEach((doc) => {
-        msgs.push({ id: doc.id, ...doc.data() });
-      });
-      setMessages(msgs);
-      setLoading(false);
-    });
-
-    // Get group info
-    const fetchGroupInfo = async () => {
-        try {
-          const groupDocRef = doc(db, 'groupChats', groupName);
-          const docSnap = await getDoc(groupDocRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setGroupInfo(data);
-      
-            // Fetch createdBy user info
-            if (data.createdBy) {
-              const createdByRef = doc(db, 'users', data.createdBy);
-              const createdBySnap = await getDoc(createdByRef);
-              if (createdBySnap.exists()) {
-                setCreatedByUser(createdBySnap.data());
-              }
-            }
-      
-            // Fetch member user names
-            if (Array.isArray(data.members)) {
-              const memberFetches = data.members.map((uid) =>
-                getDoc(doc(db, 'users', uid))
-              );
-              const memberDocs = await Promise.all(memberFetches);
-              const memberNames = memberDocs
-                .filter((doc, idx) => doc.exists())
-                .map((doc, idx) => ({
-                  uid: groupInfo.members[idx], // Correctly attached uid from members array index
-                  ...doc.data(),
-                }));
-              setMemberUsers(memberNames);
-
-
-            }
-          }
-        } catch (error) {
-          console.error('Failed to fetch group info or user details:', error);
+      // Fetch createdBy user info
+      if (data.createdBy) {
+        const createdByRef = doc(db, 'users', data.createdBy);
+        const createdBySnap = await getDoc(createdByRef);
+        if (createdBySnap.exists()) {
+          setCreatedByUser(createdBySnap.data());
         }
+      }
 
-      };
-  
-      fetchGroupInfo();
-  
-      return () => unsubscribe();
-    }, [currentUser, navigate, groupName]);
+      // Fetch member user info with UID attached
+      if (Array.isArray(data.members) && data.members.length > 0) {
+        try {
+          const memberFetches = data.members.map((uid) =>
+            getDoc(doc(db, 'users', uid))
+          );
+          const memberDocs = await Promise.all(memberFetches);
+          const memberNames = memberDocs
+            .map((docSnap, idx) => {
+              if (docSnap.exists()) {
+                return { uid: data.members[idx], ...docSnap.data() };
+              }
+              return null;
+            })
+            .filter(Boolean);
+          setMemberUsers(memberNames);
+        } catch (e) {
+          console.error('Error fetching group members:', e);
+          setMemberUsers([]);
+        }
+      } else {
+        setMemberUsers([]);
+      }
+    }
+  });
+
+  return () => unsubscribe();
+}, [groupName]);
+
       
 const sendMessage = async () => {
   if (!newMsg.trim()) return;
