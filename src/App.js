@@ -16,6 +16,7 @@ import Waitlist from "./pages/Wishlist";
 import { UserProvider } from './contexts/UserContext';
 import Chatroom from "./components/Chatroom";
 import GroupChat from "./components/GroupChat";
+
 import Trips from "./pages/Trips";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { WeatherProvider } from "./contexts/WeatherContext";

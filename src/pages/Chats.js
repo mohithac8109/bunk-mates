@@ -483,7 +483,7 @@ useEffect(() => {
       snapshot.forEach((doc) => {
         const data = doc.data();
         const msg = data.system
-          ? `[System] ${data.text}`
+          ? `${data.text}`
           : data.text || 'No messages yet';
         const ts = data.timestamp?.toDate?.() || new Date(0);
         const unread =

@@ -16,7 +16,6 @@ import {
   arrayUnion,
   arrayRemove,
   deleteDoc,
-  limit
 } from 'firebase/firestore';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -33,32 +32,17 @@ import {
   ListItemText,
   Dialog,
   ThemeProvider,
-  Stack,
-  Chip,
   DialogActions,
   DialogContent,
   DialogTitle,
   Checkbox,
   ListItemButton,
   Divider,
-  Drawer,
-  CircularProgress,
-  InputLabel,
-  FormControl,
-  Select,
   MenuItem,
-  Grid,
-  Snackbar,
   Tooltip,
   Menu,
-  InputAdornment,
-  Card,
-  LinearProgress,
-  CardContent,
+  Fab
 } from '@mui/material';
-import {
-  LocationOn, AccessTime,
-} from "@mui/icons-material";
 import EmojiPicker from 'emoji-picker-react';
 import Popover from '@mui/material/Popover';
 import { styled } from '@mui/system';
@@ -67,23 +51,17 @@ import SendIcon from '@mui/icons-material/Send';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
-import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
-import ExitToAppOutlinedIcon from '@mui/icons-material/ExitToAppOutlined';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
-import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import CheckIcon from '@mui/icons-material/Check';
 import RemoveIcon from '@mui/icons-material/Remove';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import ShareIcon from "@mui/icons-material/Share";
 import ReplyIcon from '@mui/icons-material/Reply';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
-import { QRCodeCanvas } from 'qrcode.react';
+import GroupInfoDrawer from "./GroupChat/GroupInfoDrawer";
 
 import { motion, useAnimation } from 'framer-motion';
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
@@ -131,22 +109,13 @@ function GroupChat() {
   const [memberUsers, setMemberUsers] = useState([]);
   const currentUser = auth.currentUser;
   const [profileOpen, setProfileOpen] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [selectedUsers, setSelectedUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, message: null });
   const [replyTo, setReplyTo] = useState(null);
   const [longPressTimer, setLongPressTimer] = useState(null);
   const controls = useAnimation();
   const [user, setUser] = useState(null)
   const [memberInfo, setMemberInfo] = useState({});
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [selectedMemberToRemove, setSelectedMemberToRemove] = useState(null);
   const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [groupIconType, setGroupIconType] = useState(groupInfo?.iconURL?.startsWith("http") ? "image" : "emoji");
-  const [groupIconValue, setGroupIconValue] = useState(groupInfo?.iconURL || "");
-  const [editingGroupInfo, setEditingGroupInfo] = useState(false);
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
   const [notification, setNotification] = useState(null);
   const [allUsers, setAllUsers] = useState({}); // { uid1: { photoURL, name }, ... }
@@ -161,9 +130,6 @@ function GroupChat() {
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [membersDrawerOpen, setMembersDrawerOpen] = useState(false);
-  const [memberSearch, setMemberSearch] = useState("");
-  const [searchMembersText, setSearchMembersText] = useState("");
-  const [showSearchBar, setShowSearchBar] = useState(false);
   const [tripInfo, setTripInfo] = useState(null);
   const [timelineStats, setTimelineStats] = useState(null);
   const [moreAnchorEl, setMoreAnchorEl] = useState(null);
@@ -175,6 +141,12 @@ function GroupChat() {
   const [inviteDrawerOpen, setInviteDrawerOpen] = useState(false);
   const [highlightedMsgId, setHighlightedMsgId] = useState(null);
   const messageRefs = useRef({});
+  const [showGoToBottom, setShowGoToBottom] = useState(false);
+  const containerRef = useRef(null);
+  const [mentionDrawerOpen, setMentionDrawerOpen] = useState(false);
+  const [mentionSelected, setMentionSelected] = useState(false);
+
+
 
 useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -184,6 +156,47 @@ useEffect(() => {
 
   return () => unsubscribe();
 }, []);
+
+useEffect(() => {
+  const text = editingMsg ? editText : newMsg;
+
+  // Check if text contains "@" at the start or anywhere else for new mentions
+  const atIndex = text.indexOf('@');
+
+  // Open drawer only if:
+  // - starts with @ and no mention is selected
+  // - or user types a new '@' after clearing selection
+  if (atIndex === 0 && !mentionSelected) {
+    setMentionDrawerOpen(true);
+  } else if (atIndex > 0 && mentionSelected) {
+    // User typed '@' somewhere after a mention was selected, reset to allow new selection
+    setMentionSelected(false);
+    setMentionDrawerOpen(true);
+  } else if (atIndex === -1) {
+    // If no @ present at all, close drawer and reset selection
+    setMentionDrawerOpen(false);
+    setMentionSelected(false);
+  }
+}, [newMsg, editText, editingMsg]);
+
+const handleMentionSelect = (username) => {
+  let text = editingMsg ? editText : newMsg;
+
+  // Replace first '@' and anything typed after it till cursor with '@username '
+  // For simplicity, replace whole text starting from '@'
+
+  text = '@' + username + ' ';
+
+  if (editingMsg) {
+    setEditText(text);
+  } else {
+    setNewMsg(text);
+  }
+
+  setMentionSelected(true);
+  setMentionDrawerOpen(false);
+};
+
 
 useEffect(() => {
   const fetchTrip = async () => {
@@ -226,7 +239,6 @@ const handleToggleChecklistItem = async (itemId, checked) => {
   });
 };
 
-
 const handleOptionChange = (index, value) => {
   setPollOptions((options) => {
     const newOptions = [...options];
@@ -242,7 +254,6 @@ const addOption = () => {
 const removeOption = (index) => {
   setPollOptions((options) => options.filter((_, i) => i !== index));
 };
-
 
 // Fetch timeline from Firestore
 const fetchTripTimeline = async () => {
@@ -286,86 +297,6 @@ useEffect(() => {
   fetchUsers();
 }, []);
 
-const handleExitGroup = async () => {
-  if (!user || !groupName) {
-    console.warn("Missing user or groupName", { user, groupName });
-    return;
-  }
-
-  try {
-    const groupRef = doc(db, "groupChats", groupName); // groupName = doc ID
-    const groupSnap = await getDoc(groupRef);
-
-    if (!groupSnap.exists()) {
-      console.warn("Group does not exist");
-      return;
-    }
-
-    const groupData = groupSnap.data();
-
-    // ✅ Prevent exit for system groups
-    if (groupData.isSystem) {
-      alert("You cannot exit a system group like Beta or Dev Beta.");
-      return;
-    }
-
-    // ✅ Remove user from group
-    await updateDoc(groupRef, {
-      members: arrayRemove(user.uid),
-    });
-
-    // ✅ Send system message
-    await addDoc(collection(db, "groupChat", groupName, "messages"), {
-      type: "system",
-      content: `${user.displayName || "A user"} left the group.`,
-      timestamp: serverTimestamp(),
-    });
-
-    console.log("✅ User removed from group.");
-    navigate("/chats");
-  } catch (err) {
-    console.error("❌ Failed to exit group:", err.message);
-  }
-};
-
-
-const handleRemoveMember = async (uidToRemove) => {
-  if (!groupName || !uidToRemove) return;
-
-  try {
-    const groupRef = doc(db, "groupChats", groupName);
-
-    // Step 1: Remove member
-    await updateDoc(groupRef, {
-      members: arrayRemove(uidToRemove),
-    });
-
-    // Step 2: Re-fetch group doc to check members length
-    const updatedSnap = await getDoc(groupRef);
-    const updatedData = updatedSnap.data();
-    const remainingMembers = updatedData.members || [];
-
-    // Step 3: If no members left, delete the group
-    if (remainingMembers.length === 0) {
-      await deleteDoc(groupRef);
-      console.log("Group deleted due to no members remaining.");
-      navigate("/chats");
-      return;
-    }
-
-    // Step 4: Notify removed member in group messages
-    await addDoc(collection(db, "groupChat", groupName, "messages"), {
-      type: "system",
-      content: `${memberInfo[uidToRemove]?.username || "A member"} was removed from the group.`,
-      timestamp: serverTimestamp(),
-    });
-
-    console.log("Member removed and system message sent.");
-  } catch (err) {
-    console.error("Failed to remove member or delete group:", err.message);
-  }
-};
-
 useEffect(() => {
   if (!groupName) return;
 
@@ -379,16 +310,6 @@ useEffect(() => {
 
   return () => unsubscribe(); // cleanup on unmount
 }, [groupName]);
-
-const canAddMembers =
-  groupInfo?.inviteAccess === "all" ||
-  groupInfo?.createdBy === currentUser?.uid ||
-  groupInfo?.admins?.includes(currentUser?.uid);
-
-const canEditGroupInfo =
-  groupInfo?.editAccess === "all" ||
-  groupInfo?.createdBy === currentUser?.uid ||
-  groupInfo?.admins?.includes(currentUser?.uid);
 
 useEffect(() => {
   const fetchMembers = async () => {
@@ -414,186 +335,6 @@ useEffect(() => {
   fetchMembers();
 }, [groupInfo?.members]);
 
-useEffect(() => {
-  const fetchUsers = async () => {
-    if (searchTerm.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    setSearchLoading(true);
-
-    try {
-      const q = query(collection(db, "users"), limit(50));
-      const snapshot = await getDocs(q);
-
-      const results = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const uid = doc.id;
-
-        const isAlreadyInGroup = groupInfo?.members?.includes(uid);
-        const alreadyInResults = searchResults.some((u) => u.uid === uid);
-
-        const matchesSearch =
-          data.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          data.email?.toLowerCase().includes(searchTerm.toLowerCase());
-
-        // ✅ Only include if not a group member, matches search, and not already shown
-        if (!isAlreadyInGroup && matchesSearch && !alreadyInResults) {
-          results.push({ uid, ...data });
-        }
-      });
-
-      // ✅ Keep previous results to allow stacking
-      setSearchResults((prev) => {
-        const combined = [...prev, ...results];
-        const unique = Object.values(
-          combined.reduce((acc, cur) => {
-            acc[cur.uid] = cur;
-            return acc;
-          }, {})
-        );
-        return unique;
-      });
-    } catch (err) {
-      console.error("Search error:", err.message);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
-  fetchUsers();
-}, [searchTerm, searchResults, groupInfo?.members]);
-
-const handleUpdateGroupInfo = async () => {
-  if (!groupName) {
-    console.error("❌ No groupName found in URL.");
-    return;
-  }
-
-  try {
-    const groupRef = doc(db, "groupChats", groupName);
-    const groupSnap = await getDoc(groupRef);
-
-    if (!groupSnap.exists()) {
-      console.error("❌ Group not found.");
-      return;
-    }
-
-    const oldData = groupSnap.data();
-
-    if (groupIconType === "emoji" && !groupIconValue) {
-      alert("Please select an emoji.");
-      return;
-    }
-
-    const newData = {
-      name: groupInfo?.name?.trim() || groupName,
-      description: groupInfo?.description?.trim() || "",
-      iconURL: groupIconType === "image" ? groupIconValue : "",
-      emoji: groupIconType === "emoji" ? groupIconValue : "",
-    };
-
-    await updateDoc(groupRef, newData);
-    console.log("✅ Group info updated in Firestore.");
-
-    // Get current user details
-    const currentUser = auth.currentUser;
-    const senderId = currentUser?.uid || "";
-    const senderName =
-      currentUser?.displayName ||
-      currentUser?.email?.split("@")[0] ||
-      "Someone";
-
-    // Detect changes
-    const changes = [];
-
-    if (oldData.name !== newData.name) {
-      changes.push(`renamed the group to "${newData.name}"`);
-    }
-    if (oldData.description !== newData.description) {
-      changes.push("updated the description");
-    }
-    if (
-      oldData.iconURL !== newData.iconURL ||
-      oldData.emoji !== newData.emoji
-    ) {
-      changes.push("updated the group icon");
-    }
-
-    // Send system message if changes occurred
-    if (changes.length > 0) {
-      const messageText = `${senderName} ${changes.join(", ")}.`;
-
-      await addDoc(collection(db, "groupChat", groupName, "messages"), {
-        type: "system",
-        content: messageText,
-        senderId: senderId,
-        senderName: senderName,
-        timestamp: serverTimestamp(),
-      });
-
-      console.log("📢 System message sent:", messageText);
-    }
-
-    setEditingGroupInfo(false);
-  } catch (err) {
-    console.error("❌ Failed to update group info:", err.message);
-  }
-};
-
-useEffect(() => {
-  if (editingGroupInfo && groupInfo) {
-    setGroupIconType(groupInfo.iconURL ? "image" : "emoji");
-    setGroupIconValue(groupInfo.iconURL || groupInfo.emoji || "💬");
-  }
-}, [editingGroupInfo, groupInfo]);
-
-const handleGroupIconUpload = (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const maxSizeInBytes = 250 * 1024; // 250 KB limit
-
-  if (file.size > maxSizeInBytes) {
-    alert("File size too large! Please select an image under 250KB.");
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onloadend = () => {
-    const base64DataUri = reader.result;
-    setGroupIconValue(base64DataUri);  // Store as data URI
-    setGroupIconType("image");         // Switch icon type to image
-  };
-  reader.readAsDataURL(file); // Convert to base64
-};
-
-const handlePermissionChange = async (field, value) => {
-  const groupRef = doc(db, "groupChats", groupName);
-  await updateDoc(groupRef, {
-    [field]: value,
-  });
-};
-
-const toggleAdminStatus = async (uid) => {
-  if (!uid) {
-    console.error("UID is undefined. Cannot update admin status.");
-    return;
-  }
-
-  try {
-    const groupRef = doc(db, "groupChats", groupName);
-    const isAdmin = groupInfo?.admins?.includes(uid);
-
-    await updateDoc(groupRef, {
-      admins: isAdmin ? arrayRemove(uid) : arrayUnion(uid),
-    });
-  } catch (error) {
-    console.error("Failed to update admin status:", error.message);
-  }
-};
 
 const sendStructuredMessage = async (label, items) => {
   if (!groupInfo?.tripId || !items?.length) {
@@ -661,7 +402,6 @@ const sendStructuredMessage = async (label, items) => {
     setNotification(`❌ Could not share ${label}`);
   }
 };
-
 
 const now = new Date(); // Or use new Date("2025-07-20T00:06:00") for consistent testing
 
@@ -747,8 +487,6 @@ const handleVote = async (msgId, optionIdx) => {
   });
 };
 
-
-
 useEffect(() => {
   const q = query(
     collection(db, "groupChat", groupName, "messages"),
@@ -767,93 +505,6 @@ useEffect(() => {
   return () => unsubscribe();
 }, [groupName]);
 
-
-const handleBatchAddUsers = async () => {
-  if (!groupName || selectedUsers.length === 0) return;
-
-  try {
-    const user = auth.currentUser;
-    const groupRef = doc(db, "groupChats", groupName);
-
-    // Step 1: Add users to Firestore members array
-    await updateDoc(groupRef, {
-      members: arrayUnion(...selectedUsers),
-    });
-
-    // Step 2: Attempt to map selectedUsers to usernames from searchResults
-    const localNames = searchResults
-      ?.filter(u => u && selectedUsers.includes(u.uid))
-      .map(u => u?.username || u?.displayName || u?.email);
-
-    // Step 3: Fallback – fetch missing profiles from Firestore
-    const missingUids = selectedUsers.filter(
-      uid => !searchResults?.some(u => u?.uid === uid)
-    );
-
-    const fetchedNames = [];
-    for (const uid of missingUids) {
-      const userDoc = await getDoc(doc(db, "users", uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        fetchedNames.push(data.username || data.displayName || data.email || uid.slice(0, 6));
-      } else {
-        fetchedNames.push(uid.slice(0, 6));
-      }
-    }
-
-    const fullNameList = [...(localNames || []), ...fetchedNames];
-
-    // Step 4: Identify the adder
-    const addedBy = user?.displayName || user?.email || "Someone";
-    const byText = user?.uid === groupInfo?.createdBy ? "You" : addedBy;
-
-    // Step 5: Final message
-    const message = `${byText} added ${fullNameList.join(", ")} to the group.`;
-
-    // Step 6: Send system message
-    await addDoc(collection(db, "groupChat", groupName, "messages"), {
-      type: "system",
-      content: message,
-      timestamp: serverTimestamp(),
-    });
-
-    // Step 7: Reset UI
-    setSelectedUsers([]);
-    setSearchTerm('');
-    setSearchResults([]);
-    setAddUserDialogOpen(false);
-    console.log("✅ Users added with proper system message.");
-  } catch (err) {
-    console.error("❌ Failed to add users:", err.message);
-  }
-};
-
-
-
-    useEffect(() => {
-      const fetchUsers = async () => {
-        if (searchTerm.trim() === '') return setSearchResults([]);
-        const usersSnapshot = await getDocs(collection(db, "users"));
-        const matches = [];
-        usersSnapshot.forEach(doc => {
-          const data = doc.data();
-          if (
-            data.username?.toLowerCase().includes(searchTerm.toLowerCase()) &&
-            data.uid !== currentUser.uid &&
-            !selectedUsers.some(u => u.uid === data.uid)
-          ) {
-            matches.push({ ...data, uid: doc.id });
-          }
-        });
-        setSearchResults(matches);
-      };
-      fetchUsers();
-    }, [searchTerm, selectedUsers]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-  
   useEffect(() => {
 
     // Realtime listener for messages
@@ -896,9 +547,14 @@ const handleBatchAddUsers = async () => {
               );
               const memberDocs = await Promise.all(memberFetches);
               const memberNames = memberDocs
-                .filter((doc) => doc.exists())
-                .map((doc) => doc.data());
+                .filter((doc, idx) => doc.exists())
+                .map((doc, idx) => ({
+                  uid: groupInfo.members[idx], // Correctly attached uid from members array index
+                  ...doc.data(),
+                }));
               setMemberUsers(memberNames);
+
+
             }
           }
         } catch (error) {
@@ -954,26 +610,6 @@ const sendMessage = async () => {
   }
 };
 
-const inviteLink = `${window.location.origin}/group-invite/${groupName}`; // or groupInfo.inviteToken
-
-const handleShare = async () => {
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: 'Join my group!',
-        text: 'Here’s an invite to our group:',
-        url: inviteLink
-      });
-    } catch (err) {
-      // handle user cancellation or error
-    }
-  } else {
-    navigator.clipboard.writeText(inviteLink);
-    setNotification("📤 Link shared!");
-  }
-};
-
-  
   const handleTouchStart = (message) => {
     const timer = setTimeout(() => {
       setContextMenu({ visible: true, x: window.innerWidth / 2, y: window.innerHeight / 2, message });
@@ -1013,13 +649,37 @@ const handleDelete = async (messageId) => {
       document.removeEventListener('click', handleClickOutside);
     };
   }, [contextMenu]);
-  
-  
+   
   const handleBackButton = () => navigate(-1);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  
+const scrollToBottom = () => {
+  bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+};
+
+const handleScroll = () => {
+  const container = containerRef.current;
+  if (!container) return;
+
+  const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+  setShowGoToBottom(distanceFromBottom > 10);
+};
+
+useEffect(() => {
+  // Scroll to bottom initially and when messages change
+  scrollToBottom();
+}, [messages]);
+
+useEffect(() => {
+  const container = containerRef.current;
+  if (!container) return;
+
+  container.addEventListener('scroll', handleScroll);
+
+  return () => {
+    container.removeEventListener('scroll', handleScroll);
+  };
+}, []);
 
   if (!currentUser) return <div>Loading...</div>;
 
@@ -1040,7 +700,6 @@ const handleDelete = async (messageId) => {
   };
 
   const groupedMessages = groupMessagesByDate(messages);
-
 
 const handleReaction = async (emoji, msg) => {
   if (!msg || !msg.id || !groupName || !auth?.currentUser) return;
@@ -1075,8 +734,6 @@ const handleEdit = (msg) => {
   setEditText(msg.text || "");
 };
 
-
-
 const getGroupedReactions = (msg, allUsers = {}) => {
   const grouped = {};
   if (!msg?.reactions) return grouped;
@@ -1093,6 +750,56 @@ const getGroupedReactions = (msg, allUsers = {}) => {
   return grouped;
 };
 
+const renderMessageWithMentions = (text) => {
+  if (!text) return null;
+
+  const mentionRegex = /@(\w+)/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = mentionRegex.exec(text)) !== null) {
+    // Text before mention
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    const username = match[1];
+
+    // Find user by username or name in memberUsers
+    const user = memberUsers.find(u => u.username === username || u.name === username);
+
+    if (user) {
+      parts.push(
+        <Typography
+          key={`${username}-${match.index}`}
+          component="span"
+          onClick={() => navigate(`/chat/${user.uid}`)}
+          sx={{
+            cursor: 'pointer',
+            color: mode === 'dark' ? '#00f721' : '#007700',
+            fontWeight: 'bold',
+            '&:hover': { textDecoration: 'underline' },
+          }}
+        >
+          @{username}
+        </Typography>
+      );
+    } else {
+      // No matching user: render as plain text
+      parts.push(text.slice(match.index, mentionRegex.lastIndex));
+    }
+
+    lastIndex = mentionRegex.lastIndex;
+  }
+
+  // Remaining text after last mention
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts;
+};
 
   return (
     <ThemeProvider theme={theme}>
@@ -1224,15 +931,17 @@ const getGroupedReactions = (msg, allUsers = {}) => {
 
 
       <Box
+      ref={containerRef}
         sx={{
-          flexGrow: 1,
-          paddingTop: '60px',
-          overflowY: 'auto',
-          marginBottom: '0px', // optional if you have a fixed input/footer
-          backgroundImage: mode === "dark" ? `url(/assets/images/chatbg/dark.png)` : `url(/assets/images/chatbg/light.png)`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
+        flexGrow: 1,
+        paddingTop: '60px',
+        overflowY: 'auto',
+        marginBottom: '0px',
+        backgroundImage: mode === "dark" ? `url(/assets/images/chatbg/dark.png)` : `url(/assets/images/chatbg/light.png)`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        position: 'relative',
         }}
       >
         <MessageContainer>
@@ -1535,7 +1244,7 @@ if (msg.type === "system") {
                         maxWidth: "65vw",
                         minWidth: "100px",
                         bgcolor: msg.senderId === currentUser.uid ? mode === "dark" ? "#005c4b" : "#d9fdd3" : mode === "dark" ? "#353535" : "#ffffff",
-                        borderRadius:msg.senderId === currentUser.uid ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                        borderRadius:msg.senderId === currentUser.uid ? '16px 16px 8px 16px' : '16px 16px 16px 8px',
                         color: mode === "dark" ? "#fff" : "#000",
                         position: 'relative',
                         boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)',
@@ -1746,7 +1455,7 @@ if (msg.type === "system") {
     fontSize: '15px'
   }}
 >
-  {msg.text}
+  {renderMessageWithMentions(msg.text)}
 </Typography>
 
 )}
@@ -2096,102 +1805,130 @@ if (msg.type === "system") {
     </Typography>
     <Divider sx={{ mb: 1, bgcolor: "#696969ff", borderRadius: 2 }} />
       <Box sx={{ px: 1, pb: 1 }}>
-  {reactionMsg &&
-    Object.entries(getGroupedReactions(reactionMsg, allUsers)).map(
-      ([emoji, users]) => (
-        <MenuItem
-          key={emoji}
-          onClick={() => {
-            const youReacted = users.find(u => u.uid === currentUser.uid);
-            if (youReacted) {
-              // Remove your own reaction
-              handleReaction(emoji, reactionMsg);
-              setReactionAnchorEl(null);
-              setReactionMsg(null);
-            }
-          }}sx={{
-              display: "flex",
-              alignItems: "center",
-              borderRadius: 3,
-              mx: 0.5,
-              my: 0.7,
-              px: 2,
-              py: 1.2,
-              bgcolor: mode === "dark" ? "#0000003d" : "#31313121",
-              color: mode === "dark"
-                ? "#fff"
-                : "#222",
-              fontWeight: 500,
-              fontSize: 17,
-              boxShadow: "none",
-              backdropFilter: mode === "dark" ? 'blur(8px)' : 'blur(2px)',
-              border: "none",
-              transition: "background 0.2s",
-              '&:hover': {
-                bgcolor: mode === "dark" ? '#232323' : '#e0e0e0',
-                borderColor: mode === "dark" ? "#444" : "#bdbdbd"
-              },
-              flexDirection: "column",
-              gap: 0.5,
-            }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                {users.map((u) => (
-                  <Tooltip title={u.name} key={u.uid}>
-                    <Box sx={{ display: "flex", alignItems: "center", flex: 1 }}>
-                        <Avatar
-                          src={u.photoURL || ""}
-                          sx={{
-                            width: 28,
-                            height: 28,
-                            mr: 1.2,
-                            border: mode === "dark" ? "2px solid #232323" : "2px solid #e0e0e0",
-                            bgcolor: mode === "dark" ? "#222" : "#fafafa",
-                            color: mode === "dark" ? "#fff" : "#222",
-                            fontWeight: 700,
-                            fontSize: 18,
-                          }}
-                          />
-{users.map((u) => (
-  <Box key={u.uid} sx={{ display: "flex", flexDirection: "column", flex: 1 }}>
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      fontWeight: 700,
-                      color: mode === "dark" ? "#fff" : "#222",
-                      fontSize: 13,
-                      flex: 1,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap"
-                    }}
-                  >{u.uid === currentUser.uid ? 'You' : u.name}</Typography>
-    
-    {u.uid === currentUser?.uid && (
-      <Typography
-        variant="caption"
+{reactionMsg && (() => {
+  // Group reactions by user id
+  const userGroupedReactions = {};
+  for (const [emoji, users] of Object.entries(getGroupedReactions(reactionMsg, allUsers))) {
+    users.forEach(u => {
+      if (!userGroupedReactions[u.uid]) {
+        userGroupedReactions[u.uid] = {
+          user: u,
+          emojis: [],
+        };
+      }
+      userGroupedReactions[u.uid].emojis.push(emoji);
+    });
+  }
+
+  // Convert to array
+  const groupedArray = Object.values(userGroupedReactions);
+
+  // Sort so current user is first
+  groupedArray.sort((a, b) => {
+    if (a.user.uid === currentUser.uid) return -1;
+    if (b.user.uid === currentUser.uid) return 1;
+    return 0;
+  });
+
+  return groupedArray.map(({ user, emojis }) => (
+    <ListItem
+      key={user.uid}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        borderRadius: 3,
+        mx: 0.5,
+        my: 0.7,
+        px: 2,
+        py: 1.2,
+        bgcolor: mode === "dark" ? "#0000003d" : "#31313121",
+        color: mode === "dark" ? "#fff" : "#222",
+        fontWeight: 500,
+        fontSize: 17,
+        boxShadow: "none",
+        backdropFilter: mode === "dark" ? "blur(8px)" : "blur(2px)",
+        border: "none",
+        transition: "background 0.2s",
+        "&:hover": {
+          bgcolor: mode === "dark" ? "#232323" : "#e0e0e0",
+          borderColor: mode === "dark" ? "#444" : "#bdbdbd",
+        },
+        flexDirection: "column",
+        gap: 0.5,
+      }}
+      onClick={() => {
+        if (user.uid === currentUser.uid) {
+          // Remove all reactions of this user from this message
+          emojis.forEach(emoji => handleReaction(emoji, reactionMsg));
+          setReactionAnchorEl(null);
+          setReactionMsg(null);
+        }
+      }}
+    >
+      <Box
         sx={{
-          color: mode === "dark" ? "#b4b4b4ff" : "#333333ff",
-          fontWeight: 500,
-          opacity: 0.8,
-          fontSize: 10,
-          letterSpacing: 0.1,
-          userSelect: "none"
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          gap: 1,
         }}
       >
-        Tap to remove reaction
-      </Typography>
-    )}
-  </Box>
-))}
-                      </Box>
-                  </Tooltip>
-                ))}
-            <Typography variant="body1">{emoji}</Typography>
-          </Box>
-        </MenuItem>
-      )
-    )}
+        <Tooltip title={user.name}>
+          <Avatar
+            src={user.photoURL || ""}
+            sx={{
+              width: 36,
+              height: 36,
+              border: "none",
+              bgcolor: mode === "dark" ? "#222" : "#fafafa",
+              color: mode === "dark" ? "#fff" : "#222",
+              fontWeight: 700,
+              fontSize: 18,
+            }}
+          />
+        </Tooltip>
+        <Box sx={{ flexGrow: 1, ml: 1 }}>
+          <Typography
+            variant="body1"
+            sx={{
+              fontWeight: 700,
+              color: mode === "dark" ? "#fff" : "#222",
+              fontSize: 15,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {user.uid === currentUser.uid ? "You" : user.name}
+          </Typography>
+          {user.uid === currentUser?.uid && (
+            <Typography
+              variant="caption"
+              sx={{
+                color: mode === "dark" ? "#b4b4b4ff" : "#333333ff",
+                fontWeight: 500,
+                opacity: 0.8,
+                fontSize: 10,
+                letterSpacing: 0.1,
+                userSelect: "none",
+              }}
+            >
+              Tap to remove all your reactions
+            </Typography>
+          )}
+        </Box>
+        <Box sx={{ display: "flex", gap: 0.5 }}>
+          {emojis.map((emoji) => (
+            <Typography key={emoji} variant="body1" fontSize={22}>
+              {emoji}
+            </Typography>
+          ))}
+        </Box>
+      </Box>
+    </ListItem>
+  ));
+})()}
 
     {!reactionMsg && (
       <Typography variant="body2" sx={{ color: mode === "dark" ? "#bbb" : "#888", textAlign: "center", py: 2 }}>
@@ -2233,10 +1970,32 @@ if (msg.type === "system") {
 </Popover>
 
 
-          <div ref={bottomRef} />
-        </MessageContainer>
+<div ref={bottomRef} />
+        </MessageContainer>          
+
+          
+    {showGoToBottom && (
+        <Fab
+          color="primary"
+          aria-label="scroll to bottom"
+          onClick={scrollToBottom}
+          sx={{
+      position: 'absolute',
+      bottom: 200, // adjust for footer height
+      right: 24,
+      zIndex: 1500,
+      backgroundColor: '#00f721',
+      color: '#000',
+      '&:hover': { backgroundColor: '#00c218' },
+          }}
+          size="small"
+        >
+          <ArrowDownwardIcon />
+        </Fab>
+      )}
+
       </Box>
-    
+
       {replyTo && (
     <Paper sx={{ p: 1, position: 'relative', bottom: '55px', bgcolor: '#2b2b2bb0', mb: 1, borderLeft: '4px solid #00f721', backdropFilter: 'blur(30px)' }}>
       <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -2271,6 +2030,48 @@ if (msg.type === "system") {
     background: mode === "dark" ? 'linear-gradient(to bottom, #000000, #000000d9, #000000c9, #00000090, #00000000)' : 'linear-gradient(to bottom, #ffffff, #ffffffd9, #ffffffc9, #ffffff90, #ffffff00)',
   }}
 >
+  <SwipeableDrawer
+  anchor="bottom"
+  open={mentionDrawerOpen}
+  onClose={() => setMentionDrawerOpen(false)}
+  PaperProps={{
+    sx: {
+      height: '50vh',
+      borderTopRightRadius: 24,
+      borderTopLeftRadius: 24,
+      backgroundColor: mode === "dark" ? "#000000" : "#fff",
+      color: mode === "dark" ? "#fff" : "#000",
+      p: 2,
+    },
+  }}
+>
+  <Typography variant="h6" sx={{ mb: 2, textAlign: 'center' }}>
+    Mention a member
+  </Typography>
+  <List>
+    {memberUsers.length === 0 && (
+      <Typography sx={{ textAlign: 'center', mt: 4, color: mode === "dark" ? "#aaa" : "#555" }}>
+        No members found
+      </Typography>
+    )}
+    {memberUsers.map((member) => (
+      <ListItemButton
+        key={member.uid || member.id} // uid or doc id
+        onClick={() => handleMentionSelect(member.username || member.name)}
+        sx={{ py: 1 }}
+      >
+        <Avatar src={member.photoURL || ''} sx={{ width: 36, height: 36, mr: 2 }} />
+        <ListItemText
+          primary={member.name || member.username || 'Unknown'}
+          secondary={member.username || ''}
+          primaryTypographyProps={{ noWrap: true }}
+          secondaryTypographyProps={{ noWrap: true, variant: 'caption', sx: {color: mode === "dark" ? "#ccc" : "#666"} }}
+        />
+      </ListItemButton>
+    ))}
+  </List>
+</SwipeableDrawer>
+
   {(() => {
     const canSend =
       groupInfo?.sendAccess === "all" ||
@@ -2318,7 +2119,6 @@ if (msg.type === "system") {
 sx={{
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-around",
     px: 0.5,
     backgroundColor: "rgba(0, 0, 0, 0.17)",
     border: "1px solid #757575ff",
@@ -2600,1452 +2400,48 @@ sx={{
   })()}
 </Box>
 
-      <Box>
-  {profileOpen && (
-    <motion.div
-      initial={{ y: '100%' }}
-      animate={{ y: 0 }}
-      exit={{ y: '100%' }}
-      transition={{ type: 'spring', stiffness: 120, damping: 20 }}
-    >
-      <Drawer
-        anchor="bottom"
-        open={profileOpen}
-        onClose={() => setProfileOpen(false)}
-        onOpen={() => {}}
-        onDragEnd={(e, data) => {
-          // Close the profile if dragged down enough (e.g., 100px)
-          if (data.offset.y > 100) {
-            setProfileOpen(false);
-          }
-        }}
-        PaperProps={{
-          sx: {
-            height: '100vh',
-            backgroundColor: mode === "dark" ? '#0c0c0c' : "#f1f1f1",
-            backdropFilter: 'blur(40px)',
-            color: mode === "dark" ? '#fff' : "#000",
-            boxShadow: 'none',
-            transition: 'transform 0.3s ease', // Ensure smooth transition on open/close
-          },
-        }}
-        disableSwipeToOpen={false}
-        sx={{
-          '& .MuiDrawer-paper': {
-            transition: 'transform 0.3s ease', // Smooth transition while dragging
-          },
-        }}
-      >
-        <Box sx={{ p: 3, height: '100%', position: "relative", overflowY: 'auto' }}>
-
-        <Box display="flex" alignItems="center">
-          <IconButton
-            onClick={() => setProfileOpen(false)}
-            sx={{ color: mode === "dark" ? "#ccc" : "#000" }}
-          >
-            <ArrowBackIcon />
-          </IconButton>
-          <Typography variant="h6" color={ mode === "dark" ? "#ccc" : "#000" }>
-            Group Info
-          </Typography>
-        </Box>
-
-
-          {/* Profile Content */}
-          <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', mt: 6 }}>
-<Avatar
-  src={groupInfo.iconURL ? groupInfo.iconURL : ""}
-  sx={{
-    width: 100,
-    height: 100,
-    fontSize: '48px',
-    mb: 2,
-    boxShadow: '0 0 15px rgba(26, 26, 26, 0.37)',
-    backgroundColor: '#232323',
-    color: mode === "dark" ? "#fff" : "#000",
-  }}
->
-  {/* Only show emoji fallback if no image */}
-  {(groupInfo.iconURL || groupInfo.emoji || groupInfo.name?.[0]?.toUpperCase() || 'G')}
-</Avatar>
-
-
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              {groupInfo.name || groupName}
-              {groupInfo.name === "BM - Beta members" && (
-            <Box
-              component="span"
-              sx={{
-                ml: 1,
-                px: 0.5,
-                py: 0.1,
-                fontSize: 11,
-                backgroundColor: '#00f72133',
-                color: '#00f721',
-                borderRadius: 1.5,
-              }}
-            >
-              🔒 Beta
-            </Box>
-          )}
-          {groupInfo.name === "BM - Dev Beta" && (
-            <Box
-              component="span"
-              sx={{
-                ml: 1,
-                px: 0.5,
-                py: 0.1,
-                fontSize: 11,
-                backgroundColor: '#66ccff33',
-                color: '#66ccff',
-                borderRadius: 1.5,
-              }}
-            >
-              🧪 Dev Beta
-            </Box>
-          )}
-            </Typography>
-<Box width={"90vw"}>
-  
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 0.5,
-                backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0",
-                mt: 2,
-                mb: 2,
-                px: 1.5,
-                py: 0.5,
-                borderRadius: 3,
-                boxShadow: "none",
-              }}
-            >
-{groupInfo.description && (
-  <Typography
-    variant="body2"
-    sx={{
-      color: mode === "dark" ? "#ccc" : "#000",
-      mt: 0.5,
-      whiteSpace: 'pre-wrap', // ✅ preserves \n line breaks and spaces
-      wordBreak: 'break-word',
-    }}
-  >
-    {groupInfo.description}
-  </Typography>
-)}
-
-              {createdByUser && (
-                <Typography variant="caption" sx={{ color: mode === "dark" ? "#bbb" : "#333", mb: 1 }}>
-                  Created by <strong>{createdByUser.name}</strong>
-                </Typography>
-              )}
-            </Box>
-
-{tripInfo && (
-  <Card
-    sx={{
-      background: `url(${groupInfo.iconURL})`,
-      backgroundSize: "cover",
-      backgroundColor: mode === "dark" ? "#f1f1f101" : "#e0e0e0",
-      backgroundPosition: "center",
-      color: mode === "dark" ? "#fff" : "#000",
-      borderRadius: 3,
-      boxShadow: "none",
-    }}
-  >
-
-    <CardContent sx={{ backdropFilter: "blur(20px)" }}>
-    <Box display="flex" alignItems="start" gap={2} mb={1}>  
-      <Box>
-        <Typography variant="h6" sx={{ color: "#ffffffff", fontWeight: 800, mb: 1 }}>
-          {tripInfo.name}
-        </Typography>
-        <Typography variant="body2" sx={{ color: "#ffffffff", display: "flex", alignItems: "center" }}>
-          <LocationOn sx={{ fontSize: 16, mr: 1 }} /> {tripInfo.from} → {tripInfo.location}
-        </Typography>
-        {tripInfo.date && (
-          <Typography variant="body2" sx={{ color: "#e7e7e7ff", display: "flex", alignItems: "center" }}>
-           <AccessTime sx={{ fontSize: 16, mr: 1 }} /> {tripInfo.startDate} → {tripInfo.date}
-          </Typography>
-        )}
-      </Box>
-    </Box>
-
-    {timelineStats && (
-      <Box mb={1}>
-        <Typography variant="caption" sx={{ color: "#cbcbcbff" }}>
-          Timeline Progress: {timelineStats.completed} / {timelineStats.total} complete
-        </Typography>
-        <LinearProgress
-          value={timelineStats.percent}
-          variant="determinate"
-          sx={{
-            mt: 0.5, borderRadius: 20, height: 7, bgcolor: "#ffffff36",
-            "& .MuiLinearProgress-bar": { bgcolor: "#ffffffff" }
-          }}
-        />
-      </Box>
-    )}
-    </CardContent>
-  </Card>
-)}
-
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 0.5,
-                  mt: 2,
-                  mx: "auto",
-                  boxShadow: "none",
-                }}
-              >
-                {canEditGroupInfo && (
-                    <Button
-                      variant="contained"
-                      onClick={() => setEditingGroupInfo(true)}
-                      sx={{
-                        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", color: mode === "dark" ? "#fff" : "#000", borderRadius: 3, boxShadow: "none", py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5
-                      }}
-                    >
-                    <EditIcon sx={{ fontSize: 24 }} />
-                    <Typography variant="body1" sx={{ fontSize: 16 }}>
-                      Edit Group Info
-                    </Typography>
-                    </Button>
-                )}
-
-                {(groupInfo?.createdBy === currentUser.uid || groupInfo?.admins?.includes(currentUser.uid)) && (
-                  <Button
-                    variant="contained"
-                    onClick={() => setGroupSettingsOpen(true)}
-                    sx={{
-                        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", color: mode === "dark" ? "#fff" : "#000", borderRadius: 3, boxShadow: "none", py: 1.4, px: 2, display: "flex", alignItems: "center", justifyContent: "left", gap: 1.5
-                    }}
-                  >
-                    <SettingsOutlinedIcon sx={{ fontSize: 24 }} />
-                    <Typography variant="body1" sx={{ fontSize: 16 }}>
-                      Group Settings
-                    </Typography>
-                  </Button>
-                )}
-              </Box>
-
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 0.5,
-                  alignContent: "left",
-                  backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e020",
-                  p: 1,
-                  mt: 2,
-                  borderRadius: 3
-                }}
-              >
-             <Typography
-              variant="body2"
-              sx={{
-                color: mode === "dark" ? "#a5a5a5ff" : "#4f4f4fff",
-                fontWeight: 500,
-                p: 1
-              }}
-            >
-              {groupInfo.members?.length || 0} Members
-            </Typography>
-
-{canAddMembers && (
-  <Button
-    variant="contained"
-    onClick={() => setInviteDrawerOpen(true)}
-    sx={{ mt: 0, backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", boxShadow: "none", color: mode === "dark" ? "#fff" : "#000", justifyContent: "left", alignItems: "center", borderRadius: 2, gap: 1, px: 1, display: "flex" }}
-  >
-    <AddIcon sx={{ backgroundColor: mode === "dark" ? "#fff" : "#000", color: mode === "dark" ? "#000" : "#fff", padding: 1, borderRadius: 8 }} />
-     Add Members
-  </Button>
-)}
-
-
-            {/* Members List */}
-<List sx={{ width: '100%', maxHeight: '60vh', overflowY: 'auto' }}>
-  <Stack spacing={1} sx={{ mt: 0 }}>
-    {(groupInfo.members || []).slice(0, 5).map(memberUid => {
-      const member = memberInfo[memberUid];
-      const isOwner = memberUid === groupInfo?.createdBy;
-      const isAdmin = Array.isArray(groupInfo?.admins) && groupInfo.admins.includes(memberUid);
-
-      return (
-        <Box
-          key={memberUid}
-          display="flex"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{ background: "#f1f1f111", p: 1, borderRadius: 2 }}
-        >
-          <Box display="flex" alignItems="center" gap={1} onClick={() => window.location.href=`/chat/${memberUid}`}>
-            <Avatar src={member?.photoURL} sx={{ width: 40, height: 40, mr: 1 }} />
-            <Box>
-              <Typography variant='body1'>
-                {member?.name || memberUid.slice(0, 6)}
-                {isOwner && (
-                  <Chip label="Admin" size="small" sx={{ ml: 1, background: mode === "dark" ? "#ffffff36" : "#00000036", color: mode === "dark" ? "#fff" : "#000", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1.5 }} />
-                )}
-                {isAdmin && !isOwner && (
-                  <Chip label="Admin" size="small" sx={{ ml: 1, background: mode === "dark" ? "#ffffff36" : "#00000036", color: mode === "dark" ? "#fff" : "#000", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1.5 }} />
-                )}
-              </Typography>
-              <Typography variant='body2'>{member?.username || memberUid.slice(0, 6)}</Typography>
-            </Box>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Tooltip title="Call">
-              {member?.mobile ? (
-                <IconButton
-                  onClick={() => window.open(`tel:${member.mobile}`, '_self')}
-                  sx={{ color: mode === "dark" ? "#fff" : "#000", backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", padding: 1 }}
-                >
-                  <PhoneOutlinedIcon />
-                </IconButton>
-              ) : null}
-            </Tooltip>
-            {(groupInfo?.createdBy === user?.uid || (groupInfo?.admins || []).includes(user?.uid)) &&
-              memberUid !== groupInfo?.createdBy &&
-              !(groupInfo?.admins || []).includes(memberUid) &&
-              memberUid !== user?.uid && (
-                <Tooltip title="Remove User From Group">
-                  <IconButton
-                    onClick={() => {
-                      setSelectedMemberToRemove(memberUid);
-                      setConfirmDialogOpen(true);
-                    }}
-                    sx={{ color: mode === "dark" ? "#ffbbbb" : "#ff3333ff", backgroundColor: "#ff000020", padding: 1 }}
-                  >
-                    <RemoveCircleOutlineIcon />
-                  </IconButton>
-                </Tooltip>
-            )}
-          </Box>
-        </Box>
-      )
-    })}
-    {groupInfo.members?.length > 5 && (
-        <Button
-          variant="contained"
-          size="small"
-          sx={{ mt: 2, height: 50, px: 2, backgroundColor: mode === "dark" ? "#f1f1f124" : "#13131324", boxShadow: "none", color: mode === "dark" ? "#fff" : "#000", justifyContent: "space-between", alignItems: "center", borderRadius: 2.5, gap: 1, display: "flex" }}
-          onClick={() => setMembersDrawerOpen(true)}
-        >
-          <Typography variant='body1'>
-            View More ({groupInfo.members.length})
-          </Typography>
-          <ArrowForwardIosIcon sx={{ fontSize: 15 }} />
-        </Button>
-    )}
-  </Stack>
-</List>
-
-
- </Box>
- 
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 0.5,
-                  mt: 2,
-                  mx: "auto"
-                }}
-              >
-                {(!user || !groupName) ? (
-                  <Typography>Loading group...</Typography>
-                ) : (
-                  <Button
-                    sx={{
-                      backgroundColor: mode === "dark" ? "#f1f1f111" : "#ff000010",
-                      color: '#ff6767',
-                      fontSize: 16,
-                      borderRadius: 3,
-                      py: 1.4,
-                      px: 2,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "left",
-                      gap: 1.5
-                    }}
-                    justifyContent={"left"} 
-                    onClick={handleExitGroup}
-                  >
-                    <ExitToAppOutlinedIcon />
-                    Exit Group
-                  </Button>
-                )}
-              </Box>
-</Box>
-
-<Dialog
-  open={confirmDialogOpen}
-  onClose={() => setConfirmDialogOpen(false)}
-  PaperProps={{
-    sx: {
-      bgcolor: mode === "dark" ? "#00000061" : "#f1f1f161",
-      color: mode === "dark" ? "#fff" : "#222",
-      backdropFilter: "blur(20px)",
-      borderRadius: 4,
-      boxShadow: mode === "dark" ? "0 8px 32px #000b" : "0 8px 32px #8882",
-      p: 2,
-      minWidth: 320,
-      maxWidth: 400,
-    }
-  }}
->
-  <DialogTitle sx={{
-    color: mode === "dark" ? "#ff4444" : "#d32f2f",
-    fontWeight: 700,
-    fontSize: 20,
-    textAlign: "center",
-    pb: 1,
-    letterSpacing: 1,
-    alignItems: "center",
-    display: "flex",
-    justifyContent: "center",
-  }}>
-    <RemoveCircleOutlineIcon sx={{ mr: 1, color: mode === "dark" ? "#ff4444" : "#d32f2f" }} />
-    Remove Member
-  </DialogTitle>
-  <DialogContent sx={{ textAlign: "center", py: 2 }}>
-    <Typography sx={{
-      color: mode === "dark" ? "#fff" : "#222",
-      fontSize: 16,
-      mb: 2,
-    }}>
-      Are you sure you want to remove this member from the group?
-    </Typography>
-    <Typography variant="caption" sx={{ color: mode === "dark" ? "#9b9b9bff" : "#333" }}>
-      This action cannot be undone.
-    </Typography>
-  </DialogContent>
-  <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
-    <Button
-      onClick={() => setConfirmDialogOpen(false)}
-      variant="outlined"
-      sx={{
-        color: mode === "dark" ? "#fff" : "#222",
-        borderColor: mode === "dark" ? "#555" : "#ccc",
-        fontWeight: 600,
-        px: 3,
-        borderRadius: 8,
-        mr: 1,
-        backgroundColor: mode === "dark" ? "#23232300" : "#f7f7f700",
-        "&:hover": {
-          backgroundColor: mode === "dark" ? "#333" : "#e0e0e0"
-        }
-      }}
-    >
-      Cancel
-    </Button>
-    <Button
-      onClick={async () => {
-        await handleRemoveMember(selectedMemberToRemove);
-        setConfirmDialogOpen(false);
-      }}
-      color="error"
-      variant="contained"
-      sx={{
-        fontWeight: 700,
-        px: 3,
-        borderRadius: 8,
-        bgcolor: "#ff4444",
-        color: mode === "dark" ? "#fff" : "#000",
-        boxShadow: "none",
-        "&:hover": {
-          bgcolor: "#d32f2f"
-        }
-      }}
-    >
-      Remove
-    </Button>
-  </DialogActions>
-</Dialog>
-
-          </Box>
-
-<SwipeableDrawer
-  anchor="bottom"
-  open={inviteDrawerOpen}
-  onClose={() => setInviteDrawerOpen(false)}
-  onOpen={() => {}} // Required for SwipeableDrawer
-  PaperProps={{
-    sx: {
-      p: { xs: 2, sm: 3 },
-      bgcolor: mode === "dark" ? "#18181821" : "#f7f7f7",
-      backdropFilter: "blur(80px)",
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      boxShadow: "0 -2px 20px rgba(0,0,0,0.6)",
-      minHeight: "40vh",
-      maxWidth: 420,
-      mx: "auto",
-    },
-  }}
->
-  <Box
-    sx={{
-      width: 40,
-      height: 5,
-      backgroundColor: "#8b8b8bff",
-      borderRadius: 3,
-      mx: "auto",
-      mb: 2,
-      opacity: 0.7,
-    }}
-  />
-  <Typography variant="h6" sx={{ color: mode === "dark" ? "#fff" : "#222", mb: 2, textAlign: "center", fontWeight: 700 }}>
-    Invite to Group
-  </Typography>
-
-  <Button
-    variant="contained"
-    onClick={() => setAddUserDialogOpen(true)}
-    fullWidth
-    sx={{
-      mt: 0,
-      backgroundColor: mode === "dark" ? "#23232331" : "#e0e0e031",
-      boxShadow: "none",
-      color: mode === "dark" ? "#fff" : "#222",
-      justifyContent: "left",
-      alignItems: "center",
-      borderRadius: 3,
-      gap: 1.5,
-      px: 2,
-      py: 1.2,
-      fontWeight: 600,
-      fontSize: 16,
-      mb: 2,
-      "&:hover": {
-        backgroundColor: mode === "dark" ? "#333" : "#f1f1f1"
-      }
-    }}
-  >
-    <PersonAddIcon sx={{ backgroundcolor: mode === "dark" ? "#fff" : "#000", color: "#000", padding: 1, borderRadius: 8 }} />
-    Add Members
-  </Button>
-
-  <Divider sx={{ my: 2, borderColor: "#444", color: "#aaa" }}>
-    Or add members directly
-  </Divider>
-
-  <Box
-    sx={{
-      mb: 4,
-      backgroundColor: mode === "dark" ? "#23232331" : "#f1f1f131",
-      color: mode === "dark" ? "#fff" : "#222",
-      borderRadius: 3,
-      gap: 1,
-      px: 2,
-      py: 1.5,
-      display: "flex",
-      alignItems: "center",
-      boxShadow: "none",
-    }}
-  >
-    <TextField
-      value={inviteLink}
-      fullWidth
-      variant="standard"
-      InputProps={{
-        disableUnderline: true,
-        sx: { color: mode === "dark" ? "#fff" : "#222", fontSize: 18 },
-        endAdornment: (
-          <IconButton
-            onClick={() => {
-              navigator.clipboard.writeText(inviteLink);
-              setNotification("🔗 Invite link copied!");
-            }}
-            sx={{
-              backgroundColor: mode === "dark" ? "#232323" : "#e0e0e0",
-              color: mode === "dark" ? "#fff" : "#222",
-              ml: 1,
-              borderRadius: 8,
-              "&:hover": {
-                backgroundColor: mode === "dark" ? "#333" : "#f1f1f1"
-              }
-            }}
-          >
-            <ContentCopyIcon />
-          </IconButton>
-        ),
-      }}
-    />
-  </Box>
-
-  <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
-    <Box sx={{ p: 2, backgroundcolor: mode === "dark" ? "#fff" : "#000", borderRadius: 3, boxShadow: "none" }}>
-      <QRCodeCanvas value={inviteLink} size={180} />
-    </Box>
-  </Box>
-
-  <Button
-    variant="contained"
-    onClick={handleShare}
-    fullWidth
-    sx={{
-      bgcolor: mode === "dark" ? "#fff" : "#000",
-      color: mode === "dark" ? "#000" : "#fff",
-      fontWeight: 700,
-      borderRadius: 2,
-      py: 1.2,
-      mb: 2,
-      fontSize: 16,
-      boxShadow: "none",
-    }}
-  >
-    <ShareIcon sx={{ mr: 1, fontSize: 18 }} /> Share Invite Link
-  </Button>
-
-  <Snackbar
-    open={Boolean(notification)}
-    autoHideDuration={2500}
-    onClose={() => setNotification(null)}
-    message={notification}
-    anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-    ContentProps={{
-      sx: {
-        bgcolor: mode === "dark" ? "#232323" : "#fff",
-        color: mode === "dark" ? "#fff" : "#000",
-        fontSize: 14,
-        px: 2,
-        py: 1.5,
-        borderRadius: 2,
-        boxShadow: "none",
-      },
-    }}
-  />
-</SwipeableDrawer>
-
-<SwipeableDrawer
-  anchor="bottom"
-  open={membersDrawerOpen}
-  onClose={() => setMembersDrawerOpen(false)}
-  PaperProps={{
-    sx: {
-      p: { xs: 2, sm: 3 },
-      backgroundColor: mode === "dark" ? "#181818f2" : "#f7f7f7f2",
-      color: mode === "dark" ? "#fff" : "#222",
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      boxShadow: "0 -2px 20px rgba(0,0,0,0.18)",
-      minHeight: "60vh",
-      maxHeight: "80vh",
-      mx: "auto",
-      transition: "background 0.3s",
-      backdropFilter: "blur(60px)",
-    },
-  }}
->
-  <Box>
-    <Box
-      sx={{
-        width: 40,
-        height: 5,
-        backgroundColor: mode === "dark" ? "#888" : "#bbb",
-        borderRadius: 3,
-        mx: "auto",
-        mb: 2,
-        opacity: 0.7,
-      }}
-    />
-    <Typography
-      variant="h6"
-      sx={{
-        mb: 2,
-        textAlign: "center",
-        fontWeight: 700,
-        letterSpacing: 1,
-        color: mode === "dark" ? "#fff" : "#222",
-      }}
-    >
-      All Group Members
-    </Typography>
-    <TextField
-      fullWidth
-      placeholder="Search member"
-      value={memberSearch}
-      onChange={e => setMemberSearch(e.target.value)}
-      sx={{
-        mb: 2,
-        input: { color: mode === "dark" ? "#fff" : "#222" },
-        label: { color: "#ccc" },
-        '& .MuiOutlinedInput-root': {
-          '& fieldset': { borderColor: '#555' },
-          '&:hover fieldset': { borderColor: '#888' },
-          '&.Mui-focused fieldset': { borderColor: '#00f721' },
-        },
-        borderRadius: 2,
-        backgroundColor: mode === "dark" ? "#23232344" : "#f1f1f144",
-      }}
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <SearchIcon sx={{ color: "#777" }} />
-          </InputAdornment>
-        ),
-      }}
-    />
-  </Box>
-
-  <List sx={{
-    maxHeight: "60vh",
-    overflowY: "auto",
-    px: 1,
-    py: 1,
-    borderRadius: 3,
-    backgroundColor: mode === "dark" ? "#23232322" : "#f1f1f122",
-    boxShadow: "none",
-  }}>
-    <Stack spacing={1}>
-      {(groupInfo.members || [])
-        .filter(uid => {
-          const m = memberInfo[uid];
-          if (!m) return false;
-          if (!memberSearch.trim()) return true;
-          const low = memberSearch.toLowerCase();
-          return (
-            (m.name?.toLowerCase().includes(low)) ||
-            (m.username?.toLowerCase().includes(low)) ||
-            uid.toLowerCase().includes(low)
-          );
-        })
-        .map(memberUid => {
-          const member = memberInfo[memberUid];
-          const isOwner = memberUid === groupInfo?.createdBy;
-          const isAdmin = Array.isArray(groupInfo?.admins) && groupInfo.admins.includes(memberUid);
-          return (
-            <Box
-              key={memberUid}
-              display="flex"
-              alignItems="center"
-              justifyContent="space-between"
-              sx={{
-                background: mode === "dark" ? "#23232344" : "#f1f1f144",
-                p: 1.2,
-                borderRadius: 2,
-                boxShadow: "0 1px 6px #0001",
-                transition: "background 0.2s",
-                "&:hover": {
-                  background: mode === "dark" ? "#23232388" : "#e0e0e088",
-                },
-              }}
-            >
-              <Box display="flex" alignItems="center" gap={1.5} sx={{ cursor: "pointer" }} onClick={() => window.location.href=`/chat/${memberUid}`}>
-                <Avatar src={member?.photoURL} sx={{
-                  width: 40,
-                  height: 40,
-                  mr: 1,
-                  boxShadow: "0 2px 8px #0002",
-                  border: mode === "dark" ? "2px solid #444" : "2px solid #eee",
-                }} />
-                <Box>
-                  <Typography variant='body1' sx={{ fontWeight: 600, color: mode === "dark" ? "#fff" : "#222" }}>
-                    {member?.name || memberUid.slice(0, 6)}
-                    {isOwner && (
-                      <Chip label="Owner" size="small" sx={{ ml: 1, background: "#00f72144", color: mode === "dark" ? "#fff" : "#000", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1 }} />
-                    )}
-                    {isAdmin && !isOwner && (
-                      <Chip label="Admin" size="small" sx={{ ml: 1, background: mode === "dark" ? "#ffffff36" : "#00000036", color: mode === "dark" ? "#fff" : "#000", fontWeight: 600, fontSize: "0.65rem", height: 20, borderRadius: 1 }} />
-                    )}
-                  </Typography>
-                  <Typography variant='body2' sx={{ color: mode === "dark" ? "#aaa" : "#333" }}>{member?.username || memberUid.slice(0, 6)}</Typography>
-                </Box>
-              </Box>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Tooltip title="Call">
-                  {member?.mobile ? (
-                    <IconButton
-                      onClick={() => window.open(`tel:${member.mobile}`, '_self')}
-                      sx={{
-                        color: mode === "dark" ? "#fff" : "#000",
-                        backgroundColor: mode === "dark" ? "#23232344" : "#f1f1f144",
-                        padding: 1,
-                        borderRadius: 2,
-                        "&:hover": {
-                          backgroundColor: mode === "dark" ? "#333" : "#e0e0e0",
-                        }
-                      }}
-                    >
-                      <PhoneOutlinedIcon />
-                    </IconButton>
-                  ) : null}
-                </Tooltip>
-                {(groupInfo?.createdBy === user?.uid || (groupInfo?.admins || []).includes(user?.uid)) &&
-                  memberUid !== groupInfo?.createdBy &&
-                  !(groupInfo?.admins || []).includes(memberUid) &&
-                  memberUid !== user?.uid && (
-                    <Tooltip title="Remove User From Group">
-                      <IconButton
-                        onClick={() => {
-                          setSelectedMemberToRemove(memberUid);
-                          setConfirmDialogOpen(true);
-                        }}
-                        sx={{
-                          color: mode === "dark" ? "#ffbbbb" : "#ff4747ff",
-                          backgroundColor: "#ff000030",
-                          padding: 1,
-                          borderRadius: 2,
-                          "&:hover": {
-                            backgroundColor: "#ff4444",
-                            color: mode === "dark" ? "#fff" : "#000",
-                          }
-                        }}
-                      >
-                        <RemoveCircleOutlineIcon />
-                      </IconButton>
-                    </Tooltip>
-                )}
-              </Box>
-            </Box>
-          )
-        })}
-      {groupInfo.members?.length === 0 && (
-        <Typography sx={{ color: "#aaa", mt: 2, textAlign: "center", fontStyle: "italic" }}>
-          No members
-        </Typography>
-      )}
-    </Stack>
-  </List>
-  <Box textAlign="center" mt={2}></Box>
-</SwipeableDrawer>
-
-<Drawer
-  anchor="bottom"
-  open={groupSettingsOpen}
-  onClose={() => setGroupSettingsOpen(false)}
-  PaperProps={{
-    sx: {
-      p: { xs: 3, sm: 4 },
-      backgroundColor: mode === "dark" ? "#181818f2" : "#f7f7f7f2",
-      color: mode === "dark" ? "#fff" : "#222",
-      boxShadow: "0 -4px 32px rgba(0,0,0,0.18)",
-      maxWidth: 480,
-      mx: "auto",
-      height: "95vh",
-      backdropFilter: "blur(60px)",
-      transition: "background 0.3s",
-    },
-  }}
->
-  <Box display="flex" flexDirection="column" gap={3} maxHeight="93vh" overflowY="auto" mb={2}>
-    <Box display="flex" alignItems="center" sx={{ mb: 1 }}>
-      <IconButton onClick={() => setGroupSettingsOpen(false)} sx={{ color: mode === "dark" ? "#fff" : "#000", mr: 1 }}>
-        <ArrowBackIcon />
-      </IconButton>
-      <Typography variant="h5" sx={{ fontWeight: "bold", letterSpacing: 1 }}>
-        Group Settings
-      </Typography>
-    </Box>
-
-    {/* Section: Permission Toggles */}
-    <Box sx={{
-      p: 2,
-      boxShadow: "none",
-      mb: 2,
-    }}>
-      <Typography variant="h6" sx={{ mb: 2, color: mode === "dark" ? "#fff" : "#222", fontWeight: 700 }}>
-        Permissions
-      </Typography>
-      <Stack spacing={3}>
-        {/* Edit Access Section */}
-        <Box>
-          <Typography variant="subtitle2" sx={{ mb: 1, color: mode === "dark" ? "#ccc" : "#555", fontWeight: 600 }}>
-            Who can edit group info?
-          </Typography>
-          <Stack direction="row" spacing={2}>
-            {["admin", "all"].map((role) => (
-              <Button
-                key={role}
-                variant={groupInfo?.editAccess === role ? "contained" : "outlined"}
-                onClick={() => handlePermissionChange("editAccess", role)}
-                sx={{
-                  color: groupInfo?.editAccess === role ? mode === "dark" ? "#000" : "#fff" :  mode === "dark" ? "#fff" : "#000",
-                  backgroundColor: groupInfo?.editAccess === role ?  mode === "dark" ? "#fff" : "#000" : "transparent",
-                  textTransform: "none",
-                  fontWeight: 600,
-                  px: 3,
-                  borderRadius: 8,
-                  boxShadow: "none",
-                  border: groupInfo?.editAccess === role ? "none" : "1.5px solid #555",
-                  "&:hover": {
-                    backgroundColor: groupInfo?.editAccess === role ? "#e0e0e0" : "#23232344",
-                    boxShadow: "none",
-                  },
-                  transition: "background 0.2s",
-                }}
-              >
-                {role === "admin" ? "Admins Only" : "All Members"}
-              </Button>
-            ))}
-          </Stack>
-        </Box>
-
-        {/* Invite Access Section */}
-        <Box>
-          <Typography variant="subtitle2" sx={{ mb: 1, color: mode === "dark" ? "#ccc" : "#555", fontWeight: 600 }}>
-            Who can add members?
-          </Typography>
-          <Stack direction="row" spacing={2}>
-            {["admin", "all"].map((role) => (
-              <Button
-                key={role}
-                variant={groupInfo?.inviteAccess === role ? "contained" : "outlined"}
-                onClick={() => handlePermissionChange("inviteAccess", role)}
-                sx={{
-                  color: groupInfo?.inviteAccess === role ? mode === "dark" ? "#000" : "#fff" :  mode === "dark" ? "#fff" : "#000",
-                  backgroundColor: groupInfo?.inviteAccess === role ?  mode === "dark" ? "#fff" : "#000" : "transparent",
-                  textTransform: "none",
-                  fontWeight: 600,
-                  px: 3,
-                  borderRadius: 8,
-                  boxShadow: "none",
-                  border: groupInfo?.inviteAccess === role ? "none" : "1.5px solid #555",
-                  "&:hover": {
-                    backgroundColor: groupInfo?.inviteAccess === role ? "#e0e0e0" : "#23232344",
-                    boxShadow: "none",
-                  },
-                  transition: "background 0.2s",
-                }}
-              >
-                {role === "admin" ? "Admins Only" : "All Members"}
-              </Button>
-            ))}
-          </Stack>
-        </Box>
-
-        {/* Send Messages Access Section */}
-        <Box>
-          <Typography variant="subtitle2" sx={{ mb: 1, color: mode === "dark" ? "#ccc" : "#555", fontWeight: 600 }}>
-            Who can send messages?
-          </Typography>
-          <Stack direction="row" spacing={2}>
-            {["admin", "all"].map((role) => (
-              <Button
-                key={role}
-                variant={groupInfo?.sendAccess === role ? "contained" : "outlined"}
-                onClick={() => handlePermissionChange("sendAccess", role)}
-                sx={{
-                  color: groupInfo?.sendAccess === role ? mode === "dark" ? "#000" : "#fff" :  mode === "dark" ? "#fff" : "#000",
-                  backgroundColor: groupInfo?.sendAccess === role ?  mode === "dark" ? "#fff" : "#000" : "transparent",
-                  textTransform: "none",
-                  fontWeight: 600,
-                  px: 3,
-                  borderRadius: 8,
-                  boxShadow: "none",
-                  border: groupInfo?.sendAccess === role ? "none" : "1.5px solid #555",
-                  "&:hover": {
-                    backgroundColor: groupInfo?.sendAccess === role ? "#e0e0e0" : "#23232344",
-                    boxShadow: "none",
-                  },
-                  transition: "background 0.2s",
-                }}
-              >
-                {role === "admin" ? "Admins Only" : "All Members"}
-              </Button>
-            ))}
-          </Stack>
-        </Box>
-      </Stack>
-    </Box>
-
-    {/* Section: Member List and Admin Toggle */}
-    <Box mt={3} mb={3} sx={{
-      background: mode === "dark" ? "#23232344" : "#f1f1f144",
-      borderRadius: 3,
-      p: 2,
-      boxShadow: "none",
-    }}>
-      <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: mode === "dark" ? "#fff" : "#222" }}>
-          Members & Admins
-        </Typography>
-        <Button
-          variant="contained"
-          size="small"
-          sx={{
-            color: mode === "dark" ? "#fff" : "#000",
-            backgroundColor: "#23232348",
-            display: "flex",
-            alignItems: "center",
-            borderRadius: 2,
-            boxShadow: "none",
-            px: 2,
-            py: 0.5,
-            fontWeight: 600,
-          }}
-          onClick={() => setShowSearchBar(prev => !prev)}
-        >
-          {showSearchBar ? <CloseIcon sx={{ fontSize: "18px", mr: 1 }} /> : <SearchIcon sx={{ fontSize: "18px", mr: 1 }} />}
-          {showSearchBar ? "Hide" : "Search"}
-        </Button>
-      </Box>
-
-      {showSearchBar && (
-        <TextField
-          placeholder="Search members by name or email..."
-          value={searchMembersText}
-          onChange={(e) => setSearchMembersText(e.target.value)}
-          size="small"
-          fullWidth
-          sx={{
-            mb: 2,
-            input: { color: mode === "dark" ? "#fff" : "#000" },
-            '& label': { color: '#ccc' },
-            '& .MuiOutlinedInput-root': {
-              '& fieldset': { borderColor: '#555' },
-              '&:hover fieldset': { borderColor: '#888' },
-            },
-            borderRadius: 4,
-            backgroundColor: mode === "dark" ? "#23232344" : "#f1f1f144",
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: "#777" }} />
-              </InputAdornment>
-            ),
-          }}
-        />
-      )}
-
-      <Stack spacing={1} sx={{ maxHeight: "47vh", overflowY: "auto" }}>
-        {(groupInfo?.members || [])
-          .filter((uid) => {
-            const m = memberInfo[uid];
-            if (!searchMembersText) return true;
-            const search = searchMembersText.toLowerCase();
-            return (
-              m?.name?.toLowerCase().includes(search) ||
-              m?.email?.toLowerCase().includes(search) ||
-              m?.username?.toLowerCase().includes(search)
-            );
-          })
-          .map((uid) => {
-            const member = memberInfo[uid];
-            const isCreator = uid === groupInfo?.createdBy;
-            const isAdmin = (groupInfo?.admins || []).includes(uid);
-            const canChangeRole =
-              !isCreator &&
-              (groupInfo?.createdBy === currentUser?.uid ||
-                (groupInfo?.admins || []).includes(currentUser?.uid));
-
-            return (
-              <Paper
-                elevation={0}
-                key={uid}
-                sx={{
-                  p: 1.5,
-                  borderRadius: 2,
-                  bgcolor: mode === "dark" ? "#23232344" : "#f1f1f144",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 1,
-                  boxShadow: "0 1px 6px #0001",
-                  transition: "background 0.2s",
-                  "&:hover": {
-                    background: mode === "dark" ? "#23232388" : "#e0e0e088",
-                  },
-                }}
-              >
-                <Box display="flex" alignItems="center" gap={2}>
-                  <Avatar src={member?.photoURL} sx={{
-                    bgcolor: "#232323",
-                    color: mode === "dark" ? "#fff" : "#000",
-                    width: 40,
-                    height: 40,
-                    fontWeight: 700,
-                    fontSize: 20,
-                    boxShadow: "0 2px 8px #0002",
-                    border: mode === "dark" ? "2px solid #444" : "2px solid #eee",
-                  }}>
-                    {member?.name?.[0]?.toUpperCase() || "U"}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="body1" sx={{ fontWeight: 600, color: mode === "dark" ? "#fff" : "#222" }}>
-                      {member?.name || member?.email}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: "#aaa" }}>
-                      {member?.username || ""}
-                    </Typography>
-                  </Box>
-                </Box>
-
-                {canChangeRole ? (
-                  <FormControl size="small" sx={{ minWidth: 100 }}>
-                    <Select
-                      value={isAdmin ? "admin" : "member"}
-                      onChange={e => toggleAdminStatus(uid)}
-                      sx={{
-                        bgcolor: "transparent",
-                        color: isAdmin ?  mode === "dark" ? "#fff" : "#000" :  mode === "dark" ? "#ccc" : "#555",
-                        fontWeight: 600,
-                        fontSize: "0.9rem",
-                        borderRadius: 3,
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: "#555"
-                        }
-                      }}
-                      MenuProps={{
-                        PaperProps: { sx: { bgcolor:  mode === "dark" ? "#000" : "#fff", color: mode === "dark" ? "#fff" : "#000", borderRadius: 3 } }
-                      }}
-                    >
-                      <MenuItem value="member">Member</MenuItem>
-                      <MenuItem value="admin">Admin</MenuItem>
-                    </Select>
-                  </FormControl>
-                ) : (
-                  <Chip
-                    label={isCreator ? "Owner" : "Member"}
-                    size="small"
-                    sx={{
-                      bgcolor: isAdmin ? "#00f72144" : mode === "dark" ? "#ffffff44" : "#00000044",
-                      color: mode === "dark" ? "#fff" : "#000",
-                      fontWeight: 600,
-                      fontSize: "0.8rem",
-                      borderRadius: 1,
-                    }}
-                  />
-                )}
-              </Paper>
-            );
-          })}
-      </Stack>
-    </Box>
-  </Box>
-</Drawer>
-
-<SwipeableDrawer
-  anchor="bottom"
-  open={editingGroupInfo}
-  onClose={() => setEditingGroupInfo(false)}
-  PaperProps={{
-    sx: {
-      p: 3,
-      borderTopLeftRadius: 12,
-      borderTopRightRadius: 12,
-      background: mode === "dark" ? "#111" : "#f1f1f1",
-      color: mode === "dark" ? "#fff" : "#000",
-    },
-  }}
->
-  <Typography variant="h6" sx={{ mb: 2 }}>
-    Edit Group Details
-  </Typography>
-
-{/* Group Name */}
-<TextField
-  label="Group Name"
-  fullWidth
-  value={groupInfo?.name || ""}
-  onChange={(e) =>
-    setGroupInfo((prev) => ({ ...prev, name: e.target.value }))
-  }
-  sx={{ mb: 2, input: { color: mode === "dark" ? "#fff" : "#000" }, label: { color: mode === "dark" ? "#ccc" : "#555" } }}
-/>
-
-{/* Preview */}
-<Box display="flex" justifyContent="center" mb={2}>
-  {groupIconType === "emoji" ? (
-    <Avatar sx={{ width: 80, height: 80, fontSize: 40, bgcolor: "#232323" }}>
-      {groupIconValue || "📍"}
-    </Avatar>
-  ) : (
-    <Avatar
-      src={groupIconValue}
-      sx={{ width: 80, height: 80, fontSize: 40, bgcolor: "#232323" }}
-    />
-  )}
-</Box>
-
-{/* Icon Type Toggle */}
-<FormControl fullWidth sx={{ mb: 2 }}>
-  <InputLabel sx={{ color: mode === "dark" ? "#ccc" : "#555" }}>Icon Type</InputLabel>
-  <Select
-    value={groupIconType}
-    onChange={(e) => setGroupIconType(e.target.value)}
-    sx={{ color: mode === "dark" ? "#fff" : "#000" }}
-  >
-    <MenuItem value="emoji">Emoji</MenuItem>
-    <MenuItem value="image">Image URL</MenuItem>
-  </Select>
-</FormControl>
-
-{/* Icon Selector */}
-{groupIconType === "emoji" ? (
-  <>
-    <Typography variant="subtitle2" sx={{ mb: 1, color: mode === "dark" ? "#ccc" : "#555" }}>
-      Choose an Emoji
-    </Typography>
-    <Grid container spacing={1} sx={{ mb: 2 }}>
-      {["😀", "😎", "🔥", "🎉", "🚀", "🌍", "📚", "🧠", "🧳", "🍕", "🎮", "🏖️"].map(
-        (emoji) => (
-          <Grid item xs={3} sm={2} key={emoji}>
-            <Button
-              variant={groupIconValue === emoji ? "contained" : "outlined"}
-              onClick={() => setGroupIconValue(emoji)}
-              sx={{
-                fontSize: 24,
-                width: "100%",
-                aspectRatio: "1",
-                color: groupIconValue === emoji ? "#000" : "#fff",
-                backgroundColor:
-                  groupIconValue === emoji ? "#ffffffff20" : "#23232349",
-                borderColor: "#555",
-                borderRadius: 2,
-              }}
-            >
-              {emoji}
-            </Button>
-          </Grid>
-        )
-      )}
-    </Grid>
-  </>
-) : (
-  <Box sx={{ mb: 2 }}>
-    <TextField
-      label="Image URL or Uploaded Image"
-      value={groupIconValue}
-      onChange={(e) => setGroupIconValue(e.target.value)}
-      fullWidth
-      sx={{ mb: 1, input: { color: mode === "dark" ? "#fff" : "#000" }, label: { color: mode === "dark" ? "#ccc" : "#555" } }}
-    />
-
-    <Button
-      variant="contained"
-      component="label"
-      sx={{
-        mt: 1,
-        color: mode === "dark" ? "#fff" : "#000",
-        background:"#f1f1f111",
-        borderColor: "#f1f1f151",
-        fontWeight: 600,
-        textTransform: "none",
-      }}
-    >
-      📁 Select Image
-      <input
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={handleGroupIconUpload}
+      <GroupInfoDrawer
+        profileOpen={profileOpen}
+        setProfileOpen={setProfileOpen}
+        // pass all required props here: groupInfo, user, handlers, mode, etc
+        groupInfo={groupInfo}
+        groupName="My Group"
+        mode="dark"
+        createdByUser={createdByUser}
+        tripInfo={tripInfo}
+        timelineStats={timelineStats}
+        memberInfo={memberInfo}
+        canEditGroupInfo={true}
+        canAddMembers={true}
+        currentUser={currentUser}
+        user={user}
+        handleExitGroup={() => console.log("exit group")}
+        handleRemoveMember={(uid) => console.log("remove member", uid)}
+        handleUpdateGroupInfo={() => console.log("update")}
+        handlePermissionChange={(perm, role) => console.log("perm change", perm, role)}
+        toggleAdminStatus={(uid) => console.log("toggle admin", uid)}
+        setGroupSettingsOpen={setGroupSettingsOpen}
+        groupSettingsOpen={groupSettingsOpen}
+        membersDrawerOpen={membersDrawerOpen}
+        setMembersDrawerOpen={setMembersDrawerOpen}
+        inviteDrawerOpen={inviteDrawerOpen}
+        setInviteDrawerOpen={setInviteDrawerOpen}
+        setNotification={() => {}}
+        notification={null}
+        handleShare={() => console.log("share link")}
+        addUserDialogOpen={addUserDialogOpen}
+        setAddUserDialogOpen={setAddUserDialogOpen}
+        searchTerm={""}
+        setSearchTerm={() => {}}
+        searchLoading={false}
+        searchResults={[]}
+        selectedUsers={[]}
+        setSelectedUsers={() => {}}
+        handleBatchAddUsers={() => {}}
       />
-    </Button>
 
-    <Typography
-      variant="caption"
-      sx={{ color: "#888", mt: 1, display: "block" }}
-    >
-      Only images under 250KB allowed.
-    </Typography>
-  </Box>
-)}
+      <Box>
 
-{/* Group Description */}
-<TextField
-  label="Group Description"
-  fullWidth
-  multiline
-  rows={3}
-  value={groupInfo?.description || ""}
-  onChange={(e) =>
-    setGroupInfo((prev) => ({ ...prev, description: e.target.value }))
-  }
-  sx={{ mb: 3, input: { color: mode === "dark" ? "#fff" : "#000" }, label: { color: mode === "dark" ? "#ccc" : "#555" } }}
-/>
-
-
-  {/* Buttons */}
-  <Box display="flex" justifyContent="space-between" gap={2}>
-    <Button
-      variant="outlined"
-      onClick={() => setEditingGroupInfo(false)}
-      sx={{
-        flex: 1,
-        color: mode === "dark" ? "#fff" : "#000",
-        borderColor: "#666",
-        fontWeight: 500,
-        backgroundColor: mode === "dark" ? "#0c0c0c" : "#f1f1f1",
-        borderRadius: 8,
-      }}
-    >
-      Cancel
-    </Button>
-
-    <Button
-      variant="contained"
-      onClick={handleUpdateGroupInfo}
-      sx={{
-        flex: 1,
-        bgcolor: mode === "dark" ? "#ffffffff" : "#000000",
-        color: mode === "dark" ? "#000" : "#fff",
-        fontWeight: 600,
-        borderRadius: 8,
-      }}
-    >
-      Save Changes
-    </Button>
-  </Box>
-</SwipeableDrawer>
-
-<SwipeableDrawer
-  anchor="bottom"
-  open={addUserDialogOpen}
-  onClose={() => {
-    setAddUserDialogOpen(false);
-    setSelectedUsers([]);
-    setSearchTerm('');
-  }}
-  sx={{ maxWidth: 470 }}
-  PaperProps={{
-    sx: {
-      height: '85vh',
-      width: "91vw",
-      borderTopRightRadius: 24,
-      borderTopLeftRadius: 24,
-      backgroundColor: '#111',
-      color: mode === "dark" ? "#fff" : "#000",
-      p: 2,
-      mx: "auto"
-    },
-  }}
->
-  <Typography variant="h6" sx={{ mb: 2 }}>
-    Select Users to Add
-  </Typography>
-
-  <TextField
-    fullWidth
-    label="Search by username or email"
-    value={searchTerm}
-    onChange={(e) => setSearchTerm(e.target.value)}
-    sx={{
-      mb: 2,
-      input: { color: mode === "dark" ? "#fff" : "#000" },
-      label: { color: '#ccc' },
-      '& .MuiOutlinedInput-root': {
-        '& fieldset': { borderColor: '#555' },
-        '&:hover fieldset': { borderColor: '#888' },
-        '&.Mui-focused fieldset': { borderColor: '#00f721' },
-      },
-    }}
-  />
-
-  {/* Search Results */}
-  <Typography variant="subtitle2" sx={{ mb: 1, color: '#ccc' }}>
-    Search Results
-  </Typography>
-
-  {searchLoading ? (
-    <Box sx={{ textAlign: 'center', mt: 2 }}>
-      <CircularProgress size={24} color="inherit" />
-    </Box>
-  ) : (
-    <>
-      <List dense>
-        {searchResults.map((user) => (
-          <ListItem key={user.uid} disablePadding>
-            <ListItemButton
-              onClick={() => {
-                setSelectedUsers((prev) =>
-                  prev.includes(user.uid)
-                    ? prev.filter((id) => id !== user.uid)
-                    : [...prev, user.uid]
-                );
-              }}
-            >
-              <Checkbox
-                edge="start"
-                checked={selectedUsers.includes(user.uid)}
-                tabIndex={-1}
-                sx={{ color: '#00f721' }}
-              />
-              <Avatar
-                src={user.photoURL || ''}
-                sx={{ width: 36, height: 36, mr: 2 }}
-              >
-                {(user.username?.[0] || user.name?.[0] || user.email?.[0] || "U").toUpperCase()}
-              </Avatar>
-              <ListItemText
-                primary={user.username || user.name || user.email}
-                secondary={user.email}
-                primaryTypographyProps={{ color: mode === "dark" ? "#fff" : "#000" }}
-                secondaryTypographyProps={{ color: '#aaa' }}
-              />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-
-      {searchResults.length === 0 && searchTerm.length >= 2 && !searchLoading && (
-        <Typography variant="body2" sx={{ color: '#999', mt: 1 }}>
-          No users found.
-        </Typography>
-      )}
-    </>
-  )}
-
-  {/* Selected Users Section */}
-  <Divider sx={{ my: 2, borderColor: '#444' }} />
-  <Typography variant="subtitle2" sx={{ mb: 1, color: '#ccc' }}>
-    Selected Users ({selectedUsers.length})
-  </Typography>
-  <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 2 }}>
-    {selectedUsers.map(uid => {
-      // Try to find user in searchResults; otherwise fallback to a minimal display
-      const user = searchResults.find(u => u.uid === uid) || { uid, username: 'Pending User', email: '', photoURL: '' };
-      return (
-        <Chip
-          key={uid}
-          avatar={
-            <Avatar src={user.photoURL || ''}>
-              {(user.username?.[0] || user.name?.[0] || user.email?.[0] || "U").toUpperCase()}
-            </Avatar>
-          }
-          label={user.username || user.name || user.email || uid}
-          onDelete={() =>
-            setSelectedUsers((prev) => prev.filter((id) => id !== uid))
-          }
-          sx={{
-            bgcolor: '#333',
-            color: mode === "dark" ? "#fff" : "#000",
-            borderColor: '#555',
-            mb: 1
-          }}
-        />
-      );
-    })}
-  </Stack>
-
-  {/* Action Buttons */}
-  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 'auto' }}>
-    <Button onClick={() => setAddUserDialogOpen(false)} sx={{ color: '#ccc' }}>
-      Cancel
-    </Button>
-    <Button
-      variant="contained"
-      onClick={handleBatchAddUsers}
-      disabled={selectedUsers.length === 0}
-      sx={{ bgcolor: '#00f721', color: '#000', fontWeight: 600 }}
-    >
-      Add Selected
-    </Button>
-  </Box>
-</SwipeableDrawer>
-
-
-        </Box>
-      </Drawer>
-    </motion.div>
-  )}
 </Box>
     </Box>
     </BetaAccessGuard>

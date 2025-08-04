@@ -5,7 +5,7 @@ export const themeColors = {
     palette: {
       mode: "light",
       background: { default: "#f1f1f1", paper: "#FFF", main: "#ffffffbc", card: "#cbcbcb" },
-      primary: { main: "#f9971f", contrastText: "#000", mainbg: "#f9971f60" },
+      primary: { main: "#f9971f", contrastText: "#000", bg: "#ffdeb6ff", mainbg: "#f9971f60", bgr: "#ffeed9ff", card: "#d7c7b4ff" },
       secondary: { main: "#e0e0e0" },
       text: { primary: "#18191A", secondary: "#555", disabled: "#aaa" },
       action: {
@@ -22,7 +22,7 @@ export const themeColors = {
     palette: {
       mode: "dark",
       background: { default: "#0c0c0c", paper: "#0c0c0c", main: "#00000001", card: "#262626" },
-      primary: { main: "#f9971f", contrastText: "#000", mainbg: "#f9971f60" },
+      primary: { main: "#f9971f", contrastText: "#000", bg: "#ffdeb6ff", mainbg: "#f9971f60", bgr: "#ffeed9ff", card: "#d7c7b4ff" },
       secondary: { main: "#444444ea" },
       text: { primary: "#FFF", secondary: "#BDBDBD", disabled: "#f0f0f0" },
       action: {
