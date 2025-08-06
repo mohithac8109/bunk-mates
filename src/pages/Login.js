@@ -23,7 +23,7 @@ import {
   signInWithPopup,
   onAuthStateChanged,
 } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
 // Dark mode theme configuration
@@ -132,28 +132,39 @@ const Login = () => {
   };
 
   // Google login handler
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    setErrorMessage("");
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (userDoc.exists()) {
-        const userType = userDoc.data().type || "";
-        setCookie("bunkmate_usertype", userType, 30);
-        saveUserData(user);
-        setUser(user);
-        setShowDrawer(true);
-      } else {
-        setErrorMessage("User not found, please sign up.");
-      }
-    } catch (err) {
-      setErrorMessage(err.message);
-    } finally {
-      setLoading(false);
+const handleGoogleLogin = async () => {
+  setLoading(true);
+  setErrorMessage("");
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+    const userRef = doc(db, "users", user.uid);
+    const userDoc = await getDoc(userRef);
+    if (!userDoc.exists()) {
+      // User does not exist in Firestore, create the user document
+      await setDoc(userRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL || "",
+        type: "Regular", // or your default type
+        createdAt: serverTimestamp(),
+      });
     }
-  };
+    // User exists, or new user has just been created, continue login flow
+    const finalUserDoc = await getDoc(userRef);
+    const userType = finalUserDoc.data()?.type || "";
+    setCookie("bunkmate_usertype", userType, 30);
+    saveUserData(user);
+    setUser(user);
+    setShowDrawer(true);
+  } catch (err) {
+    setErrorMessage(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Continue button after login drawer
   const handleContinue = () => {
