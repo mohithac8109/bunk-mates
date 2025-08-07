@@ -28,6 +28,9 @@ import {
   Button,
   FormControlLabel,
   Stack,
+  Chip,
+  Slider,
+  Drawer,
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -39,13 +42,15 @@ import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 
 import { signOut, updateProfile } from "firebase/auth";
-import { doc, updateDoc, getDoc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot } from "firebase/firestore";
 import { useTheme, useMediaQuery, Fab, Zoom } from "@mui/material";
 import { weatherColors } from "../elements/weatherTheme";
 import { useWeather } from "../contexts/WeatherContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
 import { getTheme } from "../theme";
+import getCroppedImg from '../utils/cropImage';
+import Cropper from "react-easy-crop";
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
@@ -96,11 +101,21 @@ const ProfilePic = () => {
   const [firestoreDataLoaded, setFirestoreDataLoaded] = useState(false);
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
   const { settings, setSettings } = useSettings();
+  const [isEditing, setIsEditing] = useState(false);
+  const [viewData, setViewData] = useState(null);
 
   const [feedback, setFeedback] = useState("");
   const [feedbackEmail, setFeedbackEmail] = useState("");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
+
+  const [cropDrawerOpen, setCropDrawerOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null); // URL of selected file
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [croppedImageDataUri, setCroppedImageDataUri] = useState(""); // base64 string to save
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
 
 
   const themeOptions = ["dark", "light"];
@@ -114,15 +129,19 @@ const ProfilePic = () => {
   const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
   const theme = getTheme(mode, accent);
 
+  const [feedbackCount, setFeedbackCount] = useState(0);
+  const [userFeedbacks, setUserFeedbacks] = useState([]);
+  const [issuesCount, setIssuesCount] = useState(0);
+  const [reportsCount, setReportsCount] = useState(0);
+  const [userIssues, setUserIssues] = useState([]);
+  const [userReports, setUserReports] = useState([]);
+
+
   const buttonWeatherBg =
   weather && weatherColors[weather.main]
     ? weatherColors[weather.main]
     : weatherColors.Default;
     
-  const updateUserData = (newData) => {
-    // update userData state with newData
-    setUserData(prev => ({ ...prev, ...newData }));
-  };
 
 const [features] = useState([
   {
@@ -215,179 +234,185 @@ const [features] = useState([
 
   ];
 
-  // Fetch user data on drawer open or when editProfile page is shown
-useEffect(() => {
-  if (drawerOpen && drawerPage === "editProfile") {
-    const fetchUserData = async () => {
-      setLoading(true);
-      const user = auth.currentUser;
-      if (user) {
-        try {
-          const userDocRef = doc(firestore, "users", user.uid);
-          const userDocSnap = await getDoc(userDocRef);
+  // Real-time listener for user Firestore document
+  useEffect(() => {
+    if (!auth.currentUser) return setLoading(false);
 
-          if (userDocSnap.exists()) {
-            const data = userDocSnap.data();
-            console.log("Fetched user data:", data);
+    setLoading(true);
 
-            setUserData({
-              name: user.displayName || data.name || "",
-              username: data.username || "",
-              email: user.email || data.email || "",
-              mobile: user.phoneNumber || data.mobile || "",
-              photoURL: user.photoURL || data.photoURL || "",
-              bio: data.bio || "",
-              userType: data.userType || data.type || "",   // consistent field here
-            });
-            setUserType(data.userType || data.type || "");
-            setFirestoreDataLoaded(true);
-          } else {
-            console.warn("User doc not found!");
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        }
+    const userId = auth.currentUser.uid;
+    const userDocRef = doc(firestore, "users", userId);
+
+    const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setUserData(data);
+        setViewData(data);
       } else {
-        navigate("/login");
+        setUserData({
+          name: "",
+          username: "",
+          email: "",
+          mobile: "",
+          photoURL: "",
+          bio: "",
+          type: "",
+        });
+        setViewData(null);
       }
       setLoading(false);
-    };
-    fetchUserData();
-  }
-}, [drawerOpen, drawerPage, navigate]);
+    });
 
+    return () => {
+      unsubscribeUser();
+    };
+  }, []);
+
+  // Real-time listeners for feedback, issues, reports
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const userId = auth.currentUser.uid;
+
+    // Feedback
+    const feedbackQuery = query(collection(firestore, "feedback"), where("uid", "==", userId));
+    const unsubscribeFeedback = onSnapshot(feedbackQuery, (querySnapshot) => {
+      const feedbackList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setUserFeedbacks(feedbackList);
+      setFeedbackCount(querySnapshot.size);
+    });
+
+    // Issues
+    const issuesQuery = query(collection(firestore, "issues"), where("userId", "==", userId));
+    const unsubscribeIssues = onSnapshot(issuesQuery, (querySnapshot) => {
+      const issuesList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setUserIssues(issuesList);
+      setIssuesCount(querySnapshot.size);
+    });
+
+    // Reports
+    const reportsQuery = query(collection(firestore, "reports"), where("userId", "==", userId));
+    const unsubscribeReports = onSnapshot(reportsQuery, (querySnapshot) => {
+      const reportsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setUserReports(reportsList);
+      setReportsCount(querySnapshot.size);
+    });
+
+    return () => {
+      unsubscribeFeedback();
+      unsubscribeIssues();
+      unsubscribeReports();
+    };
+  }, []);
 
   // Save profile changes
-const handleSave = async () => {
-  setIsSaving(true);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const userRef = doc(firestore, "users", auth.currentUser.uid);
+      await updateDoc(userRef, {
+        ...userData,
+        photoURL: croppedImageDataUri || userData.photoURL || "",
+      });
 
-  // Shorten the photoURL if needed (only if it's a link)
+      await updateProfile(auth.currentUser, {
+        displayName: userData.name,
+        photoURL: croppedImageDataUri || userData.photoURL || undefined,
+      });
 
-  try {
-    const userRef = doc(firestore, "users", auth.currentUser.uid);
-    await setDoc(userRef, {
-      name: userData.name,
-      username: userData.username,
-      email: userData.email,
-      mobile: userData.mobile,
-      photoURL: userData.photoURL,
-      type: userData.userType,
-      bio: userData.bio,
-    });
-
-    await updateProfile(auth.currentUser, {
-      displayName: userData.name,
-      photoURL: userData.photoURL || undefined,
-    });
-
-    setIsSaving(false);
-    alert("Profile updated successfully!");
-    setDrawerPage("main");
-  } catch (error) {
-    setIsSaving(false);
-    console.error("Error saving profile", error);
-    alert("Failed to update profile");
-  }
-};
-
-
-  const handleDrawerOpen = () => {
-    setDrawerOpen(true);
-    setTimeout(() => setShowIndicator(true), 100);
+      setIsSaving(false);
+      alert("Profile updated successfully!");
+      setDrawerPage("main");
+    } catch (error) {
+      setIsSaving(false);
+      console.error("Error saving profile", error);
+      alert("Failed to update profile");
+    }
   };
 
-  const handleDrawerClose = () => {
-    setShowIndicator(false);
-    setTimeout(() => {
-      setDrawerOpen(false);
-      setShowProfileEdit(false);
-    }, 200);
+  // Handle file change for cropping
+  const onFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedImage(URL.createObjectURL(file));
+      setCropDrawerOpen(true);
+    }
   };
 
-  const handleProfileSave = async () => {
-    const userRef = doc(db, "users", userData.uid);
-    await updateDoc(userRef, editedData);
-    updateUserData(editedData);
-    setShowProfileEdit(false);
+  // Cropper complete handler helper
+  const saveCroppedImage = async () => {
+    try {
+      const croppedImage = await getCroppedImg(selectedImage, croppedAreaPixels);
+      setCroppedImageDataUri(croppedImage);
+      setUserData(prev => ({ ...prev, photoURL: croppedImage })); // Update preview
+      setCropDrawerOpen(false);
+      URL.revokeObjectURL(selectedImage);
+      setSelectedImage(null);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to crop image");
+    }
   };
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      let user = auth.currentUser;
+  // Handle feedback form submission with notification save
+  const handleFeedbackSubmit = async (e) => {
+    e.preventDefault();
+    setFeedbackLoading(true);
 
-      if (!user) {
-        const storedUser = localStorage.getItem("bunkmateuser");
-        if (storedUser) {
-          setUserData(JSON.parse(storedUser));
-          setLoading(false);
-          return;
-        } else {
-          navigate("/login");
-          return;
-        }
-      }
+    const user = auth.currentUser;
+    const userName = userData.name || "";
+    const userEmail = feedbackEmail || userData.email || "";
+    const userUid = user ? user.uid : "";
 
-      const { displayName, email, photoURL, phoneNumber, userBio, userType } = user;
-      const newUserData = {
-        name: displayName || "User",
-        email: email || "",
-        mobile: phoneNumber || "Not provided",
-        photoURL: photoURL || "",
-        bio: userBio || "",
-        userType: userType || "",
+    try {
+      await addDoc(collection(firestore, "feedback"), {
+        appVersion: packageJson.version || "",
+        createdAt: serverTimestamp(),
+        email: userEmail,
+        message: feedback,
+        name: userName,
+        uid: userUid,
+      });
+
+      const notifDoc = {
+        admin_content: `${userName} has submitted a Feedback.`,
+        content: `Hi ${userName}, We've received your Feedback and are thrilled to assist you. Here's a copy of your submission: <br> <b>Name:</b> ${userName} <br> <b>Email:</b> ${userEmail} <br> <b>Message:</b> ${feedback} <br> Our support team will reach out to you shortly if needed. Thank you for connecting with BunkMates!`,
+        read: false,
+        timestamp: serverTimestamp(),
+        title: "📩 Your Feedback is submitted successfully!",
+        type: "feedback",
+        uid: userUid,
       };
 
-      setUserData(newUserData);
-      localStorage.setItem("bunkmateuser", JSON.stringify(newUserData));
-      setLoading(false);
-    };
+      await addDoc(collection(firestore, "notifications"), notifDoc);
 
-    fetchUserData();
-  }, [navigate]);
-
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
+      setFeedback("");
+      setFeedbackEmail("");
+      setFeedbackSuccess(true);
+    } catch (err) {
+      alert("Failed to send feedback. Please try again.");
+    }
+    setFeedbackLoading(false);
   };
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
+  // Drawer open/close handlers
+  const handleDrawerOpen = () => setDrawerOpen(true);
+  const handleDrawerClose = () => {
+    setDrawerOpen(false);
+    setIsEditing(false);
   };
 
-const handleLogout = async () => {
-  try {
-    await signOut(auth);
-    localStorage.removeItem("bunkmateuser");
-    localStorage.removeItem(SESSION_KEY);
-    document.cookie = `${SESSION_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;`;
-    navigate("/login");
-  } catch (error) {
-    console.error("Error logging out:", error);
-  }
-};
-
-const handleFeedbackSubmit = async (e) => {
-  e.preventDefault();
-  setFeedbackLoading(true);
-  try {
-    await addDoc(collection(firestore, "feedback"), {
-  message: feedback,
-  email: feedbackEmail || userData.email || "",
-  name: userData.name || "",
-  appVersion: packageJson.version || "",
-  createdAt: serverTimestamp(),
-    }); 
-    setFeedback("");
-    setFeedbackEmail("");
-    setFeedbackSuccess(true);
-  } catch (err) {
-    alert("Failed to send feedback. Please try again.");
-  }
-  setFeedbackLoading(false);
-};
-
-  const handleProfileClick = () => {
-    navigate("/profile");
+  // Logout confirmation and handler
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // Clear local session etc if needed
+      navigate("/login");
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
   };
+
 
   return (
   <ThemeProvider theme={theme}>
@@ -481,7 +506,7 @@ sx={{
         {/* Menu List */}
         <List sx={{ my: 0, gap: 0.5, display: "flex", flexDirection: "column" }}>
           <ListItem sx={{ pb: 0 }}>
-            <ListItemButton onClick={() => setDrawerPage("editProfile")} 
+            <ListItemButton onClick={() => setDrawerPage("profile")} 
                 sx={{ 
                   backgroundColor: mode === "dark" ? "#f1f1f111" : "#c1c1c195", 
                   borderRadius: 5, 
@@ -492,7 +517,7 @@ sx={{
               <ListItemIcon>
                 <PersonOutlineIcon sx={{ color: theme.palette.text.primary }} />
               </ListItemIcon>
-              <ListItemText primary="Edit Profile" />
+              <ListItemText primary="Profile" />
             </ListItemButton>
           </ListItem>
 
@@ -551,7 +576,7 @@ sx={{
     )}
 
     {/* Edit Profile Page */}
-    {drawerPage === "editProfile" && (
+    {drawerPage === "profile" && (
       <Container sx={{ mt: 1, mb: 2, color: theme.palette.text.primary }}>
 
         {/* Your edit profile form here */}
@@ -980,111 +1005,293 @@ sx={{
 )}
 
 
-{drawerPage === "editProfile" && (
-  <Container sx={{ mt: 2, mb: 4 }}>
-    {/* Back Button */}
+{drawerPage === "profile" && (
+  <Container sx={{ mt: 2, mb: 2 }}>
     <Button
       startIcon={<ArrowBackIcon />}
       onClick={() => setDrawerPage("main")}
-      sx={{
-        mb: 3,
-        borderRadius: 8, 
-        color: theme.palette.text.primary,
-        backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", 
-        '&:hover': { backgroundColor: "#f1f1f121" },
-      }}
-    >
-      Back
-    </Button>
+      sx={{ mb: 3, borderRadius: 8, color: theme.palette.text.primary }}
+    >Back</Button>
 
-    {/* Header */}
     <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>
-      Edit Profile
+      Profile
     </Typography>
 
-    {loading || !firestoreDataLoaded ? (
+    {loading ? (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
         <CircularProgress />
       </Box>
-    ) : (
+    ) : isEditing ? (
       <>
-        {/* Avatar */}
         <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
-          <Avatar
-            src={userData.photoURL || ""}
-            alt={userData.name}
-            sx={{ width: 120, height: 120 }}
-          />
-        </Box>
+          <Avatar src={userData.photoURL || ""} alt={userData.name} sx={{ width: 120, height: 120 }} />
+          <Button
+  variant="outlined"
+  component="label"
+  sx={{ mt: 2 }}
+>
+  Upload Profile Picture
+  <input
+    type="file"
+    accept="image/*"
+    hidden
+    onChange={(e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        const file = e.target.files[0];
+        setSelectedImage(URL.createObjectURL(file));
+        setCropDrawerOpen(true);
+      }
+    }}
+  />
+</Button>
 
-        {/* Grouped Fields */}
+        </Box>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <TextField
-            fullWidth
-            label="Full Name"
-            value={userData.name}
-            onChange={(e) => setUserData({ ...userData, name: e.target.value })}
-            disabled={isSaving}
-          />
-          <TextField
-            fullWidth
-            label="Username"
-            value={userData.username}
-            onChange={(e) => setUserData({ ...userData, username: e.target.value })}
-            disabled={isSaving}
-          />
-          <TextField
-            fullWidth
-            label="Email"
-            value={userData.email}
-            disabled
-          />
-          <TextField
-            fullWidth
-            label="Mobile Number"
-            value={userData.mobile}
-            onChange={(e) => setUserData({ ...userData, mobile: e.target.value })}
-            disabled={isSaving}
-          />
-          <TextField
-            fullWidth
-            label="Bio"
-            value={userData.bio}
-            onChange={(e) => setUserData({ ...userData, bio: e.target.value })}
-            multiline
-            minRows={3}
-            disabled={isSaving}
-          />
+          <TextField fullWidth label="Full Name" value={userData.name} onChange={e => setUserData({ ...userData, name: e.target.value })} />
+          <TextField fullWidth label="Username" value={userData.username} onChange={e => setUserData({ ...userData, username: e.target.value })} />
+          <TextField fullWidth label="Email" value={userData.email} disabled />
+          <TextField fullWidth label="Mobile Number" value={userData.mobile} onChange={e => setUserData({ ...userData, mobile: e.target.value })} />
+          <TextField fullWidth label="Bio" value={userData.bio} onChange={e => setUserData({ ...userData, bio: e.target.value })} multiline minRows={3} />
         </Box>
-
-        {/* Action Buttons */}
         <Box sx={{ mt: 4, display: "flex", justifyContent: "space-between" }}>
-          <Button
-            variant="outlined"
-            onClick={() => setDrawerPage("main")}
-            sx={{
-              backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e071", 
-              color: theme.palette.text.primary,
-              borderColor: "#555",
-              borderRadius: 5,
-            }}
-            disabled={isSaving}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={isSaving}
-            sx={{ backgroundColor: theme.palette.primary.main, borderRadius: 5, color: "#fff", boxShadow: "none", '&:hover': { backgroundColor: theme.palette.primary.dark } }}
-          >
-            {isSaving ? <CircularProgress size={24} /> : "Save Changes"}
-          </Button>
+          <Button variant="outlined" onClick={() => { setIsEditing(false); setUserData(viewData); }}>Cancel</Button>
+          <Button variant="contained" onClick={async () => {
+            // Build changed fields only
+            const changes = {};
+            Object.keys(userData).forEach(key => {
+              if (userData[key] !== viewData[key]) {
+                changes[key] = userData[key];
+              }
+            });
+            if (Object.keys(changes).length === 0) {
+              setIsEditing(false);
+              return; // nothing changed
+            }
+            try {
+              const userRef = doc(firestore, "users", auth.currentUser.uid);
+              await updateDoc(userRef, changes);
+              setViewData({ ...viewData, ...changes });   // update local viewData
+              setIsEditing(false);
+              alert("Profile updated!");
+            } catch (err) {
+              alert("Failed to update profile");
+            }
+          }}>Save Changes</Button>
         </Box>
       </>
+    ) : (
+<>
+  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3, position: "relative" }}>
+    <Avatar src={viewData?.photoURL || ""} sx={{ width: 110, height: 110 }} />
+    {/* User Type Chip at top right of Avatar */}
+    {userData.type && (
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: 60,
+          right: "calc(50% - 10%)", // 50% minus half avatar width to align to top right of avatar
+          zIndex: 10,
+        }}
+      >
+        <Chip
+          label={userData.type}
+          size="small"
+          variant="contained"
+          sx={{ pointerEvents: "none", userSelect: "none", backgroundColor: mode === "dark" ? "#101010c9" : "#f1f1f1c9", backdropFilter: "blur(80px)" }}
+        />
+      </Box>
     )}
+    <Typography fontWeight="bold" variant="h6" sx={{ mt: 2 }}>
+      {viewData?.name || ""}
+    </Typography>
+    <Typography sx={{ color: "text.secondary" }}>
+      {viewData?.username ? "@" + viewData.username : ""}
+    </Typography>
+  </Box>
+
+  {(userData.type === "Beta" || userData.type === "Dev Beta") && (
+    <Box sx={{ mb: 3, background: "#f1f1f111", borderRadius: 5, px: 3, py: 2 }}>
+      <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
+        Your Beta Stats
+      </Typography>
+      <Typography variant="body2">Feedbacks: {feedbackCount}</Typography>
+      <Typography variant="body2">Issues: {issuesCount}</Typography>
+      <Typography variant="body2">Reports: {reportsCount}</Typography>
+    </Box>
+  )}
+
+  <List>
+    <ListItem>
+      <ListItemText primary="User Type" secondary={userData.type || "N/A"} />
+    </ListItem>
+    <ListItem>
+      <ListItemText primary="Email" secondary={viewData?.email} />
+    </ListItem>
+    <ListItem>
+      <ListItemText primary="Mobile" secondary={viewData?.mobile} />
+    </ListItem>
+    <ListItem>
+      <ListItemText primary="Bio" secondary={viewData?.bio} />
+    </ListItem>
+  </List>
+  <Button variant="contained" sx={{ mt: 2 }} onClick={() => setIsEditing(true)}>
+    Edit Profile
+  </Button>
+</>
+    )}
+
+
+<Drawer
+  anchor="bottom"
+  open={cropDrawerOpen}
+  onClose={() => setCropDrawerOpen(false)}
+  PaperProps={{
+    sx: {
+      height: { xs: '90vh', sm: '80vh' },
+      maxWidth: 420,
+      mx: 'auto',
+      px: { xs: 1.5, sm: 2.5 },
+      pt: 2.5,
+      pb: 4,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      background:
+        mode === 'dark'
+          ? 'linear-gradient(180deg, #212121 80%, #232323 100%)'
+          : 'linear-gradient(180deg, #f4f6f8 80%, #fff 100%)',
+      boxShadow: '0 -8px 24px #00000044',
+    },
+  }}
+>
+  {/* Crop workspace */}
+  <Box
+    sx={{
+      position: 'relative',
+      height: { xs: '46vh', sm: '54vh', md: '58vh' },
+      width: '100%',
+      background:
+        mode === 'dark'
+          ? 'repeating-linear-gradient(45deg,#343943 0 6px, #232323 6px 12px)'
+          : '#eee',
+      borderRadius: 3,
+      boxShadow: '0px 2px 16px #0001',
+      overflow: 'hidden',
+      mb: 2.5,
+    }}
+  >
+    {selectedImage && (
+      <Cropper
+        image={selectedImage}
+        crop={crop}
+        zoom={zoom}
+        aspect={1}
+        cropShape="round"
+        showGrid={false}
+        onCropChange={setCrop}
+        onZoomChange={setZoom}
+        onCropComplete={(_, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels)}
+      />
+    )}
+  </Box>
+
+  {/* Slider with label */}
+  <Box sx={{ display: 'flex', alignItems: 'center', mt: 1.5 }}>
+    <Typography
+      variant="caption"
+      sx={{ minWidth: 44, mr: 2, color: mode === 'dark' ? '#ddd' : '#222' }}
+    >
+      Zoom
+    </Typography>
+    <Slider
+      value={zoom}
+      min={1}
+      max={3}
+      step={0.07}
+      size="medium"
+      sx={{
+        width: '100%',
+        color: '#3366ff',
+        '& .MuiSlider-thumb': { width: 18, height: 18 },
+      }}
+      onChange={(e, zoom) => setZoom(zoom)}
+      aria-label="Zoom"
+    />
+  </Box>
+
+  {/* Action buttons */}
+  <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
+    <Button
+      variant="outlined"
+      onClick={() => setCropDrawerOpen(false)}
+      sx={{
+        borderRadius: 3,
+        px: 3,
+        py: 1,
+        color: mode === 'dark' ? '#fff' : '#333',
+        borderColor: mode === 'dark' ? '#fff3' : '#4442',
+        '&:hover': { background: mode === 'dark' ? '#262626' : '#f7f7f7' },
+      }}
+    >
+      Cancel
+    </Button>
+    <Button
+      variant="contained"
+      sx={{
+        borderRadius: 3,
+        px: 3,
+        py: 1,
+        fontWeight: 700,
+        boxShadow: 'none',
+        backgroundColor: '#3366ff',
+        color: '#fff',
+        '&:hover': { background: '#2750bf' },
+      }}
+      onClick={async () => {
+        try {
+          const croppedImage = await getCroppedImg(selectedImage, croppedAreaPixels);
+          setCroppedImageDataUri(croppedImage);
+          setUserData((prev) => ({ ...prev, photoURL: croppedImage })); // update preview
+          setCropDrawerOpen(false);
+          URL.revokeObjectURL(selectedImage);
+          setSelectedImage(null);
+        } catch (err) {
+          console.error(err);
+          alert('Failed to crop image');
+        }
+      }}
+    >
+      Continue
+    </Button>
+  </Box>
+
+  {/* Cropped Data URI preview (readonly) */}
+  {croppedImageDataUri && (
+    <TextField
+      label="Cropped Image Data URI"
+      multiline
+      minRows={2}
+      value={croppedImageDataUri}
+      fullWidth
+      sx={{
+        display: "none",
+        mt: 2.6,
+        bgcolor: mode === 'dark' ? '#23232366' : '#f1f1f1cc',
+        borderRadius: 2,
+        fontSize: '0.95rem',
+        fontFamily: 'monospace',
+      }}
+      inputProps={{
+        readOnly: true,
+        style: { fontSize: '0.95rem', fontFamily: 'monospace', overflowWrap: 'break-word' },
+      }}
+    />
+  )}
+</Drawer>
+
+
   </Container>
 )}
+
 
 {drawerPage === "feedback" && (
   <Container sx={{ mt: 2, mb: 4 }}>

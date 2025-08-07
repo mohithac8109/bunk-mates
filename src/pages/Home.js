@@ -320,6 +320,30 @@ const Home = () => {
     return () => unsubscribe();
   }, []);
 
+    useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+
+        // Listen to user doc in real-time
+        const unsubscribeUserDoc = onSnapshot(userDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setUserData(docSnap.data()); // This includes photoURL
+          } else {
+            setUserData(null);
+          }
+        });
+
+        // Cleanup user doc listener if user changes or component unmounts
+        return () => unsubscribeUserDoc();
+      } else {
+        setUserData(null);
+      }
+    });
+
+    return () => unsubscribeAuth(); // Cleanup auth listener on unmount
+  }, []);
+
 
   // Load weather once (with caching)
   useEffect(() => {

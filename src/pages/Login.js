@@ -1,3 +1,4 @@
+// src/pages/Login.js
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -12,7 +13,6 @@ import {
   Link,
   Fade,
   Drawer,
-  Paper,
   Card,
   Avatar,
 } from "@mui/material";
@@ -23,7 +23,7 @@ import {
   signInWithPopup,
   onAuthStateChanged,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
 // Dark mode theme configuration
@@ -51,6 +51,7 @@ function setCookie(name, value, days = 7) {
   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
 }
 
+// Greeting helper based on hour
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 5) return "Working late?";
@@ -66,35 +67,66 @@ const Login = () => {
   // Component state
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errorMessage, setErrorMessage] = useState("");
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(null); // Firebase Auth user
+  const [userData, setUserData] = useState(null); // Firestore user data (includes photoURL)
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   const [fadeIn, setFadeIn] = useState(false);
 
-  // Listen for auth state changes on mount
+  // Listen for auth state changes and subscribe to Firestore user doc in real-time
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (loggedInUser) => {
-      if (loggedInUser) {
-        saveUserData(loggedInUser);
-        setUser(loggedInUser);
-        setShowDrawer(true);
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const userRef = doc(db, "users", firebaseUser.uid);
+
+        // Subscribe to Firestore user doc in real-time
+        const unsubscribeUserDoc = onSnapshot(
+          userRef,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              setUserData(docSnap.data());
+              setUser(firebaseUser);
+              setShowDrawer(true);
+            } else {
+              // If user doc doesn't exist, sign out for safety
+              setUser(null);
+              setUserData(null);
+              setShowDrawer(false);
+              auth.signOut();
+            }
+          },
+          (error) => {
+            console.error("Error fetching user doc:", error);
+            setUser(null);
+            setUserData(null);
+            setShowDrawer(false);
+            auth.signOut();
+          }
+        );
+
+        // Cleanup subscription on unmount or user change
+        return unsubscribeUserDoc;
+      } else {
+        setUser(null);
+        setUserData(null);
+        setShowDrawer(false);
       }
     });
+
     setFadeIn(true);
-    return unsubscribe; // cleanup listener on unmount
+    return unsubscribeAuth; // Cleanup auth listener on unmount
   }, []);
 
   // Save user to localStorage if Remember Me is checked
   const saveUserData = (user) => {
-    const userData = {
+    const userStorageData = {
       uid: user.uid,
       displayName: user.displayName,
       email: user.email,
-      photoURL: user.photoURL || "",
     };
     if (rememberMe) {
-      localStorage.setItem("bunkmateuser", JSON.stringify(userData));
+      localStorage.setItem("bunkmateuser", JSON.stringify(userStorageData));
     }
   };
 
@@ -114,15 +146,16 @@ const Login = () => {
         formData.email,
         formData.password
       );
-      const userDoc = await getDoc(doc(db, "users", credential.user.uid));
+      const userRef = doc(db, "users", credential.user.uid);
+      const userDoc = await getDoc(userRef);
       if (userDoc.exists()) {
         const userType = userDoc.data().type || "";
         setCookie("bunkmate_usertype", userType, 30);
         saveUserData(credential.user);
-        setUser(credential.user);
-        setShowDrawer(true);
+        // userData will get updated via onSnapshot listener
       } else {
         setErrorMessage("User not found, please sign up.");
+        await auth.signOut();
       }
     } catch (err) {
       setErrorMessage(err.message);
@@ -132,41 +165,36 @@ const Login = () => {
   };
 
   // Google login handler
-const handleGoogleLogin = async () => {
-  setLoading(true);
-  setErrorMessage("");
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    const user = result.user;
-    const userRef = doc(db, "users", user.uid);
-    const userDoc = await getDoc(userRef);
-    if (!userDoc.exists()) {
-      // User does not exist in Firestore, create the user document
-      await setDoc(userRef, {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL || "",
-        type: "Regular", // or your default type
-        createdAt: serverTimestamp(),
-      });
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    setErrorMessage("");
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const googleUser = result.user;
+      const userRef = doc(db, "users", googleUser.uid);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        // User does not exist in Firestore, create it once
+        await setDoc(userRef, {
+          uid: googleUser.uid,
+          email: googleUser.email,
+          displayName: googleUser.displayName,
+          photoURL: googleUser.photoURL || "",
+          type: "Regular",
+          createdAt: serverTimestamp(),
+        });
+      }
+      // userData will be updated by onSnapshot listener
+      saveUserData(googleUser);
+    } catch (err) {
+      setErrorMessage(err.message);
+    } finally {
+      setLoading(false);
     }
-    // User exists, or new user has just been created, continue login flow
-    const finalUserDoc = await getDoc(userRef);
-    const userType = finalUserDoc.data()?.type || "";
-    setCookie("bunkmate_usertype", userType, 30);
-    saveUserData(user);
-    setUser(user);
-    setShowDrawer(true);
-  } catch (err) {
-    setErrorMessage(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-
-  // Continue button after login drawer
+  // Continue button after successful login drawer
   const handleContinue = () => {
     setShowDrawer(false);
     navigate("/");
@@ -177,6 +205,8 @@ const handleGoogleLogin = async () => {
     auth.signOut();
     localStorage.removeItem("bunkmateuser");
     setUser(null);
+    setUserData(null);
+    setShowDrawer(false);
     navigate("/login");
   };
 
@@ -226,26 +256,24 @@ const handleGoogleLogin = async () => {
                         onChange={handleChange}
                       />
                       <Box display={"flex"} justifyContent="space-between" alignItems="center">
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={rememberMe}
-                            onChange={(e) =>
-                              setRememberMe(e.target.checked)
-                            }
-                            sx={{ color: "#fff" }}
-                          />
-                        }
-                        label="Remember Me"
-                        sx={{
-                          color: "#B0BEC5",
-                          letterSpacing: "0.05em",
-                        }}
-                      />
-                    <Link href="/forgot-password" underline="hover" color="#ffffff">
-                      Forgot password?
-                    </Link>
-                    </Box>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={rememberMe}
+                              onChange={(e) => setRememberMe(e.target.checked)}
+                              sx={{ color: "#fff" }}
+                            />
+                          }
+                          label="Remember Me"
+                          sx={{
+                            color: "#B0BEC5",
+                            letterSpacing: "0.05em",
+                          }}
+                        />
+                        <Link href="/forgot-password" underline="hover" color="#ffffff">
+                          Forgot password?
+                        </Link>
+                      </Box>
                       <Button
                         type="submit"
                         variant="contained"
@@ -296,94 +324,109 @@ const handleGoogleLogin = async () => {
       </Box>
 
       {/* Fullscreen Drawer after successful login */}
-<Drawer anchor="bottom" open={showDrawer} onClose={() => {}} hideBackdrop
-  sx={{
-    boxShadow: "none",
-  }}>
-<Box
-    sx={{
-      background: "url('/assets/images/bg.png') center/cover no-repeat",
-      height: "100vh",
-    }}
->
-
-<Card
-  sx={{
-    position: "absolute",
-      bottom: "0",
-      color: "#fff",
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "center",
-      alignItems: "center",
-      textAlign: "center",
-      boxShadow: "none",
-      px: 3,
-      py: 4,
-      borderRadius: "16px 16px 0 0",
-      backdropFilter: "blur(40px)",
-      backgroundColor: "#0c0c0c95"
-  }}
->
-  <Box
+      <Drawer
+        anchor="bottom"
+        open={showDrawer}
+        onClose={() => {}}
+        hideBackdrop
         sx={{
-          width: 100,
-          height: 100,
-          mb: 2,
-          p: 0.3,
-          borderRadius: "50%",
-          border: "4px solid #303030ff",
-        }}>
-        <Avatar
-        src={user?.photoURL}
-        sx={{
-          width: 100,
-          height: 100,
-          mb: 2,
-        }}
-      />
-  </Box>
-
-      <Typography variant="h4" fontWeight="bold" gutterBottom>
-        {getGreeting()}, {user?.displayName?.split(" ")[0] || "Explorer"}!
-      </Typography>
-
-      <Typography variant="body1" color="text.secondary" gutterBottom>
-        You've successfully logged into <b>BunkMate</b>
-      </Typography>
-
-      <Box sx={{ my: 3, textAlign: "center", backgroundColor: "#f1f1f111", p: 1, maxWidth: 400, width: "100%", borderRadius: 2 }}>
-        <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
-          <strong>Email:</strong> {user?.email}
-        </Typography>
-        <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
-          <strong>Login Time:</strong>{" "}
-          {new Date().toLocaleString(undefined, {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })}
-        </Typography>
-      </Box>
-
-      <Button
-        variant="contained"
-        size="large"
-        fullWidth
-        onClick={handleContinue}
-        sx={{
-          borderRadius: 50,
-          px: 5,
-          py: 1.5,
-          fontSize: "1rem",
           boxShadow: "none",
         }}
       >
-        Continue
-      </Button>
-</Card>
+        <Box
+          sx={{
+            background: "url('/assets/images/bg.png') center/cover no-repeat",
+            height: "100vh",
+          }}
+        >
+          <Card
+          fullWidth
+            sx={{
+              position: "absolute",
+              bottom: "0",
+              color: "#fff",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              textAlign: "center",
+              boxShadow: "none",
+              px: 3,
+              py: 4,
+              borderRadius: "16px 16px 0 0",
+              backdropFilter: "blur(40px)",
+              backgroundColor: "#0c0c0c95",
+            }}
+          >
+            <Box
+              sx={{
+                height: 100,
+                mb: 2,
+                p: 0.3,
+                borderRadius: "50%",
+                border: "4px solid #303030ff",
+              }}
+            >
+              <Avatar
+                src={userData?.photoURL || ""}
+                sx={{
+                  width: 100,
+                  height: 100,
+                  mb: 2,
+                }}
+                alt={userData?.displayName || "User"}
+              />
+            </Box>
 
-    </Box>
-</Drawer>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
+              {getGreeting()}, {userData?.displayName?.split(" ")[0] || "Explorer"}!
+            </Typography>
+
+            <Typography variant="body1" color="text.secondary" gutterBottom>
+              You've successfully logged into <b>BunkMate</b>
+            </Typography>
+
+            <Box
+              sx={{
+                my: 3,
+                textAlign: "center",
+                backgroundColor: "#f1f1f111",
+                p: 1,
+                maxWidth: 400,
+                width: "100%",
+                borderRadius: 2,
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
+                <strong>Email:</strong> {userData?.email || user?.email}
+              </Typography>
+              <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
+                <strong>Login Time:</strong>{" "}
+                {new Date().toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </Typography>
+            </Box>
+
+            <Button
+              variant="contained"
+              size="large"
+              fullWidth
+              onClick={handleContinue}
+              sx={{
+                borderRadius: 50,
+                px: 5,
+                py: 1.5,
+                fontSize: "1rem",
+                boxShadow: "none",
+              }}
+            >
+              Continue
+            </Button>
+          </Card>
+        </Box>
+      </Drawer>
     </ThemeProvider>
   );
 };
