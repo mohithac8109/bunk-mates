@@ -6,15 +6,12 @@ import {
   Typography,
   CircularProgress,
   Avatar,
-  Paper,
   Collapse,
   Container,
   Divider,
   AvatarGroup,
   List,
   ListItem,
-  ListItemIcon,
-  ListItemText,
   TextField,
   InputAdornment,
   IconButton,
@@ -22,13 +19,16 @@ import {
 } from "@mui/material";
 import {
   doc,
-  getDoc,
+  onSnapshot,
   updateDoc,
   arrayUnion,
   serverTimestamp,
   collection,
   addDoc,
+  getDoc,
   getDocs,
+  query,
+  where
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -66,98 +66,158 @@ export default function JoinTrip() {
   const [error, setError] = useState("");
   const [checklist, setChecklist] = useState([]);
   const [snackbar, setSnackbar] = useState({ open: false, message: "" });
+  const [currentUserUID, setCurrentUserUID] = useState(null);
   const tripId = searchParams.get("trip");
 
   useEffect(() => {
+    if (!tripId) {
+      setError("No trip ID provided.");
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+
+    let unsubscribeTrip;
+    let unsubscribeChecklist;
+
     const storedUser = localStorage.getItem("bunkmateuser");
+    let userEmail = null, possibleUID = null;
+    let fallbackParsedUser = null;
 
-    const initialize = async () => {
-      let currentUser = auth.currentUser;
+    try {
+      const authUser = auth.currentUser;
+      if (authUser) {
+        userEmail = authUser.email;
+        possibleUID = authUser.uid;
+      } else if (storedUser) {
+        fallbackParsedUser = JSON.parse(storedUser);
+        userEmail = fallbackParsedUser?.email;
+        possibleUID = fallbackParsedUser?.uid;
+      }
+    } catch {}
 
-      if (!currentUser && storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          if (parsedUser?.uid) {
-            currentUser = parsedUser;
-          }
-        } catch (err) {
-          console.error("Invalid stored user:", err);
+    // Resolve Firestore UID by email
+    const resolveUID = async () => {
+      let uid = possibleUID;
+      if (!uid && userEmail) {
+        let firestoreUserUID = null;
+        const q = query(collection(db, "users"), where("email", "==", userEmail.toLowerCase()));
+        const usersQuery = await getDocs(q);
+        if (!usersQuery.empty) {
+          firestoreUserUID = usersQuery.docs[0].id;
+        } else {
+          const usersAll = await getDocs(collection(db, "users"));
+          usersAll.forEach(userDoc => {
+            const data = userDoc.data();
+            if (data.email && data.email.toLowerCase() === userEmail.toLowerCase()) {
+              firestoreUserUID = userDoc.id;
+            }
+          });
         }
+        uid = firestoreUserUID;
       }
-      
-      if (!tripId) {
-        setError("No trip ID provided.");
-        setLoading(false);
-        return;
-      }
+      setCurrentUserUID(uid || null);
+      return uid;
+    };
 
-      try {
-        const tripRef = doc(db, "trips", tripId);
-        const tripSnap = await getDoc(tripRef);
-
+    // Real-time trip listener
+    unsubscribeTrip = onSnapshot(
+      doc(db, "trips", tripId),
+      async (tripSnap) => {
         if (!tripSnap.exists()) {
           setError("Trip not found.");
           setLoading(false);
           return;
         }
-
         const tripData = { id: tripSnap.id, ...tripSnap.data() };
         setTrip(tripData);
 
-        // Get iconURL
+        // Get iconURL (static)
         const groupChatRef = doc(db, "groupChats", tripData.id);
-        const groupSnap = await getDoc(groupChatRef);
-        const groupData = groupSnap.exists() ? groupSnap.data() : null;
-        if (groupData?.iconURL) setIconURL(groupData.iconURL);
+        getDoc(groupChatRef).then(groupSnap => {
+          const groupData = groupSnap.exists() ? groupSnap.data() : null;
+          if (groupData?.iconURL) setIconURL(groupData.iconURL);
+        });
 
-        // Get creator name
-        const creatorSnap = await getDoc(doc(db, "users", tripData.createdBy));
-        if (creatorSnap.exists()) {
-          const creatorData = creatorSnap.data();
-          setCreator(creatorData?.name || creatorData?.username || "Unknown");
+        // Get creator name (static)
+        getDoc(doc(db, "users", tripData.createdBy)).then(creatorSnap => {
+          if (creatorSnap.exists()) {
+            const creatorData = creatorSnap.data();
+            setCreator(creatorData?.name || creatorData?.username || "Unknown");
+          }
+        });
+
+        // Member avatars (static)
+        const memberDocs = await Promise.all(
+          (tripData.members || []).map(uid =>
+            getDoc(doc(db, "users", uid))
+          )
+        );
+        setMemberProfiles(
+          memberDocs
+            .filter(doc => doc.exists())
+            .map(doc => {
+              const data = doc.data();
+              return {
+                uid: doc.id,
+                name: data.name || data.username,
+                photoURL: data.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${doc.id}`,
+              };
+            })
+        );
+
+        // Real-time join logic
+        const resolvedUID = await resolveUID();
+        if (
+          resolvedUID &&
+          Array.isArray(tripData.members) &&
+          tripData.members.includes(resolvedUID)
+        ) {
+          setJoined(true);
+        } else {
+          setJoined(false);
         }
 
-        // Member avatars
-        const memberDocs = await Promise.all(
-          (tripData.members || []).map(uid => getDoc(doc(db, "users", uid)))
-        );
-        const memberProfiles = memberDocs
-          .filter(doc => doc.exists())
-          .map(doc => {
-            const data = doc.data();
-            return {
-              uid: doc.id,
-              name: data.name || data.username,
-              photoURL: data.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${doc.id}`,
-            };
-          });
-
-        setMemberProfiles(memberProfiles);
-
-        const checklistSnap = await getDocs(collection(db, `trips/${tripData.id}/checklist`));
-        setChecklist(checklistSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      } catch (err) {
-        console.error(err);
+        setLoading(false);
+      },
+      (err) => {
         setError("Something went wrong.");
+        setLoading(false);
       }
+    );
 
-      setLoading(false);
+    // Real-time checklist listener
+    unsubscribeChecklist = onSnapshot(
+      collection(db, `trips/${tripId}/checklist`),
+      (checklistSnap) => {
+        setChecklist(checklistSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }
+    );
+
+    return () => {
+      if (unsubscribeTrip) unsubscribeTrip();
+      if (unsubscribeChecklist) unsubscribeChecklist();
     };
-
-    initialize();
+    // eslint-disable-next-line
   }, [tripId, navigate]);
 
   const handleJoin = async () => {
     const fallbackUser = JSON.parse(localStorage.getItem("bunkmateuser"));
     const activeUser = auth.currentUser || fallbackUser;
-    if (!activeUser) return;
-
+    if (!activeUser || !trip) return;
     try {
-      const tripRef = doc(db, "trips", trip.id);
-      await updateDoc(tripRef, {
+      // Add user UID to trip members list
+      await updateDoc(doc(db, "trips", trip.id), {
         members: arrayUnion(activeUser.uid),
       });
 
+      // Add user UID to trips group chat members
+      const groupChatRef = doc(db, "groupChats", trip.id);
+      await updateDoc(groupChatRef, {
+        members: arrayUnion(activeUser.uid),
+      });
+
+      // Add system message about user joining to group chat messages subcollection
       await addDoc(collection(db, "groupChat", trip.id, "messages"), {
         type: "system",
         content: `${activeUser.displayName || activeUser.email} joined the trip.`,
@@ -174,7 +234,7 @@ export default function JoinTrip() {
     navigate("/");
   };
 
-    const inviteLink = `${window.location.origin}/join?trip=${tripId}`;
+  const inviteLink = `${window.location.origin}/join?trip=${tripId}`;
 
   return (
     <ThemeProvider theme={darkTheme}>
@@ -187,18 +247,19 @@ export default function JoinTrip() {
           height: { xs: 470, sm: 320 },
           m: 0,
           p: 0,
+          mx: "auto"
         }}
       >
-                <Box
-                  sx={{
-                    backgroundImage: `url(${iconURL || "/default-icon.png"})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    backgroundColor: "#1d1d1dff",
-                    height: { xs: 470, sm: 320 },
-                    boxShadow: "0 6px 16px rgba(0,0,0,0.4)",
-                  }}
-                />
+        <Box
+          sx={{
+            backgroundImage: `url(${iconURL || "/default-icon.png"})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundColor: "#1d1d1dff",
+            height: { xs: 470, sm: 320 },
+            boxShadow: "0 6px 16px rgba(0,0,0,0.4)",
+          }}
+        />
         {loading ? (
           <Box sx={{ mx: "auto", display: "flex", justifyContent: "center" }}>
             <CircularProgress />
@@ -208,7 +269,7 @@ export default function JoinTrip() {
         ) : (
           <Container
             sx={{
-              height: "71vh",
+              height: "auto",
               position: "absolute",
               bottom: "0px",
               p: 4,
@@ -220,72 +281,67 @@ export default function JoinTrip() {
             }}
           >
             <Box textAlign="center">
-            <Collapse in={!joined}>
-              <Typography variant="caption">
-                You're invited to join
-              </Typography>
-            </Collapse>
+              {!joined && (
+                <Typography variant="caption">
+                  You're invited to join
+                </Typography>
+              )}
               <Collapse in={joined}>
                 <Box textAlign="center" mb={4}>
-                    <CheckCircleIcon color="success" fontSize="large" />
-                    <Typography mt={1} color="success.main" variant="h6">
-                        You’ve joined the trip!
-                    </Typography>
+                  <CheckCircleIcon color="success" fontSize="large" />
+                  <Typography mt={1} color="success.main" variant="h6">
+                    You’ve joined the trip!
+                  </Typography>
                 </Box>
               </Collapse>
 
               <Typography variant="h2" fontWeight="bold" mb={2}>{trip?.name}</Typography>
 
-                <Collapse in={joined}>
-                    <TextField
-                      fullWidth
-                      value={inviteLink}
-                      InputProps={{
-                        readOnly: true,
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <IconButton
-                              onClick={() => {
-                                navigator.clipboard.writeText(inviteLink);
-                                setSnackbar({ open: true, message: "Copied invite link!" });
-                              }}
-                            >
-                              <ContentCopy />
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                </Collapse>
+              <Collapse in={joined}>
+                <TextField
+                  fullWidth
+                  value={inviteLink}
+                  InputProps={{
+                    readOnly: true,
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => {
+                            navigator.clipboard.writeText(inviteLink);
+                            setSnackbar({ open: true, message: "Copied invite link!" });
+                          }}
+                        >
+                          <ContentCopy />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Collapse>
 
-            <Typography>
-                          {/* Snackbar */}
-                          <Snackbar
-                            open={snackbar.open}
-                            autoHideDuration={3000}
-                            onClose={() => setSnackbar({ ...snackbar, open: false })}
-                            message={snackbar.message}
-                          />
-                          
-            </Typography>
+              <Snackbar
+                open={snackbar.open}
+                autoHideDuration={3000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                message={snackbar.message}
+              />
 
               <Box mt={2} textAlign="left">
                 <Typography variant="subtitle2" color="text.secondary">Route:</Typography>
                 <Typography variant="body1" fontWeight="bold">
-                  {trip.from} → {trip.to}
+                  {trip?.from} → {trip?.to}
                 </Typography>
 
-{trip?.startDate && trip?.endDate && (
-  <Box display="flex" alignItems="center" gap={1} mt={1}>
-    <CalendarMonthIcon fontSize="small" sx={{ color: "text.secondary" }} />
-    <Typography variant="body2" color="text.secondary">
-      {new Date(trip.startDate).toDateString() === new Date(trip.endDate).toDateString()
-        ? new Date(trip.startDate).toDateString()
-        : `${new Date(trip.startDate).toDateString()} – ${new Date(trip.endDate).toDateString()}`}
-    </Typography>
-  </Box>
-)}
-
+                {trip?.startDate && trip?.endDate && (
+                  <Box display="flex" alignItems="center" gap={1} mt={1}>
+                    <CalendarMonthIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                    <Typography variant="body2" color="text.secondary">
+                      {new Date(trip.startDate).toDateString() === new Date(trip.endDate).toDateString()
+                        ? new Date(trip.startDate).toDateString()
+                        : `${new Date(trip.startDate).toDateString()} – ${new Date(trip.endDate).toDateString()}`}
+                    </Typography>
+                  </Box>
+                )}
 
                 <Typography variant="body2" color="text.secondary" mt={1}>
                   Created by <strong>{creator || "someone"}</strong>
@@ -303,53 +359,65 @@ export default function JoinTrip() {
               </Box>
             </Box>
 
-
             <Divider sx={{ my: 3, borderColor: "rgba(255,255,255,0.08)" }} />
 
-            <Collapse in={joined}>
-              <Box textAlign="center" mb={4}>
-                <Button
-                  variant="contained"
-                  sx={{ mt: 2, borderRadius: 8, px: 4 }}
-                  onClick={() => navigate(`/trips/${trip.id}`)}
-                >
-                  Go to Trip
-                </Button>
-              </Box>
-            </Collapse>
-
-            {!joined && checklist.length > 0 && (
-                <>
-                    <Box mt={1} mb={4}>
-    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-      Checklist
-    </Typography>
-    <List
-        sx={{
-          maxHeight: "100px",
-          overflowY: "auto",
-          scrollbarWidth: "none"
-        }}
-    >
-      {checklist.map((item) => (
-        <ListItem key={item.id} disablePadding>
-          <Typography variant="body2">
-            - {item.text}
-          </Typography>
-        </ListItem>
-      ))}
-    </List>
-  </Box>
-
-              <Box mt={2} display="flex" gap={2} justifyContent="center" flexWrap="wrap">
-                <Button variant="outlined" color="error" onClick={handleReject} sx={{ borderRadius: 1, px: 5 }}>
-                  Reject
-                </Button>
-                <Button variant="contained" color="primary" onClick={handleJoin} sx={{ borderRadius: 1, px: 5 }}>
-                  Accept Invite
-                </Button>
-              </Box>
-                </>
+            {!loading && !error && (
+              <>
+                {joined ? (
+                  <Box mt={2} display="flex" flexDirection="column" alignItems="center">
+                    <Button
+                      variant="contained"
+                      sx={{ mt: 1, borderRadius: 8, px: 4 }}
+                      onClick={() => navigate(`/trips/${trip.id}`)}
+                    >
+                      Go to Trip
+                    </Button>
+                  </Box>
+                ) : (
+                  <>
+                    {checklist.length > 0 && (
+                      <Box mt={1} mb={4}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Checklist
+                        </Typography>
+                        <List
+                          sx={{
+                            maxHeight: "100px",
+                            overflowY: "auto",
+                            scrollbarWidth: "none",
+                          }}
+                        >
+                          {checklist.map((item) => (
+                            <ListItem key={item.id} disablePadding>
+                              <Typography variant="body2">
+                                - {item.text}
+                              </Typography>
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    )}
+                    <Box mt={2} display="flex" gap={2} justifyContent="center" flexWrap="wrap">
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={handleReject}
+                        sx={{ borderRadius: 1, px: 5 }}
+                      >
+                        Reject
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleJoin}
+                        sx={{ borderRadius: 1, px: 5 }}
+                      >
+                        Accept Invite
+                      </Button>
+                    </Box>
+                  </>
+                )}
+              </>
             )}
           </Container>
         )}
