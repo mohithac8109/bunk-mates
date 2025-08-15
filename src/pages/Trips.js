@@ -214,18 +214,20 @@ const handleCreateTrip = async () => {
 
   const total = contributors.reduce((sum, c) => sum + c.amount, 0);
 
-  const tripDoc = await addDoc(collection(db, "trips"), {
-    name,
-    from,
-    to,
-    location,
-    startDate,
-    endDate,
-    members,
-    createdBy: user.uid,
-    createdAt: new Date().toISOString()
-  });
-  setLatestTripId(tripDoc.id);
+  try {
+    // Create trip
+    const tripDoc = await addDoc(collection(db, "trips"), {
+      name,
+      from,
+      to,
+      location,
+      startDate,
+      endDate,
+      members,
+      createdBy: user.uid,
+      createdAt: new Date().toISOString()
+    });
+    setLatestTripId(tripDoc.id);
 
 // Save shared budget
 await setDoc(doc(db, "budgets", tripDoc.id), {
@@ -258,26 +260,27 @@ await Promise.all(contributors.map(async (c) => {
 }));
 
 
-try {
-  await setDoc(doc(db, "groupChats", tripDoc.id), {
-    tripId: tripDoc.id,
-    name: `${from} - to - ${location} Trip`,
-    members,
-    description: `Group for ${from} to ${to}`,
-    inviteAccess: "all",
-    emoji: "",
-    iconURL: "",
-    createdBy: user.uid,
-    createdAt: new Date().toISOString()
-  });
-  console.log("✅ Group chat created");
-} catch (error) {
-  console.error("❌ Failed to create group chat:", error);
-}
+    await setDoc(doc(db, "groupChats", tripDoc.id), {
+      tripId: tripDoc.id,
+      name: `${from} - to - ${location} Trip`,
+      members,
+      description: `Group for ${from} to ${to}`,
+      inviteAccess: "all",
+      emoji: "",
+      iconURL: "",
+      createdBy: user.uid,
+      createdAt: new Date().toISOString()
+    });
+    console.log("✅ Group chat created");
 
-  setCreateDialogOpen(false);
-  setNewTrip({ name: "", from: "", to: "", location: "", date: "" });
-  setSelectedMembers([]);
+    // Close dialog and reset form
+    setCreateDialogOpen(false);
+    setNewTrip({ name: "", from: "", to: "", location: "", startDate: "", endDate: "", members: "", budget: "" });
+    setSelectedMembers([]);
+  } catch (error) {
+    console.error("Error creating trip or group chat:", error);
+    alert("Error occurred while creating trip or group chat. Please try again.");
+  }
 };
 
 
@@ -359,11 +362,12 @@ const handleAddMemberByInput = async () => {
     backdropFilter: "blur(12px)",
     backgroundImage: `url(${trip?.iconURL})`,
     backgroundSize: "cover",
-    backgroundColor: mode === "dark" ? "#3b3b3b" : "#fdfdfdff",
+    backgroundColor: mode === "dark" ? "#313131ff" : "#e4e4e4ff",
     backgroundPosition: "center",
     borderRadius: "20px",
     overflow: "hidden",
     color: mode === "dark" ? "#fff" : "#000",
+    boxShadow: "none",
     transition: "transform 0.3s ease",
     '&:hover': {
       transform: "scale(1.015)"
@@ -380,7 +384,7 @@ const handleAddMemberByInput = async () => {
       {trip.name}
     </Typography>
     
-    <AvatarGroup max={3} sx={{ mt: 1, width: 24, height: 24 }}>
+    <AvatarGroup max={3} sx={{ mt: 1}}>
       {trip.memberProfiles?.map((m) => (
         <Tooltip title={m.name || `@${m.username}`} key={m.uid}>
           <Avatar
@@ -424,7 +428,7 @@ const handleAddMemberByInput = async () => {
               borderRadius: 20,
               height: 7,
               bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
-              "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff" },
+              "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff", borderRadius: 20 },
             }}
         />
       </Box>
@@ -442,7 +446,7 @@ const handleAddMemberByInput = async () => {
           borderRadius: 20,
           height: 7,
           bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
-          "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff" },
+          "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff", borderRadius: 20 },
         }}
       />
     </Box>
@@ -558,6 +562,7 @@ const handleAddMemberByInput = async () => {
 
 <TextField
   label="Add member (username or email)"
+  type="text"
   value={memberInput}
   onChange={(e) => setMemberInput(e.target.value)}
   onKeyDown={(e) => {

@@ -54,6 +54,7 @@ export default function TripDetails() {
   const [shareDrawerOpen, setShareDrawerOpen] = useState(false);
   const [timeline, setTimeline] = useState([]);
   const [timelineDrawerOpen, setTimelineDrawerOpen] = useState(false);
+  const [timelineAllDrawerOpen, setTimelineAllDrawerOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: "", time: "", note: "" });
   const [budgetDrawerOpen, setBudgetDrawerOpen] = useState(false);
   const [editBudget, setEditBudget] = useState({ total: "", contributors: [] });
@@ -63,6 +64,12 @@ export default function TripDetails() {
   const [checklistDrafts, setChecklistDrafts] = useState([]);
   const [uploadingBatch, setUploadingBatch] = useState(false);
   const [checklistViewAllOpen, setChecklistViewAllOpen] = useState(false);
+
+  const unsubTimeline = onSnapshot(collection(db, `trips/${id}/timeline`), (snap) => {
+  const events = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const sorted = events.sort((a, b) => new Date(a.time) - new Date(b.time));
+    setTimeline(sorted);
+  });
 
   const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
   const theme = getTheme(mode, accent);
@@ -90,6 +97,7 @@ useEffect(() => {
   if (!id) return;
 
   // Real-time listener for trip document
+  fetchTripData();
   const tripDocRef = doc(db, "trips", id);
   const unsubscribeTrip = onSnapshot(tripDocRef, (docSnap) => {
     if (docSnap.exists()) {
@@ -380,7 +388,7 @@ const handleDeleteTrip = async () => {
     );
 
     setSnackbar({ open: true, message: "Trip deleted successfully!" });
-    setTimeout(() => navigate("/"), 1500);
+    setTimeout(() => navigate("/trips"), 1500);
   } catch (err) {
     console.error("Failed to delete trip:", err);
     setSnackbar({ open: true, message: "Error deleting trip." });
@@ -717,12 +725,34 @@ const fetchCoverImage = async (location) => {
           <Box display="flex" flexDirection="column" gap={1} px={3} py={2}>
             <Box display="flex" alignItems="center" justifyContent="space-between">
               {editMode ? (
-                <TextField
-                  value={editTrip.name}
-                  onChange={e => setEditTrip({ ...editTrip, name: e.target.value })}
-                  fullWidth
-                  sx={{ mr: 2 }}
-                />
+<TextField
+  value={editTrip.name}
+  onChange={e => setEditTrip({ ...editTrip, name: e.target.value })}
+  fullWidth
+  variant="standard"
+  sx={{
+    mr: 2,
+    fontSize: '2rem',                // approximate size similar to h3
+    fontWeight: 'bold',              // h3 is usually bold
+    '& .MuiInputBase-input': {
+      fontSize: '2rem',
+      fontWeight: 'bold',
+      lineHeight: 1.2,
+      padding: 0,
+    },
+    '& .MuiInput-underline:before': {
+      borderBottom: '1px solid',
+    },
+    '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
+      borderBottom: '2px solid',
+      borderColor: theme => theme.palette.text.primary,
+    },
+    '& .MuiInput-underline:after': {
+      borderBottom: '2px solid',
+    },
+  }}
+/>
+
               ) : (
                 <Typography variant="h3" fontWeight="bold">{trip?.name}</Typography>
               )}
@@ -740,6 +770,25 @@ const fetchCoverImage = async (location) => {
                   value={editTrip.location}
                   onChange={e => setEditTrip({ ...editTrip, location: e.target.value })}
                   variant="standard"
+                  sx={{
+                    mr: 2,             // approximate size similar to h3
+                    fontWeight: 'bold',              // h3 is usually bold
+                    '& .MuiInputBase-input': {
+                      fontWeight: 'bold',
+                      lineHeight: 1.2,
+                      padding: 0,
+                    },
+                    '& .MuiInput-underline:before': {
+                      borderBottom: '1px solid',
+                    },
+                    '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
+                      borderBottom: '2px solid',
+                      borderColor: theme => theme.palette.text.primary,
+                    },
+                    '& .MuiInput-underline:after': {
+                      borderBottom: '2px solid',
+                    },
+                  }}
                 />
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ display: "flex" }}>
@@ -759,6 +808,25 @@ const fetchCoverImage = async (location) => {
           setEditTrip({ ...editTrip, startDate: e.target.value })
         }
         variant="standard"
+        sx={{
+          mr: 2,             // approximate size similar to h3
+          fontWeight: 'bold',              // h3 is usually bold
+          '& .MuiInputBase-input': {
+            fontWeight: 'bold',
+            lineHeight: 1.2,
+            padding: 0,
+          },
+          '& .MuiInput-underline:before': {
+            borderBottom: '1px solid',
+          },
+          '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
+            borderBottom: '2px solid',
+            borderColor: theme => theme.palette.text.primary,
+          },
+          '& .MuiInput-underline:after': {
+            borderBottom: '2px solid',
+          },
+        }}
       />
       <TextField
         type="date"
@@ -768,6 +836,25 @@ const fetchCoverImage = async (location) => {
           setEditTrip({ ...editTrip, endDate: e.target.value })
         }
         variant="standard"
+        sx={{
+          mr: 2,             // approximate size similar to h3
+          fontWeight: 'bold',              // h3 is usually bold
+          '& .MuiInputBase-input': {
+            fontWeight: 'bold',
+            lineHeight: 1.2,
+            padding: 0,
+          },
+          '& .MuiInput-underline:before': {
+            borderBottom: '1px solid',
+          },
+          '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
+            borderBottom: '2px solid',
+            borderColor: theme => theme.palette.text.primary,
+          },
+          '& .MuiInput-underline:after': {
+            borderBottom: '2px solid',
+          },
+        }}
       />
     </Box>
   ) : (
@@ -1134,6 +1221,25 @@ const fetchCoverImage = async (location) => {
     }}
   />
 </Box>
+
+  <Button
+    variant="text"
+    size="small"
+    fullWidth
+    onClick={() => setTimelineAllDrawerOpen(true)}
+    sx={{
+      textTransform: "none",
+      color: theme => theme.palette.mode === 'dark' ? '#fff' : '#000',
+      backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010',
+      fontWeight: 500,
+      borderRadius: 8,
+      px: 1.5,
+      py: 1,
+    }}
+  >
+    View All
+  </Button>
+
 </Box>
 
 
@@ -1772,43 +1878,220 @@ const fetchCoverImage = async (location) => {
                       }}
                     />
 
-                    <Typography variant="h6" mb={2}>
+                    <Typography variant="h5" mb={2}>
                       Add Timeline Event
                     </Typography>
+                    
+                    <Typography variant="caption" ml={2} fontWeight={"bolder"}>Title</Typography>
                     <TextField
                       fullWidth
                       value={newEvent.title}
                       onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                      label="Title"
-                      sx={{ mb: 2 }}
+                      placeholder="Enter your timelines title..."
+                      sx={{
+                        bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+                        borderRadius: 8,
+                        mb: 2,
+                        boxShadow: "none",
+                        '& .MuiInputLabel-root.Mui-focused': {
+                          color: mode === "dark" ? "#fff" : "#000",
+                        },
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 8,
+                          '& fieldset': {
+                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+                          },
+                          '&:hover fieldset': {
+                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+                            boxShadow: "none",
+                            color: mode === "dark" ? "#fff" : "#000"
+                          },
+                          backgroundColor: 'inherit',
+                        },
+                        input: {
+                          color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+                        },
+                        label: {
+                          color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+                        },
+                      }}
                     />
+
+                    <Typography variant="caption" ml={2} fontWeight={"bolder"}>Time</Typography>
                     <TextField
                       fullWidth
                       type="datetime-local"
                       value={newEvent.time}
                       onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
-                      label="Time"
+                      placeholder="Time"
                       InputLabelProps={{ shrink: true }}
-                      sx={{ mb: 2 }}
+                      sx={{
+                        bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+                        borderRadius: 8,
+                        mb: 2,
+                        boxShadow: "none",
+                        '& .MuiInputLabel-root.Mui-focused': {
+                          color: mode === "dark" ? "#fff" : "#000",
+                        },
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 8,
+                          '& fieldset': {
+                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+                          },
+                          '&:hover fieldset': {
+                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+                            boxShadow: "none",
+                            color: mode === "dark" ? "#fff" : "#000"
+                          },
+                          backgroundColor: 'inherit',
+                        },
+                        input: {
+                          color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+                        },
+                        label: {
+                          color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+                        },
+                      }}
                     />
+
+                    <Typography variant="caption" ml={2} fontWeight={"bolder"}>Notes</Typography>
                     <TextField
                       fullWidth
                       value={newEvent.note}
                       onChange={(e) => setNewEvent({ ...newEvent, note: e.target.value })}
-                      label="Notes"
+                      placeholder="Enter your timeline notes..."
                       multiline
                       rows={3}
+                      sx={{
+                        bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+                        borderRadius: 8,
+                        mb: 2,
+                        boxShadow: "none",
+                        '& .MuiInputLabel-root.Mui-focused': {
+                          color: mode === "dark" ? "#fff" : "#000",
+                        },
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 8,
+                          '& fieldset': {
+                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+                          },
+                          '&:hover fieldset': {
+                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+                            boxShadow: "none",
+                            color: mode === "dark" ? "#fff" : "#000"
+                          },
+                          backgroundColor: 'inherit',
+                        },
+                        input: {
+                          color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+                        },
+                        label: {
+                          color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+                        },
+                      }}
                     />
                     <Button
                       variant="contained"
                       fullWidth
-                      sx={{ mt: 2 }}
                       onClick={addTimelineEvent}
                       disabled={!newEvent.title || !newEvent.time}
+                      sx={{
+                        textTransform: "none",
+                        color: theme => theme.palette.mode === 'dark' ? '#fff' : '#000',
+                        backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010',
+                        fontWeight: 500,
+                        borderRadius: 8,
+                        px: 1.5,
+                        py: 1,
+                        mt: 2
+                      }}
                     >
                       Add Event
                     </Button>
                   </SwipeableDrawer>
+
+                  <SwipeableDrawer
+                    anchor="bottom"
+                    open={timelineAllDrawerOpen}
+                    onClose={() => setTimelineAllDrawerOpen(false)}
+                    ModalProps={{
+                      BackdropProps: {
+                        sx: {
+                          p: 3,
+                          backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
+                          backdropFilter: "blur(2px)",
+                        },
+                      },
+                    }}
+                    PaperProps={{
+                      sx: {
+                        p: 3,
+                        borderTopLeftRadius: 16,
+                        borderTopRightRadius: 16,
+                        backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
+                        boxShadow: "none",
+                      },
+                    }}
+                  >
+                    {/* Drag indicator */}
+                    <Box sx={{ width: 40, height: 5, bgcolor: "grey.500", opacity: 0.5, borderRadius: 2.5, mx: "auto", mb: 2, cursor: "grab" }} />
+
+                    <Typography variant="h6" mb={2}>Full Trip Timeline</Typography>
+                  
+                    {timeline.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
+                        No events added yet.
+                      </Typography>
+                                      ) : (
+                      <List sx={{ maxHeight: "80vh", overflowY: "auto" }}>
+                        {timeline.map(item => {
+                          const itemTime = new Date(item.time);
+                          const isCompleted = item.completed;
+                          return (
+                            <ListItem key={item.id} sx={{
+                              backgroundColor: isCompleted ? (mode === "dark" ? "#00000011" : "transparent") : (mode === "dark" ? "#1c1c1c" : "#f0f0f0ff"),
+                              borderRadius: 2,
+                              mb: 1,
+                              px: 2,
+                              py: 0.5,
+                            }}>
+                              <ListItemIcon>
+                                <Checkbox checked={isCompleted} onChange={() => toggleEventCompleted(item)} sx={{ color: "#999" }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={
+                                  <Typography
+                                    variant="body1"
+                                    fontWeight={isCompleted ? "normal" : "medium"}
+                                    color={isCompleted ? "#888" : theme.palette.text.primary}
+                                    sx={{ textDecoration: isCompleted ? "line-through" : "none" }}
+                                  >
+                                    {item.title}
+                                  </Typography>
+                                }
+                                secondary={
+                                  <Typography variant="caption" color="text.secondary">
+                                    {itemTime.toLocaleString()}
+                                    {item.note && ` — ${item.note}`}
+                                  </Typography>
+                                }
+                              />
+                            </ListItem>
+                          );
+                        })}
+                      </List>
+                    )}
+                  </SwipeableDrawer>
+
         
                   {/* Budget Drawer */}
                   <SwipeableDrawer
