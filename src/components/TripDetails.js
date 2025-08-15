@@ -26,6 +26,7 @@ import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import TelegramIcon from '@mui/icons-material/Telegram';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import TwitterIcon from '@mui/icons-material/Twitter';
+import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { useWeather } from "../contexts/WeatherContext";
 import { useThemeToggle } from "../contexts/ThemeToggleContext";
@@ -59,6 +60,9 @@ export default function TripDetails() {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { getWeather } = useWeather();
   const [weather, setWeather] = useState(null);
+  const [checklistDrafts, setChecklistDrafts] = useState([]);
+  const [uploadingBatch, setUploadingBatch] = useState(false);
+  const [checklistViewAllOpen, setChecklistViewAllOpen] = useState(false);
 
   const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
   const theme = getTheme(mode, accent);
@@ -82,34 +86,123 @@ const visibleExpenses = showAllExpenses
 
   const [memberDetails, setMemberDetails] = useState([]);
 
-  useEffect(() => {
-    if (!id) return;
+useEffect(() => {
+  if (!id) return;
 
-    fetchTripData();
+  // Real-time listener for trip document
+  const tripDocRef = doc(db, "trips", id);
+  const unsubscribeTrip = onSnapshot(tripDocRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const tripData = docSnap.data();
 
-    const unsubChecklist = onSnapshot(collection(db, `trips/${id}/checklist`), (snapshot) => {
-      setChecklist(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+      setTrip(prev => ({
+        ...prev,
+        ...tripData,
+      }));
 
-    const unsubPhotos = onSnapshot(collection(db, `trips/${id}/photos`), (snap) => {
-      setPhotos(snap.docs.map(doc => doc.data().url));
-    });
+      setEditTrip(tripData);
 
-    const unsubTimeline = onSnapshot(collection(db, `trips/${id}/timeline`), (snap) => {
-      const events = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const sorted = events.sort((a, b) => new Date(a.time) - new Date(b.time));
-      setTimeline(sorted);
-    });
+      // Optionally, update cover image if location or name changed
+      const imageQuery = tripData.name || tripData.location || "travel";
+      fetchCoverImage(imageQuery).then(setCoverImage).catch(() => {});
 
-    return () => {
-      unsubChecklist();
-      unsubPhotos();
-      unsubTimeline();
-    };
-  }, [id]);
+      // Load members if present
+      if (tripData.members?.length) {
+        loadMemberDetails(tripData.members);
+      }
+    }
+  });
+
+  // Existing listeners for checklist, photos, timeline remain unchanged
+
+  const unsubChecklist = onSnapshot(collection(db, `trips/${id}/checklist`), snapshot => {
+    setChecklist(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  });
+
+  const unsubPhotos = onSnapshot(collection(db, `trips/${id}/photos`), snap => {
+    setPhotos(snap.docs.map(doc => doc.data().url));
+  });
+
+  const unsubTimeline = onSnapshot(collection(db, `trips/${id}/timeline`), snap => {
+    const events = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const sorted = events.sort((a, b) => new Date(a.time) - new Date(b.time));
+    setTimeline(sorted);
+  });
+
+  // Cleanup on unmount or id change
+  return () => {
+    unsubscribeTrip();
+    unsubChecklist();
+    unsubPhotos();
+    unsubTimeline();
+  };
+}, [id]);
 
   
-  
+const handleChecklistFileUpload = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const validTypes = ['text/plain', 'text/markdown', 'text/x-markdown'];
+  if (!validTypes.includes(file.type) && !file.name.match(/\.(txt|md)$/i)) {
+    setSnackbar({ open: true, message: "Unsupported file type. Please upload .txt or .md files." });
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    // Split lines and filter out empty lines and trim
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    if (lines.length > 0) {
+      setChecklistDrafts(lines);
+    } else {
+      setSnackbar({ open: true, message: "No valid checklist items found in file." });
+    }
+  };
+  reader.readAsText(file);
+};
+
+// Update a single draft checklist item
+const updateChecklistDraft = (index, value) => {
+  setChecklistDrafts(prev => {
+    const updated = [...prev];
+    updated[index] = value;
+    return updated;
+  });
+};
+
+// Remove a draft checklist item
+const removeChecklistDraft = (index) => {
+  setChecklistDrafts(prev => prev.filter((_, i) => i !== index));
+};
+
+// Add empty draft checklist item
+const addEmptyChecklistDraft = () => {
+  setChecklistDrafts(prev => [...prev, ""]);
+};
+
+// Save all draft checklist items to Firestore, then clear and close drawer
+const addAllChecklistItems = async () => {
+  if (checklistDrafts.length === 0) {
+    setSnackbar({ open: true, message: "No checklist items to add." });
+    return;
+  }
+  setUploadingBatch(true);
+  try {
+    const batchPromises = checklistDrafts.map(text =>
+      addDoc(collection(db, `trips/${id}/checklist`), { text, completed: false })
+    );
+    await Promise.all(batchPromises);
+    setSnackbar({ open: true, message: `${checklistDrafts.length} checklist item(s) added!` });
+    setChecklistDrafts([]);
+    setChecklistDrawerOpen(false);
+  } catch (error) {
+    setSnackbar({ open: true, message: "Failed to add checklist items." });
+    console.error(error);
+  }
+  setUploadingBatch(false);
+};
 
 const fetchTripData = async () => {
   if (!id) return;
@@ -162,20 +255,35 @@ const fetchTripData = async () => {
   }
 };
 
+const loadMemberDetails = (uids) => {
+  const userDetailsUnsubs = [];
 
+  const members = [];
 
-  const loadMemberDetails = async (uids) => {
-    const usersRef = collection(db, "users");
-    const snapshots = await Promise.all(
-      uids.map(uid => getDoc(doc(usersRef, uid)))
-    );
+  uids.forEach(uid => {
+    const userDocRef = doc(db, "users", uid);
+    const unsubscribe = onSnapshot(userDocRef, snapshot => {
+      if (snapshot.exists()) {
+        // update or add member info
+        const userData = { uid: snapshot.id, ...snapshot.data() };
 
-    const details = snapshots
-      .filter(snap => snap.exists())
-      .map(snap => ({ uid: snap.id, ...snap.data() }));
+        const index = members.findIndex(m => m.uid === uid);
+        if (index !== -1) {
+          members[index] = userData;
+        } else {
+          members.push(userData);
+        }
 
-    setMemberDetails(details);
-  };
+        // trigger state update (force new array for react state change detection)
+        setMemberDetails([...members]);
+      }
+    });
+    userDetailsUnsubs.push(unsubscribe);
+  });
+
+  // Optional: return unsubscribe functions to clean up listeners if needed
+  return () => userDetailsUnsubs.forEach(unsub => unsub());
+};
 
   // Fetch budget & expenses for this trip from budgets collection (budgets/{userUid} document)
   const fetchBudget = async (tripName) => {
@@ -225,8 +333,8 @@ const fetchTripData = async () => {
     await updateDoc(tripRef, {
       name: editTrip.name,
       location: editTrip.location,
-      date: editTrip.startDate,
-      date: editTrip.endDate,
+      startDate: editTrip.startDate,
+      endDate: editTrip.endDate,
       from: editTrip.from || "",
       to: editTrip.to || ""
     });
@@ -235,7 +343,8 @@ const fetchTripData = async () => {
       ...prev,
       name: editTrip.name,
       location: editTrip.location,
-      date: editTrip.date,
+      startDate: editTrip.startDate,
+      endDate: editTrip.endDate,
       from: editTrip.from,
       to: editTrip.to
     }));
@@ -633,7 +742,7 @@ const fetchCoverImage = async (location) => {
                   variant="standard"
                 />
               ) : (
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ display: "flex" }}>
                   <LocationOn sx={{ fontSize: 16, mr: 0.5, color: mode === "dark" ? "#fff" : "#333" }} /> {trip?.location}
                 </Typography>
               )}
@@ -662,7 +771,7 @@ const fetchCoverImage = async (location) => {
       />
     </Box>
   ) : (
-    <Typography variant="body2" color="text.secondary">
+    <Typography variant="body2" color="text.secondary" sx={{ display: "flex" }}>
       <AccessTime sx={{ fontSize: 16, mr: 0.5 }} />
       {trip?.startDate && trip?.endDate
         ? `${new Date(trip.startDate).toDateString()} → ${new Date(
@@ -692,7 +801,7 @@ const fetchCoverImage = async (location) => {
                       backgroundColor: "#ffffff11",
                       width: 40,
                       height: 40,
-                      borderRadius: 3,
+                      borderRadius: 8,
                       color: mode === "dark" ? "#fff" : "#333",
                     }}
                   >
@@ -747,7 +856,7 @@ const fetchCoverImage = async (location) => {
                   borderRadius: 20,
                   height: 7,
                   bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
-                  "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff" },
+                  "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff", borderRadius: 20 },
                 }}
               />
 
@@ -822,7 +931,7 @@ const fetchCoverImage = async (location) => {
               <Button
                 variant="outlined"
                 onClick={() => setChecklistDrawerOpen(true)}
-                sx={{ px: 2, color: theme.palette.text.primary, borderColor: mode === "dark" ? "#fff" : "#000", borderRadius: 3 }}
+                sx={{ px: 2, color: theme.palette.text.primary, border: "none", backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010', borderRadius: 8 }}
               >
                 + Add
               </Button>
@@ -837,31 +946,42 @@ const fetchCoverImage = async (location) => {
       pb: 4,
     }}
   >
-    {checklist.map((task) => (
-      <ListItem
-        key={task.id}
-        disableGutters
-        secondaryAction={
-          <IconButton onClick={() => toggleTask(task)}>
-            {task.completed ? (
-              <CheckCircle color="success" />
-            ) : (
-              <Cancel color="disabled" />
-            )}
-          </IconButton>
-        }
-      >
-        <ListItemText
-          primary={task.text}
-          primaryTypographyProps={{
-            sx: {
-              textDecoration: task.completed ? "line-through" : "none",
-              color: task.completed ? "#888" : theme.palette.text.primary,
-            },
-          }}
-        />
-      </ListItem>
-    ))}
+
+{checklist.map((task) => (
+
+  <ListItem
+    key={task.id}
+    onClick={() => toggleTask(task)}
+    disableGutters
+    sx={{
+      backgroundColor: task.completed
+        ? (mode === "dark" ? "#00000000" : "transparent")
+        : (mode === "dark" ? "#f1f1f106" : "#00000006"),
+      mb: 0.5,
+      borderRadius: 2,
+    }}
+  >
+    <ListItemIcon>
+      <Checkbox
+        checked={task.completed}
+        onChange={() => toggleTask(task)}
+        color="success"
+        sx={{ color: task.completed ? undefined : "#999" }}
+        inputProps={{ 'aria-label': 'Toggle checklist item' }}
+      />
+    </ListItemIcon>
+    <ListItemText
+      primary={task.text}
+      primaryTypographyProps={{
+        sx: {
+          textDecoration: task.completed ? "line-through" : "none",
+          color: task.completed ? "#888" : "inherit",
+          userSelect: "text",
+        },
+      }}
+    />
+  </ListItem>
+))}
   </List>
 
 
@@ -876,8 +996,28 @@ const fetchCoverImage = async (location) => {
       pointerEvents: "none", // allows interaction with list behind
       borderBottomLeftRadius: 8,
       borderBottomRightRadius: 8,
+      pt: 6
     }}
   />
+
+<Button
+  variant="text"
+  size="small"
+  fullWidth
+  onClick={() => setChecklistViewAllOpen(true)}
+  sx={{
+    textTransform: "none",
+    color: theme => theme.palette.mode === 'dark' ? '#fff' : '#000',
+    backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010',
+    fontWeight: 500,
+    borderRadius: 8,
+    px: 1.5,
+    py: 1,
+  }}
+>
+  View All
+</Button>
+
 </Box>
 
           </Box>
@@ -895,7 +1035,7 @@ const fetchCoverImage = async (location) => {
   <Button
     variant="outlined"
     onClick={() => setTimelineDrawerOpen(true)}
-    sx={{ px: 2, color: theme.palette.text.primary, borderColor: mode === "dark" ? "#fff" : "#000", borderRadius: 3 }}
+    sx={{ px: 2, color: theme.palette.text.primary, border: "none", backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010', borderRadius: 8 }}
   >
     + Add
   </Button>
@@ -903,7 +1043,7 @@ const fetchCoverImage = async (location) => {
   
 <Box sx={{ position: "relative" }}>
   {timeline.length === 0 ? (
-    <Typography variant="body2" color="text.secondary">
+    <Typography variant="body2" color="text.secondary" sx={{ pb: 5, mb: 3, textAlign: "center" }}>
       No events added yet.
     </Typography>
   ) : (
@@ -1056,17 +1196,41 @@ const fetchCoverImage = async (location) => {
   anchor="bottom"
   open={shareDrawerOpen}
   onClose={() => setShareDrawerOpen(false)}
+  ModalProps={{
+    BackdropProps: {
+      sx: {
+        p: 3,
+        backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
+        backdropFilter: "blur(5px)",
+      },
+    },
+  }}
   PaperProps={{
     sx: {
       p: 3,
       borderTopLeftRadius: 26,
       borderTopRightRadius: 26,
-      backgroundColor: mode === "dark" ? "#1E1E1E" : "#f1f1f1",
+      backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
+      boxShadow: "none"
     },
   }}
 >
 
+    <Box
+      sx={{
+        width: 40,
+        height: 5,
+        bgcolor: "grey.500",
+        opacity: 0.5,
+        borderRadius: 2.5,
+        mx: "auto",
+        mb: 1,
+        cursor: "grab",
+      }}
+    />
+
   <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 4 }}>
+
     <Typography variant="h6">
       Invite Members via Link
     </Typography>
@@ -1196,54 +1360,418 @@ const fetchCoverImage = async (location) => {
 
         
                   {/* Checklist Drawer */}
-                  <Drawer
-                    anchor="bottom"
-                    open={checklistDrawerOpen}
-                    onClose={() => setChecklistDrawerOpen(false)}
-                    PaperProps={{
-                      sx: {
-                        p: 3,
-                        borderTopLeftRadius: 16,
-                        borderTopRightRadius: 16,
-                        backgroundColor: "#1E1E1E",
-                      },
-                    }}
-                  >
-                    <Typography variant="h6" mb={2}>
-                      Add Checklist Item
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      value={newTask}
-                      onChange={(e) => setNewTask(e.target.value)}
-                      label="Task"
-                      autoFocus
-                    />
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      sx={{ mt: 2 }}
-                      onClick={addTask}
-                      disabled={!newTask.trim()}
-                    >
-                      Add
-                    </Button>
-                  </Drawer>
+      <SwipeableDrawer
+        anchor="bottom"
+        open={checklistDrawerOpen}
+        onClose={() => {
+          setChecklistDrawerOpen(false);
+          setChecklistDrafts([]);
+          setNewTask("");
+        }}
+        ModalProps={{
+          BackdropProps: {
+            sx: {
+              p: 3,
+              backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
+              backdropFilter: "blur(5px)",
+            },
+          },
+        }}
+        PaperProps={{
+          sx: {
+            p: 3,
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+            maxHeight: "70vh",
+            overflowY: "auto",
+            backgroundColor: mode === "dark" ? "#000000ff" : "#fff",
+            boxShadow: "none"
+          },
+        }}
+      >
+        <Box
+          sx={{
+            width: 40,
+            height: 5,
+            bgcolor: "grey.500",
+            opacity: 0.5,
+            borderRadius: 2.5,
+            mx: "auto",
+            mb: 2,
+            cursor: "grab",
+          }}
+        />
+
+        <Typography variant="h6" mb={2}>
+          Add Checklist Items
+        </Typography>
+
+
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button
+            variant="contained"
+            component="label"
+            sx={{
+              mb: 2,
+              boxShadow: "none",
+              color: theme.palette.text.primary,
+              borderRadius: 4,
+              backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010'
+            }}
+          >
+            Upload Checklist
+            <input
+              type="file"
+              accept=".txt,.md,text/plain,text/markdown,text/x-markdown"
+              hidden
+              onChange={handleChecklistFileUpload}
+            />
+          </Button>
+
+          <Button
+            variant="contained"
+            component="label"
+            sx={{
+              mb: 2,
+              boxShadow: "none",
+              color: theme.palette.text.primary,
+              borderRadius: 4,
+              backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010'
+              }}
+            onClick={addEmptyChecklistDraft}
+          >
+              Add Multiple Checklists
+          </Button>
+        </Box>
+
+        {checklistDrafts.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Preview & Edit Items to Add
+            </Typography>
+            {checklistDrafts.map((item, index) => (
+<Box
+  key={index}
+  display="flex"
+  alignItems="center"
+  mb={1}
+  gap={1}
+  sx={{
+    '& .MuiTextField-root': {
+      bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2c2c2c' : '#fff',
+      borderRadius: 1,
+    },
+    '& .MuiButton-root': {
+      minWidth: 90,
+      height: 36,
+      textTransform: 'none',
+    },
+  }}
+>
+<TextField
+  fullWidth
+  value={item}
+  onChange={(e) => updateChecklistDraft(index, e.target.value)}
+  placeholder={`Item ${index + 1}`}
+  variant="outlined"
+  size="small"
+  sx={{
+    bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+    borderRadius: 8,
+    boxShadow: "none",
+    '& .MuiInputLabel-root.Mui-focused': {
+      color: mode === "dark" ? "#fff" : "#000",
+    },
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 8,
+      '& fieldset': {
+        borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+      },
+      '&:hover fieldset': {
+        borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+        boxShadow: "none",
+        color: mode === "dark" ? "#fff" : "#000"
+      },
+      backgroundColor: 'inherit',
+    },
+    input: {
+      color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+    },
+    label: {
+      color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+    },
+  }}
+/>
+
+
+<Button
+  variant="outlined"
+  color="error"
+  onClick={() => removeChecklistDraft(index)}
+  sx={{
+    maxWidth: 16,
+    height: 36,
+    padding: 0,
+    textTransform: 'none',
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    '&:hover': {
+      backgroundColor: (theme) =>
+        theme.palette.mode === 'dark' ? '#a32e2e33' : '#f4433622',
+    },
+  }}
+  aria-label={`Remove item ${index + 1}`}
+>
+  <DeleteOutlineIcon fontSize="small" />
+</Button>
+
+</Box>
+
+            ))}
+       <Box sx={{ mb: 2 }}>
+          <Button variant="contained" component="label" sx={{ mb: 2, boxShadow: "none", color: theme.palette.text.primary, borderRadius: 8, backgroundColor: mode === 'dark' ? '#ffffff10' : '#00000010', }} onClick={addEmptyChecklistDraft}>
+            + Add More Items
+          </Button>
+        </Box>
+          </Box>
+        )}
+
+
+
+        {/* If no drafts, show single input */}
+        {checklistDrafts.length === 0 && (
+          <>
+            <TextField
+              fullWidth
+              value={newTask}
+              onChange={(e) => setNewTask(e.target.value)}
+              label="New Checklist Item"
+              variant="outlined"
+              size="small"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newTask.trim()) {
+                  setChecklistDrafts([newTask.trim()]);
+                  setNewTask("");
+                }
+              }}
+              sx={{
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+                borderRadius: 8,
+                mb: 3,
+                mt: 1,
+                boxShadow: "none",
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: mode === "dark" ? "#fff" : "#000",
+                },
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 8,
+                  '& fieldset': {
+                    borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+                  },
+                  '&:hover fieldset': {
+                    borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+                    boxShadow: "none",
+                    color: mode === "dark" ? "#fff" : "#000"
+                  },
+                  backgroundColor: 'inherit',
+                },
+                input: {
+                  color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+                },
+                label: {
+                  color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+                },
+              }}
+            />
+
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={addTask}
+              disabled={!newTask.trim()}
+              sx={{
+                mb: 1,
+                backgroundColor: mode === "dark" ? "#fff" : "#000",
+                borderRadius: 8,
+                color: mode === "dark" ? "#000" : "#fff"
+              }}
+            >
+              Add Checklist Item
+            </Button>
+          </>
+        )}
+
+        {checklistDrafts.length > 0 && (
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={addAllChecklistItems}
+            disabled={uploadingBatch}
+            sx={{
+              backgroundColor: mode === "dark" ? "#fff" : "#000",
+              borderRadius: 8,
+              color: mode === "dark" ? "#000" : "#fff"
+            }}
+          >
+            {uploadingBatch ? "Adding..." : "Add Checklist Item(s)"}
+          </Button>
+        )}
+      </SwipeableDrawer>
+
+<SwipeableDrawer
+  fullWidth
+  anchor="bottom"
+  open={checklistViewAllOpen}
+  onClose={() => setChecklistViewAllOpen(false)}
+  onOpen={() => setChecklistViewAllOpen(true)}
+  ModalProps={{
+    BackdropProps: {
+      sx: {
+        p: 3,
+        backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
+        backdropFilter: "blur(2px)",
+      },
+    },
+  }}
+  sx={{
+    "& .MuiDrawer-paper": {
+      background: mode === "dark" ? "#000000ff" : "#ffffffff",
+      backdropFilter: "blur(14px)",
+      borderTopRightRadius: 16,
+      borderTopLeftRadius: 16,
+      p: 3,
+      boxShadow: "none",
+      border: "none",
+    },
+  }}
+>
+<Box sx={{ px: 0, pt: 0, pb: 2 }}>
+  {/* Drag indicator */}
+  <Box
+    sx={{
+      width: 40,
+      height: 5,
+      bgcolor: "grey.500",
+      opacity: 0.5,
+      borderRadius: 2.5,
+      mx: "auto",
+      mb: 1,
+      cursor: "grab",
+    }}
+  />
+  {/* Header row */}
+  <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+    <Typography variant="h6" fontWeight={"bolder"}>Full Checklist</Typography>
+    <Button
+      size="small"
+      onClick={() => setChecklistViewAllOpen(false)}
+      sx={{
+        padding: 1,
+        borderRadius: 4,
+        color: (theme) => theme.palette.text.primary,
+        '&:hover': {
+          backgroundColor: mode === "dark" ? "#000" : "#fff",
+        },
+      }}
+      aria-label="Close checklist view"
+    >
+      <CloseOutlinedIcon fontSize="small" />
+    </Button>
+  </Box>
+</Box>
+
+
+  <List sx={{ maxHeight: "80vh", overflowY: "auto" }}>
+{checklist.map((task) => (
+  <ListItem
+    key={task.id}
+    onClick={() => toggleTask(task)}
+    disableGutters
+    sx={{
+      backgroundColor: task.completed
+        ? (mode === "dark" ? "#00000011" : "transparent")
+        : (mode === "dark" ? "#f1f1f111" : "#0000000d"),
+      mb: 0.5,
+      borderRadius: 2,
+    }}
+  >
+    <ListItemIcon>
+      <Checkbox
+        checked={task.completed}
+        onChange={() => toggleTask(task)}
+        color="success"
+        sx={{ color: task.completed ? undefined : "#999" }}
+        inputProps={{ 'aria-label': 'Toggle checklist item' }}
+      />
+    </ListItemIcon>
+    <ListItemText
+      primary={task.text}
+      primaryTypographyProps={{
+        sx: {
+          textDecoration: task.completed ? "line-through" : "none",
+          color: task.completed ? "#888" : "inherit",
+          userSelect: "text",
+        },
+      }}
+    />
+  </ListItem>
+))}
+
+    
+    {checklist.length === 0 && (
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: "center" }}>
+        No checklist items yet.
+      </Typography>
+    )}
+  </List>
+</SwipeableDrawer>
         
                   {/* Timeline Drawer */}
-                  <Drawer
+                  <SwipeableDrawer
                     anchor="bottom"
                     open={timelineDrawerOpen}
                     onClose={() => setTimelineDrawerOpen(false)}
+                    ModalProps={{
+                      BackdropProps: {
+                        sx: {
+                          p: 3,
+                          backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
+                          backdropFilter: "blur(2px)",
+                        },
+                      },
+                    }}
                     PaperProps={{
                       sx: {
                         p: 3,
                         borderTopLeftRadius: 16,
                         borderTopRightRadius: 16,
-                        backgroundColor: "#1E1E1E",
+                        backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
+                        boxShadow: "none"
                       },
                     }}
                   >
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 5,
+                        bgcolor: "grey.500",
+                        opacity: 0.5,
+                        borderRadius: 2.5,
+                        mx: "auto",
+                        mb: 2,
+                        cursor: "grab",
+                      }}
+                    />
+
                     <Typography variant="h6" mb={2}>
                       Add Timeline Event
                     </Typography>
@@ -1280,22 +1808,46 @@ const fetchCoverImage = async (location) => {
                     >
                       Add Event
                     </Button>
-                  </Drawer>
+                  </SwipeableDrawer>
         
                   {/* Budget Drawer */}
-                  <Drawer
+                  <SwipeableDrawer
                     anchor="bottom"
                     open={budgetDrawerOpen}
                     onClose={() => setBudgetDrawerOpen(false)}
+                    ModalProps={{
+                      BackdropProps: {
+                        sx: {
+                          p: 3,
+                          backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
+                          backdropFilter: "blur(2px)",
+                        },
+                      },
+                    }}
                     PaperProps={{
                       sx: {
                         p: 3,
                         borderTopLeftRadius: 16,
                         borderTopRightRadius: 16,
-                        backgroundColor: "#1E1E1E",
+                        backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
+                        boxShadow: "none"
                       },
                     }}
                   >
+
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 5,
+                      bgcolor: "grey.500",
+                      opacity: 0.5,
+                      borderRadius: 2.5,
+                      mx: "auto",
+                      mb: 2,
+                      cursor: "grab",
+                    }}
+                  />
+
                     <Typography variant="h6" mb={2}>
                       Edit Trip Budget
                     </Typography>
@@ -1308,7 +1860,35 @@ const fetchCoverImage = async (location) => {
                       onChange={(e) =>
                         setEditBudget({ ...editBudget, total: e.target.value })
                       }
-                      sx={{ mb: 2 }}
+                      sx={{
+                        bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+                        borderRadius: 8,
+                        boxShadow: "none",
+                        '& .MuiInputLabel-root.Mui-focused': {
+                          color: mode === "dark" ? "#fff" : "#000",
+                        },
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 8,
+                          '& fieldset': {
+                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+                          },
+                          '&:hover fieldset': {
+                            borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+                            boxShadow: "none",
+                            color: mode === "dark" ? "#fff" : "#000"
+                          },
+                          backgroundColor: 'inherit',
+                        },
+                        input: {
+                          color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+                        },
+                        label: {
+                          color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+                        },
+                      }}
                     />
         
                     <Typography variant="subtitle2">Contributors</Typography>
@@ -1323,6 +1903,35 @@ const fetchCoverImage = async (location) => {
                             setEditBudget({ ...editBudget, contributors: updated });
                           }}
                           fullWidth
+                          sx={{
+                            bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+                            borderRadius: 8,
+                            boxShadow: "none",
+                            '& .MuiInputLabel-root.Mui-focused': {
+                              color: mode === "dark" ? "#fff" : "#000",
+                            },
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 8,
+                              '& fieldset': {
+                                borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+                              },
+                              '&:hover fieldset': {
+                                borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+                              },
+                              '&.Mui-focused fieldset': {
+                                borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+                                boxShadow: "none",
+                                color: mode === "dark" ? "#fff" : "#000"
+                              },
+                              backgroundColor: 'inherit',
+                            },
+                            input: {
+                              color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+                            },
+                            label: {
+                              color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+                            },
+                          }}
                         />
                         <TextField
                           label="Amount"
@@ -1333,7 +1942,36 @@ const fetchCoverImage = async (location) => {
                             updated[i].amount = e.target.value;
                             setEditBudget({ ...editBudget, contributors: updated });
                           }}
-                          sx={{ width: 120 }}
+                          sx={{
+                            bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+                            borderRadius: 8,
+                            boxShadow: "none",
+                            width: 120,
+                            '& .MuiInputLabel-root.Mui-focused': {
+                              color: mode === "dark" ? "#fff" : "#000",
+                            },
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 8,
+                              '& fieldset': {
+                                borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+                              },
+                              '&:hover fieldset': {
+                                borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+                              },
+                              '&.Mui-focused fieldset': {
+                                borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+                                boxShadow: "none",
+                                color: mode === "dark" ? "#fff" : "#000"
+                              },
+                              backgroundColor: 'inherit',
+                            },
+                            input: {
+                              color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+                            },
+                            label: {
+                              color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+                            },
+                          }}
                         />
                       </Box>
                     ))}
@@ -1341,8 +1979,8 @@ const fetchCoverImage = async (location) => {
                     <Button
                       variant="outlined"
                       fullWidth
-                      sx={{ mt: 2 }}
-                      onClick={() => {
+                      sx={{ mt: 2, p: 1, borderRadius: 8, border: mode === "dark" ? "1px solid #ffffffff" : "1px solid #000000ff", color: mode === "dark" ? "#ffffffff" : "#000000ff" }}
+                      onClick={() => {  
                         setEditBudget({
                           ...editBudget,
                           contributors: [...editBudget.contributors, { name: "", amount: "" }],
@@ -1355,28 +1993,52 @@ const fetchCoverImage = async (location) => {
                     <Button
                       fullWidth
                       variant="contained"
-                      sx={{ mt: 3 }}
+                      sx={{ mt: 3, p: 1.5, borderRadius: 8, backgroundColor: mode === "dark" ? "#ffffffff" : "#000000ff", color: mode === "dark" ? "#000000ff" : "#ffffffff" }}
                       onClick={saveBudget}
                       disabled={!editBudget.total || editBudget.contributors.length === 0}
                     >
                       Save Budget
                     </Button>
-                  </Drawer>
+                  </SwipeableDrawer>
 
         {/* Expense Drawer */}
-        <Drawer
+        <SwipeableDrawer
           anchor="bottom"
           open={expenseDrawerOpen}
           onClose={() => setExpenseDrawerOpen(false)}
+          ModalProps={{
+            BackdropProps: {
+              sx: {
+                p: 3,
+                backgroundColor: mode === "dark" ? "#0000000d" : "#0000000d",
+                backdropFilter: "blur(2px)",
+              },
+            },
+          }}
           PaperProps={{
             sx: {
               borderTopLeftRadius: 16,
               borderTopRightRadius: 16,
-              backgroundColor: "#1E1E1E",
+              backgroundColor: mode === "dark" ? "#000000ff" : "#ffffffff",
               p: 3,
+              boxShadow: "none"
             },
           }}
         >
+
+          <Box
+            sx={{
+              width: 40,
+              height: 5,
+              bgcolor: "grey.500",
+              opacity: 0.5,
+              borderRadius: 2.5,
+              mx: "auto",
+              mb: 2,
+              cursor: "grab",
+            }}
+          />
+
           <Typography variant="h6" mb={2}>
             Add New Expense
           </Typography>
@@ -1388,7 +2050,36 @@ const fetchCoverImage = async (location) => {
             onChange={(e) =>
               setNewExpense((prev) => ({ ...prev, name: e.target.value }))
             }
-            sx={{ mb: 2 }}
+            sx={{
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+              borderRadius: 8,
+              mb: 2,
+              boxShadow: "none",
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: mode === "dark" ? "#fff" : "#000",
+              },
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 8,
+                '& fieldset': {
+                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+                },
+                '&:hover fieldset': {
+                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+                  boxShadow: "none",
+                  color: mode === "dark" ? "#fff" : "#000"
+                },
+                backgroundColor: 'inherit',
+              },
+              input: {
+                color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+              },
+              label: {
+                color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+              },
+            }}
           />
 
           <TextField
@@ -1399,7 +2090,36 @@ const fetchCoverImage = async (location) => {
             onChange={(e) =>
               setNewExpense((prev) => ({ ...prev, amount: e.target.value }))
             }
-            sx={{ mb: 2 }}
+            sx={{
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+              borderRadius: 8,
+              mb: 2,
+              boxShadow: "none",
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: mode === "dark" ? "#fff" : "#000",
+              },
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 8,
+                '& fieldset': {
+                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+                },
+                '&:hover fieldset': {
+                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+                  boxShadow: "none",
+                  color: mode === "dark" ? "#fff" : "#000"
+                },
+                backgroundColor: 'inherit',
+              },
+              input: {
+                color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+              },
+              label: {
+                color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+              },
+            }}
           />
 
           <TextField
@@ -1409,7 +2129,36 @@ const fetchCoverImage = async (location) => {
             onChange={(e) =>
               setNewExpense((prev) => ({ ...prev, category: e.target.value }))
             }
-            sx={{ mb: 2 }}
+            sx={{
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+              borderRadius: 8,
+              mb: 2,
+              boxShadow: "none",
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: mode === "dark" ? "#fff" : "#000",
+              },
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 8,
+                '& fieldset': {
+                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+                },
+                '&:hover fieldset': {
+                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+                  boxShadow: "none",
+                  color: mode === "dark" ? "#fff" : "#000"
+                },
+                backgroundColor: 'inherit',
+              },
+              input: {
+                color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+              },
+              label: {
+                color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+              },
+            }}
           />
 
           <TextField
@@ -1421,7 +2170,36 @@ const fetchCoverImage = async (location) => {
             onChange={(e) =>
               setNewExpense((prev) => ({ ...prev, date: e.target.value }))
             }
-            sx={{ mb: 2 }}
+            sx={{
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+              borderRadius: 8,
+              mb: 2,
+              boxShadow: "none",
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: mode === "dark" ? "#fff" : "#000",
+              },
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 8,
+                '& fieldset': {
+                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+                },
+                '&:hover fieldset': {
+                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+                  boxShadow: "none",
+                  color: mode === "dark" ? "#fff" : "#000"
+                },
+                backgroundColor: 'inherit',
+              },
+              input: {
+                color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+              },
+              label: {
+                color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+              },
+            }}
           />
 
           <TextField
@@ -1433,13 +2211,43 @@ const fetchCoverImage = async (location) => {
             onChange={(e) =>
               setNewExpense((prev) => ({ ...prev, time: e.target.value }))
             }
-            sx={{ mb: 2 }}
+            sx={{
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? '#2a2a2a' : '#fafafa',
+              borderRadius: 8,
+              mb: 2,
+              boxShadow: "none",
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: mode === "dark" ? "#fff" : "#000",
+              },
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 8,
+                '& fieldset': {
+                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#555' : '#c1c1c1ff'),
+                },
+                '&:hover fieldset': {
+                  borderColor: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#aaa'),
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: (theme) => mode === 'dark' ? '#ffffffff' : '#000000ff',
+                  boxShadow: "none",
+                  color: mode === "dark" ? "#fff" : "#000"
+                },
+                backgroundColor: 'inherit',
+              },
+              input: {
+                color: (theme) => (theme.palette.mode === 'dark' ? '#eee' : '#222'),
+              },
+              label: {
+                color: (theme) => (theme.palette.mode === 'dark' ? '#bbb' : '#666'),
+              },
+            }}
           />
 
           <Button
             fullWidth
             variant="contained"
             onClick={addExpense}
+            sx={{ p: 1.5, borderRadius: 8, backgroundColor: mode === "dark" ? "#ffffffff" : "#000000ff", color: mode === "dark" ? "#000000ff" : "#ffffffff" }}
             disabled={
               !newExpense.name ||
               !newExpense.amount ||
@@ -1449,7 +2257,7 @@ const fetchCoverImage = async (location) => {
           >
             Save Expense
           </Button>
-        </Drawer>
+        </SwipeableDrawer>
 
         <Dialog
   open={confirmDeleteOpen}
