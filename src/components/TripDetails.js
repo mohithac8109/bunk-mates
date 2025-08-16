@@ -625,7 +625,7 @@ const fetchCoverImage = async (location) => {
   )}&destination=${encodeURIComponent(trip?.to || "")}`;
 
   const goBack = () => {
-    history(-1);  
+    history("/trips");  
   };
 
   const now = new Date();

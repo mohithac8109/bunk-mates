@@ -827,13 +827,14 @@ const Home = () => {
     <Grid container spacing={3} justifyContent={"center"}>
 
 {/* Trips Display card */}
+<Grid item xs={12} md={6} lg={4}>
 {myTrips && myTrips.length > 0 ? (
-  <Box sx={{ minWidth: "70vw", mx: "auto", px: 0 }}>
-<Typography variant="h6" textAlign="left" mb={1}>Your Trips</Typography>
+  <Box sx={{ minWidth: "86vw", px: 0 }}>
+<Typography variant="h6" textAlign="left" mb={1} ml={1.4}>Your Trips</Typography>
 
-    <Slider {...sliderSettings} slickGoTo={sliderIndex}>
+    <Slider {...sliderSettings} slickGoTo={sliderIndex} gap={2}>
       {myTrips.map((tripInfo) => (
-<Box key={tripInfo.id} sx={{ px: 1 }}>
+<Box key={tripInfo.id} sx={{ px: 0 }}>
   <Card
     sx={{
       background: tripGroupsMap[tripInfo.id]?.iconURL
@@ -906,7 +907,7 @@ const Home = () => {
               borderRadius: 20,
               height: 7,
               bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
-              "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff" },
+              "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff", borderRadius: 20 },
             }}
           />
         </Box>
@@ -923,7 +924,7 @@ const Home = () => {
     No trips found.
   </Typography>
 )}
-
+</Grid>
 
       {/* Budgets Display Card */}
 <Grid item xs={12} md={6} lg={4}>
