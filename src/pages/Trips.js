@@ -468,7 +468,6 @@ const handleIconUpload = (e) => {
 >
   <CardContent
     sx={{ p: 3, backgroundColor: mode === "dark" ? "#00000066" : "#ffffff66", backdropFilter: "blur(10px)" }}
-    onClick={() => navigate(`/trips/${trip.id}`)}
 >
 
     <Box display={"flex"} alignItems="center" justifyContent="space-between">

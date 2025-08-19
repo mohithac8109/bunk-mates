@@ -89,8 +89,6 @@ const visibleExpenses = showAllExpenses
   ? budget?.expenses || []
   : (budget?.expenses || []).slice(0, 4);
 
-  const history = useNavigate();
-
   const [memberDetails, setMemberDetails] = useState([]);
 
 useEffect(() => {
@@ -388,7 +386,7 @@ const handleDeleteTrip = async () => {
     );
 
     setSnackbar({ open: true, message: "Trip deleted successfully!" });
-    setTimeout(() => navigate("/trips"), 1500);
+    setTimeout(() => navigate("/trips"), 1000);
   } catch (err) {
     console.error("Failed to delete trip:", err);
     setSnackbar({ open: true, message: "Error deleting trip." });
@@ -625,7 +623,7 @@ const fetchCoverImage = async (location) => {
   )}&destination=${encodeURIComponent(trip?.to || "")}`;
 
   const goBack = () => {
-    history("/trips");  
+    navigate(-1);  
   };
 
   const now = new Date();
@@ -646,6 +644,7 @@ const fetchCoverImage = async (location) => {
             left: 16,
             backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
             backdropFilter: "blur(180px)",
+            zIndex: 999
           }}
         >
           Back
