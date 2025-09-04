@@ -25,10 +25,8 @@ import {
   CardContent,
   CircularProgress,
   ThemeProvider,
-  createTheme,
   keyframes,
   Button,
-  Chip,
   LinearProgress,
   Avatar,
   AvatarGroup,
@@ -41,12 +39,6 @@ import {
 import {
   LocationOn,
   AccessTime,
-  ChatBubbleOutline,
-  AlarmOutlined,
-  ChevronRight,
-  AccountBalanceWalletOutlined,
-  ExploreOutlined,
-  StickyNote2Outlined,
 } from "@mui/icons-material";
 import ProfilePic from "../components/Profile";
 import Reminders from "./Reminders";
@@ -68,12 +60,8 @@ import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalance
 import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
 import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
 import AlarmOutlinedIcon from '@mui/icons-material/AlarmOutlined';
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import { th } from "date-fns/locale";
-import { DotsThreeCircle } from "phosphor-react";
-
 
 const fadeIn = keyframes`
   from {
@@ -86,126 +74,121 @@ const fadeIn = keyframes`
   }
 `;
 
-
 const CATEGORY_ICONS = {
   Food: {
     icon: <RestaurantOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#ff9c000f",   // orange[50]
     bgcolor: "#ff9c0030",   // orange[50]
     mcolor: "#ff98005e",    // orange[500]
-    fcolor: "#e3aa8b"     // orange[900]
+    fcolor: "#e3aa8b"       // orange[900]
   },
   Tour: {
     icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#0093ff0f",   // blue[50]
     bgcolor: "#0093ff30",   // blue[50]
     mcolor: "#2196f35e",    // blue[500]
-    fcolor: "#92b6ef"     // blue[900]
+    fcolor: "#92b6ef"       // blue[900]
   },
   Rent: {
     icon: <HomeOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#88ff000f",   // lightGreen[50]
     bgcolor: "#88ff0030",   // lightGreen[50]
     mcolor: "#8bc34a5e",    // lightGreen[500]
-    fcolor: "#8dc378"     // lightGreen[900]
+    fcolor: "#8dc378"       // lightGreen[900]
   },
   Utilities: {
     icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#8ad0ff0f",   // blueGrey[50]
     bgcolor: "#8ad0ff30",   // blueGrey[50]
     mcolor: "#607d8b5e",    // blueGrey[500]
-    fcolor: "#8e9ba1"     // blueGrey[900]
+    fcolor: "#8e9ba1"       // blueGrey[900]
   },
   Shopping: {
     icon: <LocalMallOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#ff00550f",   // pink[50]
     bgcolor: "#ff005530",   // pink[50]
     mcolor: "#e91e635e",    // pink[500]
-    fcolor: "#ffbce0"     // pink[900]
+    fcolor: "#ffbce0"       // pink[900]
   },
   Fun: {
     icon: <EmojiEventsOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#f5e7480f",   // yellow[50]
     bgcolor: "#f5e74830",   // yellow[50]
     mcolor: "#c3b6415e",    // yellow[500]
-    fcolor: "#ddca15"     // yellow[900]
+    fcolor: "#ddca15"       // yellow[900]
   },
   Hospital: {
     icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#ff00260f",   // red[50]
     bgcolor: "#ff002630",   // red[50]
     mcolor: "#f443365e",    // red[500]
-    fcolor: "#efa4a4"     // red[900]
+    fcolor: "#efa4a4"       // red[900]
   },
   Education: {
     icon: <SchoolOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#0093ff0f",   // blue[50]
     bgcolor: "#0093ff30",   // blue[50]
     mcolor: "#2196f35e",    // blue[500]
-    fcolor: "#92b6ef"      // indigo[900]
+    fcolor: "#92b6ef"       // indigo[900]
   },
   Fuel: {
     icon: <LocalGasStationOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#fbe9e70f",   // deepOrange[50]
     bgcolor: "#fbe9e730",   // deepOrange[50]
-    mcolor: "#ff5722",    // deepOrange[500]
-    fcolor: "#bf360c"     // deepOrange[900]
+    mcolor: "#ff5722",      // deepOrange[500]
+    fcolor: "#bf360c"       // deepOrange[900]
   },
   Entertainment: {
     icon: <MovieOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#f3e5f50f",   // purple[50]
     bgcolor: "#f3e5f530",   // purple[50]
-    mcolor: "#9c27b0",    // purple[500]
-    fcolor: "#4a148c"     // purple[900]
+    mcolor: "#9c27b0",      // purple[500]
+    fcolor: "#4a148c"       // purple[900]
   },
   Bills: {
     icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#e0f2f10f",   // teal[50]
     bgcolor: "#e0f2f130",   // teal[50]
-    mcolor: "#009688",    // teal[500]
-    fcolor: "#004d40"     // teal[900]
+    mcolor: "#009688",      // teal[500]
+    fcolor: "#004d40"       // teal[900]
   },
   Travel: {
     icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#e1f5fe0f",   // lightBlue[50]
-    bgcolor: "#e1f5fe",   // lightBlue[50]
-    mcolor: "#03a9f4",    // lightBlue[500]
-    fcolor: "#01579b"     // lightBlue[900]
+    bgcolor: "#e1f5fe",         // lightBlue[50]
+    mcolor: "#03a9f4",          // lightBlue[500]
+    fcolor: "#01579b"           // lightBlue[900]
   },
   Medical: {
     icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#fce4ec0f",   // pink[50]
-    bgcolor: "#fce4ec",   // pink[50]
-    mcolor: "#e91e63",    // pink[500]
-    fcolor: "#880e4f"     // pink[900]
+    bgcolor: "#fce4ec",         // pink[50]
+    mcolor: "#e91e63",          // pink[500]
+    fcolor: "#880e4f"           // pink[900]
   },
   Other: {
     icon: <CategoryOutlinedIcon sx={{ fontSize: "large" }} />,
     listbgcolor: "#f5f5f50f",   // grey[50]
-    bgcolor: "#f5f5f530",   // grey[100]
-    mcolor: "#bdbdbd5e",    // grey[400]
-    fcolor: "#a4a4a4"     // grey[900]
-  },
+    bgcolor: "#f5f5f530",       // grey[100]
+    mcolor: "#bdbdbd5e",        // grey[400]
+    fcolor: "#a4a4a4"           // grey[900]
+  }
 };
-
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
-
 const WEATHER_API_KEY = "c5298240cb3e71775b479a32329803ab"; // <-- Replace with your API key
 
 function getUserFromStorage() {
-  // Try localStorage first
   try {
     const storedUser = localStorage.getItem("bunkmateuser");
     if (storedUser) {
       const parsed = JSON.parse(storedUser);
       if (parsed?.uid) return parsed;
     }
-    // Try cookies
     const cookieUser = document.cookie
       .split("; ")
-      .find((row) => row.startsWith("bunkmateuser="))
+      .find(row => row.startsWith("bunkmateuser="))
       ?.split("=")[1];
     if (cookieUser) {
       const parsed = JSON.parse(decodeURIComponent(cookieUser));
@@ -215,7 +198,6 @@ function getUserFromStorage() {
   return null;
 }
 
-// Utility functions
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour >= 5 && hour < 12) return "Good Morning";
@@ -250,7 +232,7 @@ const sliderSettings = {
   slidesToScroll: 1,
   swipeToSlide: true,
   adaptiveHeight: true,
-  arrows: false,  
+  arrows: false,
 };
 
 const Home = () => {
@@ -258,15 +240,10 @@ const Home = () => {
   const muiTheme = useTheme();
   const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
-  // User auth states
   const [authInitialized, setAuthInitialized] = useState(false);
   const [user, setUser] = useState(null);
-
-  // Loading and login states
   const [loading, setLoading] = useState(true);
   const [notLoggedIn, setNotLoggedIn] = useState(false);
-
-  // App data states
   const [userData, setUserData] = useState({});
   const [userType, setUserType] = useState("");
   const { weather, setWeather, weatherLoading, setWeatherLoading } = useWeather();
@@ -282,10 +259,9 @@ const Home = () => {
   const [tripGroupsMap, setTripGroupsMap] = useState({});
   const [sliderIndex, setSliderIndex] = useState(0);
 
-  const { mode, setMode, accent, setAccent, toggleTheme } = useThemeToggle();
+  const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
 
-  // Firebase Auth realtime listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setAuthInitialized(true);
@@ -320,32 +296,7 @@ const Home = () => {
     return () => unsubscribe();
   }, []);
 
-    useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-
-        // Listen to user doc in real-time
-        const unsubscribeUserDoc = onSnapshot(userDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setUserData(docSnap.data()); // This includes photoURL
-          } else {
-            setUserData(null);
-          }
-        });
-
-        // Cleanup user doc listener if user changes or component unmounts
-        return () => unsubscribeUserDoc();
-      } else {
-        setUserData(null);
-      }
-    });
-
-    return () => unsubscribeAuth(); // Cleanup auth listener on unmount
-  }, []);
-
-
-  // Load weather once (with caching)
+  // Weather with cache
   useEffect(() => {
     let cachedWeather = null;
     try {
@@ -354,7 +305,7 @@ const Home = () => {
       if (!cachedWeather) {
         const cookieWeather = document.cookie
           .split("; ")
-          .find((row) => row.startsWith(WEATHER_STORAGE_KEY + "="))
+          .find(row => row.startsWith(WEATHER_STORAGE_KEY + "="))
           ?.split("=")[1];
         if (cookieWeather) cachedWeather = JSON.parse(decodeURIComponent(cookieWeather));
       }
@@ -394,8 +345,6 @@ const Home = () => {
     }
   }, []);
 
-
-  // Real-time reminders listener
   useEffect(() => {
     const fetchReminders = async () => {
       setRemindersLoading(true);
@@ -406,7 +355,6 @@ const Home = () => {
           setRemindersLoading(false);
           return;
         }
-        // Fetch ALL reminders, then filter by uid (for full safety)
         const q = query(
           collection(db, "reminders"),
           orderBy("createdAt", "desc")
@@ -428,7 +376,6 @@ const Home = () => {
     fetchReminders();
   }, []);
 
-  // Real-time budgets listener
   useEffect(() => {
     if (!user?.uid) {
       setBudgets([]);
@@ -454,30 +401,28 @@ const Home = () => {
     return () => unsubscribeBudgets();
   }, [user]);
 
-    // Pick gradient based on weather
-    const weatherBg =
+  const weatherBg =
     weather && weatherGradients[weather.main]
-    ? weatherGradients[weather.main]
-    : weatherGradients.Default;
-    
-    const buttonWeatherBg =
+      ? weatherGradients[weather.main]
+      : weatherGradients.Default;
+
+  const buttonWeatherBg =
     weather && weatherColors[weather.main]
       ? weatherColors[weather.main]
       : weatherColors.Default;
-    
-      
-    const WeatherBgdrop =
+
+  const WeatherBgdrop =
     weather && weatherbgColors[weather.main]
       ? weatherbgColors[weather.main]
       : weatherbgColors.Default;
 
-          const sortedBudgets = useMemo(() => {
-          return [...budgets].sort((a, b) => {
-            const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return bTime - aTime;
-          });
-        }, [budgets]);
+  const sortedBudgets = useMemo(() => {
+    return [...budgets].sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [budgets]);
 
   // Real-time trips listener + timelines + trip member fetch (one-time per trip)
   useEffect(() => {
@@ -493,13 +438,12 @@ const Home = () => {
       collection(db, "trips"),
       where("members", "array-contains", user.uid)
     );
-    
+
     const unsubscribeTrips = onSnapshot(tripsQuery, (querySnapshot) => {
       const tripsList = [];
       querySnapshot.forEach(doc => tripsList.push({ id: doc.id, ...doc.data() }));
       setMyTrips(tripsList);
 
-      // Fetch members once per trip, not real-time per member for performance
       tripsList.forEach(async (trip) => {
         if (trip.members && Array.isArray(trip.members)) {
           const membersData = await Promise.all(
@@ -511,7 +455,6 @@ const Home = () => {
         }
       });
 
-      // Setup timeline listeners for each trip, cleanup on new trips update
       let timelineUnsubs = [];
       timelineUnsubs.forEach(unsub => unsub && unsub());
       timelineUnsubs = tripsList.map(trip => {
@@ -534,14 +477,12 @@ const Home = () => {
     return () => unsubscribeTrips();
   }, [user]);
 
-  // Update slider index when trips list changes
   useEffect(() => {
     if (myTrips && myTrips.length > 0) {
       setSliderIndex(getDefaultTripIndex(myTrips));
     }
   }, [myTrips]);
 
-  // Load trip groups once when trips update
   useEffect(() => {
     if (!myTrips.length) {
       setTripGroupsMap({});
@@ -564,7 +505,6 @@ const Home = () => {
     fetchGroupsForTrips();
   }, [myTrips]);
 
-  // Logout handler
   const handleLogout = () => {
     localStorage.removeItem(SESSION_KEY);
     document.cookie = `${SESSION_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;`;
@@ -573,245 +513,56 @@ const Home = () => {
   };
 
   if (!authInitialized) {
-    // Wait for Firebase Auth initialization
     return (
-      <Box sx={{display:"flex", justifyContent:"center", alignItems:"center", minHeight:"100vh"}}>
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
         <CircularProgress />
       </Box>
     );
   }
 
   if (notLoggedIn) {
-    // User not logged in, redirect or show message
     navigate("/login", { replace: true });
-    return null; // Avoid rendering this page
+    return null;
   }
 
   return (
     <ThemeProvider theme={theme}>
       <DeviceGuard>
-              <BetaAccessGuard>
-      <Box
-        sx={{
-          display: "flex",
-          minHeight: "100vh",
-          flexDirection: "column",
-          backgroundColor: mode === "dark" ? "#0c0c0c" : "#f1f1f1",
-          color: mode === "dark" ? "#fff" : "#000",
-        }}
-      >
-        
-        {/* AppBar */}
-        <AppBar position="fixed" elevation={0} sx={{ backgroundColor: "transparent", backdropFilter: "blur(10px)", boxShadow: "none" }}>
-          <Toolbar sx={{ justifyContent: 'space-between', py: 1, px: 3, backgroundColor: 'transparent' }}>
-            <Typography variant="h6" sx={{ userSelect: 'none', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 'bold', color: mode === "dark" ? "#f1f1f1" : "#333" }}>
-              BunkMate 🏖️
-              {userType && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    backgroundColor: mode === "dark" ? "#f1f1f141" : "#4848484d",
-                    color: mode === "dark" ? "#fff" : "#000",
-                    px: 1.5,
-                    py: 0.2,
-                    borderRadius: 2.5,
-                    fontWeight: 'bold',
-                    fontSize: '0.7rem',
-                  }}
-                >
-                  {userType}
-                </Typography>
-              )}
-            </Typography>
-            <ProfilePic />
-          </Toolbar>
-        </AppBar>
-
-<Box sx={{ height: { xs: 0, sm: 77 } }} />
-                {loading ? (
+        <BetaAccessGuard>
           <Box
             sx={{
               display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              height: "60vh",
-              zIndex: 1500
+              minHeight: "100vh",
+              flexDirection: "column",
+              backgroundColor: mode === "dark" ? "#0c0c0c" : "#f1f1f1",
+              color: mode === "dark" ? "#fff" : "#000",
             }}
           >
-            <CircularProgress color="white" />
-          </Box>
-        ) : notLoggedIn ? (
-          <Box sx={{ p: 6, textAlign: "center" }}>
-            <Typography variant="h5" color="text.secondary">
-              Please log in to use BunkMate.
-            </Typography>
-          </Box>
-        ) : (
-        <Box
-          fullWidth
-          sx={{
-            zIndex: 1,
-            mb: 4,
-            background: `linear-gradient(to top, rgba(0,0,0,0) 0%, #00000000 1%, ${theme.palette.primary.mainbg} 100%)`,
-            transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
-          }}
-        >
-          <Container
-            maxWidth="lg"
-            sx={{
-              pt: 5,
-              pb: 2,
-              position: "relative",
-              zIndex: 3,
-              // Add blend/fade effect at the bottom of the container
-              "&:after": {
-                content: '""',
-                display: "block",
-                position: "absolute",
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: { xs: 60, md: 90 },
-                pointerEvents: "none",
-                zIndex: 2,
-              },
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: 2,
-                borderRadius: 3,
-                py: 12,
-                px: 1,
-                transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
-                animation: `${fadeIn} 0.7s`,
-                zIndex: 3,
-                position: "relative",
-              }}
-            >
-              <Typography variant="h5" sx={{ color: "text.primary" }}>
-                {getGreeting()},<br /><Typography variant="title" style={{ fontWeight: "bold", fontSize: "1.8rem" }}>{userData.name || "user"}!</Typography>
-              </Typography>
-              {/* Weather Widget */}
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1.5,
-                  px: 2,
-                  py: 1,
-                  borderRadius: 5,
-                  background: mode === "dark" ? "#0c0c0c5a" : "#f1f1f19a",
-                  minWidth: 170,
-                  minHeight: 56,
-                  animation: `${fadeIn} 0.7s`,
-                }}
-              >
-                {weatherLoading ? (
-                  <CircularProgress size={24} color={theme.palette.background.primary} />
-                ) : weather ? (
-                  <>
-                    {weatherIcons[weather.main] || weatherIcons.Default}
-                    <Box>
-                      <Typography variant="body1" sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: 600 }}>
-                        {weather.temp}°C {weather.city && `in ${weather.city}`}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                        {weather.desc.charAt(0).toUpperCase() + weather.desc.slice(1)}
-                      </Typography>
-                    </Box>
-                  </>
-                ) : (
-                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                    Weather unavailable
-                  </Typography>
-                )}
-              </Box>
-            </Box>
-          </Container>
-
-        <Container maxWidth="lg" sx={{ mb: 3, padding: 0 }}>
-          <Grid
-            container
-            spacing={1.2}
-            justifyContent="center"
-            alignItems="stretch"
-          >
-            {[
-              {
-                label: "Add Notes",
-                icon: <StickyNote2OutlinedIcon />,
-                onClick: () => navigate("/notes"),
-              },
-              {
-                label: "Reminder",
-                icon: <AlarmOutlinedIcon />,
-                onClick: () => setRemindersDrawerOpen(true),
-              },
-              {
-                label: "Trip",
-                icon: <ExploreOutlinedIcon />,
-                onClick: () => navigate("/trips"),
-              },
-              {
-                label: "Budget",
-                icon: <AccountBalanceWalletOutlinedIcon />,
-                onClick: () => navigate("/budget-mngr"),
-              },
-            ].map((tile) => (
-              <Grid
-                item
-                xs={3}
-                sm={3}
-                md={3}
-                lg={3}
-                key={tile.label}
-                sx={{ display: "flex" }}
-              >
-                <Card
-                  sx={{
-                    flex: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: 105,
-                    width: "21vw",
-                    aspectRatio: "1 / 1",
-                    cursor: "pointer",
-                    background: mode === "dark" ? "#f1f1f111" : "#0c0c0c07",
-                    borderRadius: 5,
-                    boxShadow: "none",
-                    transition: "background 0.2s",
-                  }}
-                  onClick={tile.onClick}
-                >
-                  <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 6, backgroundColor: theme.palette.primary.bgr, color: theme.palette.primary.main }}>
-                    {tile.icon}
-                  </Box>
-                  <Typography
-                    variant="subtitle6"
-                    sx={{ color: "text.primary", fontSize: "10.5px" }}
-                  >
-                    {tile.label}
-                  </Typography>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Container>
-
-        </Box>
-        )}
-
-        {/* Main Content */}
-        <Box sx={{ display: "flex", flexGrow: 1 }}>
-          {!isSmallScreen && <Sidebar />}
-          <Container maxWidth="lg" sx={{ flexGrow: 1, pt: 2, position: "relative" }}>
+            <AppBar position="fixed" elevation={0} sx={{ backgroundColor: "transparent", backdropFilter: "blur(10px)", boxShadow: "none" }}>
+              <Toolbar sx={{ justifyContent: 'space-between', py: 1, px: 3, backgroundColor: 'transparent' }}>
+                <Typography variant="h6" sx={{ userSelect: 'none', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 'bold', color: mode === "dark" ? "#f1f1f1" : "#333" }}>
+                  BunkMate 🏖️
+                  {userType && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        backgroundColor: mode === "dark" ? "#f1f1f141" : "#4848484d",
+                        color: mode === "dark" ? "#fff" : "#000",
+                        px: 1.5,
+                        py: 0.2,
+                        borderRadius: 2.5,
+                        fontWeight: 'bold',
+                        fontSize: '0.7rem',
+                      }}
+                    >
+                      {userType}
+                    </Typography>
+                  )}
+                </Typography>
+                <ProfilePic />
+              </Toolbar>
+            </AppBar>
+            <Box sx={{ height: { xs: 0, sm: 77 } }} />
             {loading ? (
               <Box
                 sx={{
@@ -819,485 +570,635 @@ const Home = () => {
                   justifyContent: "center",
                   alignItems: "center",
                   height: "60vh",
+                  zIndex: 1500
                 }}
               >
-                <CircularProgress color={theme.palette.background.main} />
+                <CircularProgress color="white" />
+              </Box>
+            ) : notLoggedIn ? (
+              <Box sx={{ p: 6, textAlign: "center" }}>
+                <Typography variant="h5" color="text.secondary">
+                  Please log in to use BunkMate.
+                </Typography>
               </Box>
             ) : (
-    <Grid container spacing={3} justifyContent={"center"}>
-
-{/* Trips Display card */}
-<Grid item xs={12} md={6} lg={4}>
-{myTrips && myTrips.length > 0 ? (
-  <Box sx={{ minWidth: "86vw", px: 0 }}>
-<Typography variant="h6" textAlign="left" mb={1} ml={1.4}>Your Trips</Typography>
-
-    <Slider {...sliderSettings} slickGoTo={sliderIndex} gap={2}>
-      {myTrips.map((tripInfo) => (
-<Box key={tripInfo.id} sx={{ px: 0 }}>
-  <Card
-    sx={{
-      background: tripGroupsMap[tripInfo.id]?.iconURL
-        ? `url(${tripGroupsMap[tripInfo.id].iconURL})`
-        : theme.palette.background.card,
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      backgroundRepeat: "no-repeat",
-      color: "#fff",
-      borderRadius: 4,
-      boxShadow: "none",
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "flex-end",
-      mx: 1,
-    }}
-  >
-    <CardContent
-      sx={{
-        backgroundColor: mode === "dark" ? "#00000000" : "#ffffffa1",
-        backdropFilter: "blur(12px)",
-        borderBottomLeftRadius: 8,
-        borderBottomRightRadius: 8,
-      }}
-    >
-      <Box display="flex" gap={2} mb={1} alignItems="flex-start" justifyContent="space-between">
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5, color: mode === "dark" ? "#cbcbcb" : "#3d3d3d" }}>
-            {tripInfo?.name || "Unnamed Trip"}
-          </Typography>
-          <Typography variant="body2" sx={{ color: mode === "dark" ? "#cbcbcb" : "#3d3d3d", display: "flex", alignItems: "center" }}>
-            <LocationOn sx={{ fontSize: 16, mr: 1 }} />
-            {tripInfo?.from || "Unknown"} → {tripInfo?.location || "Unknown"}
-          </Typography>
-          {(tripInfo?.startDate || tripInfo?.date) && (
-            <Typography variant="body2" sx={{ color: mode === "dark" ? "#cbcbcb" : "#3d3d3d", display: "flex", alignItems: "center" }}>
-              <AccessTime sx={{ fontSize: 16, mr: 1 }} />
-              {tripInfo?.startDate || "?"} → {tripInfo?.date || "?"}
-            </Typography>
-          )}
-        </Box>
-              {/* Member avatars as avatar group */}
-      {tripMembersMap[tripInfo.id]?.length > 0 && (
-    <AvatarGroup max={3} sx={{ mt: 1, width: 24, height: 24 }}>
-      {tripMembersMap[tripInfo.id].map((m) => (
-        <Tooltip title={m.name || `@${m.username}`} key={m.uid}>
-          <Avatar
-            sx={{
-                width: 24,
-                height: 24,
-            }}
-            src={m.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${m.uid}`}
-            alt={m.name || m.username}
-          />
-        </Tooltip>
-      ))}
-    </AvatarGroup>
-      )}
-      </Box>
-      {timelineStatsMap[tripInfo.id] && (
-        <Box>
-          <Typography variant="caption" sx={{ color: mode === "dark" ? "#cbcbcb" : "#3d3d3d" }}>
-            Timeline Progress: {timelineStatsMap[tripInfo.id].completed} / {timelineStatsMap[tripInfo.id].total} complete
-          </Typography>
-          <LinearProgress
-            value={timelineStatsMap[tripInfo.id].percent}
-            variant="determinate"
-            sx={{
-              mt: 0.5,
-              borderRadius: 20,
-              height: 7,
-              bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
-              "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff", borderRadius: 20 },
-            }}
-          />
-        </Box>
-      )}
-    </CardContent>
-  </Card>
-</Box>
-
-      ))}
-    </Slider>
-  </Box>
-) : (
-  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: "center", mt: 4 }}>
-    No trips found.
-  </Typography>
-)}
-</Grid>
-
-      {/* Budgets Display Card */}
-<Grid item xs={12} md={6} lg={4}>
-  <Box sx={{ minWidth: "90vw" }} >
-    <CardContent>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-        <Typography variant="h6" sx={{ color: "text.primary" }}>
-          Your Budgets
-        </Typography>
-        {budgets.length > 0 && (
-          <Box
-            component="button"
-            onClick={() => navigate("/budget-mngr")}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              background: "none",
-              border: "none",
-              color: mode === "dark" ? "#f1f1f1" : "#333",
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: "pointer",
-              px: 1,
-              py: 0.5,
-              borderRadius: 5,
-              transition: "background 0.2s",
-              "&:hover": {
-                background: mode === "dark" ? "#f1f1f111" : "#e0e0e0",
-              },
-            }}
-          >
-            View More <ChevronRightIcon />
-          </Box>
-        )}
-      </Box>
-      {budgets.length > 0 ? (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "row",
-            gap: 1,
-            overflowX: "auto",
-            maxWidth: "100%",
-            px: 1,
-            py: 0.5,
-            scrollbarWidth: "none",
-            "&::-webkit-scrollbar": {
-              display: "none",
-              height: 6,
-            },
-            "&::-webkit-scrollbar-thumb": {
-              display: "none",
-              borderRadius: 4,
-            },
-          }}
-        >
-{sortedBudgets.slice(0, 5).map((b, idx) => {
-  // Match Budget.js logic for category and icon
-  const category =
-    b.category || (Array.isArray(b.items) && b.items[0]?.category) || "Other";
-  const cat = CATEGORY_ICONS[category] || CATEGORY_ICONS.Other;
-
-  // Budget name: Prefer b.name, fallback to b.title, fallback to first item name, fallback to "Untitled"
-  const budgetName =
-    b.name || b.title || (Array.isArray(b.items) && b.items[0]?.name) || "Untitled";
-
-  // Total budgeted amount (Budget.js: item.amount)
-  const totalBudget = Number(b.amount || b.total || 0);
-
-  // Expenses array (Budget.js: item.expenses)
-  const expenses = Array.isArray(b.expenses)
-    ? b.expenses
-    : Array.isArray(b.items)
-      ? b.items.flatMap(i => i.expenses || [])
-      : [];
-
-  // Current spent amount: sum of all expense amounts (Budget.js: totalExpense)
-  const totalExpense = expenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
-
-  // Current budget left (Budget.js: balance)
-  const balance = totalBudget - totalExpense;
-
-  // Contributors: Budget.js usually has a contributors array or users array
-  const contributors = Array.isArray(b.contributors)
-    ? b.contributors
-    : Array.isArray(b.users)
-      ? b.users
-      : [];
-
-  const budgetIndex = sortedBudgets.findIndex(budget => budget === b);
-
-  return (
-    <Box
-      key={b.id || b.name || idx}
-      sx={{
-        background: cat.listbgcolor,
-        borderRadius: 8,
-        px: 1,
-        py: 1,
-        minWidth: 120,
-        maxWidth: 180,
-        fontSize: 13,
-        color: theme.palette.text.primary,
-        textAlign: "left",
-        boxShadow: "none",
-        flex: "0 0 auto",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "flex-start",
-        cursor: "pointer",
-        transition: "box-shadow 0.2s",
-        "&:hover": {
-          boxShadow: "0 4px 16px #0006",
-        },
-      }}
-      onClick={() => navigate(`/budget-mngr?index=${budgetIndex}&expdrawer=true`)}
-    >
-      <Box sx={{ display: "flex", alignItems: "center", mb: 0 }}>
-        <Box
-          sx={{
-            background: cat.mcolor,
-            borderRadius: "50%",
-            width: 36,
-            height: 36,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            mr: 1,
-          }}
-        >
-          {React.cloneElement(
-            cat.icon,
-            { sx: { fontSize: 22, color: cat.fcolor } }
-          )}
-        </Box>
-        <Box>
-          <Box display={"flex"} flexDirection={"row"} justifyContent={"space-between"} alignItems="center" gap={1}>
-            <Typography style={{ fontSize: 15 }}>
-              {budgetName}
-            </Typography>
-            <Typography variant="caption" style={{ backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", color: mode === "dark" ? "#aaa" : "#333", padding: "1px 6px", borderRadius: "20px", mt: 0, fontWeight: "bolder" }}>
-              {contributors.length > 0
-                ? `${contributors.length}`
-                : "0"}
-            </Typography>
-          </Box>
-          <div style={{ color: cat.fcolor, fontWeight: 600 }}>
-            ₹{balance.toFixed(2)}
-            {totalBudget > 0 && (
-              <span style={{ color: mode === "dark" ? "#ccc" : "#555", fontWeight: 400, fontSize: 12, marginLeft: 4 }}>
-                / ₹{totalBudget}
-              </span>
-            )}
-          </div>
-        </Box>
-      </Box>
-    </Box>
-  );
-})}
-
-          {budgets.length > 5 && (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                px: 2,
-                color: theme.palette.text.secondary,
-                fontSize: 13,
-                fontWeight: 500,
-                minWidth: 60,
-              }}
-            >
-              +{budgets.length - 5} more...
-            </Box>
-          )}
-        </Box>
-      ) : (
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: "center", mt: 2 }}>
-          No budgets found.
-        </Typography>
-      )}
-    </CardContent>
-  </Box>
-</Grid>
-
-        {/* Reminders Glimpse Card */}
-<Container maxWidth="lg" sx={{ mt: 2, mb: 2 }}>
-  <Box
-    sx={{
-      mb: 2,
-      background: mode === "dark" ? "#f1f1f111" : "#afafaf16",
-      color: theme.palette.text.primary,
-      boxShadow: "none",
-      borderRadius: 5,
-    }}
-  >
-    <CardContent>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          mb: 3,
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center" }}>
-          <AlarmOutlinedIcon sx={{ mr: 1 }} />
-          <Typography variant="h6">Reminders</Typography>
-        </Box>
-
-        <Button
-          size="small"
-          sx={{
-            height: 30,
-            minWidth: 30,
-            borderRadius: "80px",
-            backgroundColor: theme.palette.primary.bgr,
-            color: theme.palette.primary.main,
-            fontSize: 24,
-            padding: "4px 6px",
-            boxShadow: "none",
-          }}
-          onClick={() => {
-            remindersRef.current?.openAddReminderDrawer();
-          }}
-        >
-          +
-        </Button>
-      </Box>
-
-      {remindersLoading ? (
-        <Typography color="text.secondary" fontSize={14}>
-          Loading...
-        </Typography>
-      ) : reminders.length === 0 ? (
-        <Typography color="text.secondary" fontSize={14}>
-          No reminders yet.
-        </Typography>
-      ) : (
-        <ul style={{ margin: 0, paddingLeft: 0 }}>
-          {reminders
-            .filter((rem) => !rem.completed)
-            .slice(0, 3)
-            .map((rem) => (
-              <li
-                key={rem.id}
-                style={{
-                  fontSize: 16,
-                  backgroundColor: mode === "dark" ? "#f1f1f111" : "#ffffffff",
-                  borderRadius: 28,
-                  padding: 9,
-                  listStyle: "none",
-                  marginBottom: 7,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 9,
+              <Box
+                fullWidth
+                sx={{
+                  zIndex: 1,
+                  mb: 4,
+                  background: `linear-gradient(to top, rgba(0,0,0,0) 0%, #00000000 1%, ${theme.palette.primary.mainbg} 100%)`,
+                  transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
                 }}
               >
-                <span
-                  style={{
-                    cursor: "pointer",
-                    marginRight: 8,
-                    marginLeft: 8,
-                    display: "flex",
-                    alignItems: "center",
+                <Container
+                  maxWidth="lg"
+                  sx={{
+                    pt: 5,
+                    pb: 2,
+                    position: "relative",
+                    zIndex: 3,
+                    "&:after": {
+                      content: '""',
+                      display: "block",
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: { xs: 60, md: 90 },
+                      pointerEvents: "none",
+                      zIndex: 2,
+                    },
                   }}
-                  title="Mark as completed"
-                  onClick={() =>
-                    remindersRef.current?.markReminderComplete(rem.id)
-                  }
                 >
-                  <NotificationsActiveIcon
-                    style={{ color: mode === "dark" ? "#aaa" : "#333", fontSize: 22 }}
-                  />
-                </span>
-                <span>{rem.text}</span>
-              </li>
-            ))}
-        </ul>
-      )}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: 2,
+                      borderRadius: 3,
+                      py: 12,
+                      px: 1,
+                      transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
+                      animation: `${fadeIn} 0.7s`,
+                      zIndex: 3,
+                      position: "relative",
+                    }}
+                  >
+                    <Typography variant="h5" sx={{ color: "text.primary" }}>
+                      {getGreeting()},<br /><Typography variant="title" style={{ fontWeight: "bold", fontSize: "1.8rem" }}>{userData.name || "user"}!</Typography>
+                    </Typography>
+                    {/* Weather Widget */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        px: 2,
+                        py: 1,
+                        borderRadius: 5,
+                        background: mode === "dark" ? "#0c0c0c5a" : "#f1f1f19a",
+                        minWidth: 170,
+                        minHeight: 56,
+                        animation: `${fadeIn} 0.7s`,
+                      }}
+                    >
+                      {weatherLoading ? (
+                        <CircularProgress size={24} color={theme.palette.background.primary} />
+                      ) : weather ? (
+                        <>
+                          {weatherIcons[weather.main] || weatherIcons.Default}
+                          <Box>
+                            <Typography variant="body1" sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: 600 }}>
+                              {weather.temp}°C {weather.city && `in ${weather.city}`}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                              {weather.desc.charAt(0).toUpperCase() + weather.desc.slice(1)}
+                            </Typography>
+                          </Box>
+                        </>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                          Weather unavailable
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Container>
 
-      <Button
-        size="small"
-        sx={{
-          mt: 1,
-          background: mode === "dark" ? "#f1f1f111" : "#0c0c0c1a",
-          color: theme.palette.text.primary,
-          fontSize: 14,
-          padding: "4px 8px",
-          boxShadow: "none",
-          borderRadius: 3,
-        }}
-        onClick={() => setRemindersDrawerOpen(true)}
-      >
-        View All
-      </Button>
-    </CardContent>
-  </Box>
-</Container>
-
-
-        <Reminders
-          ref={remindersRef}
-          open={remindersDrawerOpen}
-          onClose={() => setRemindersDrawerOpen(false)}
-          asDrawer
-        />
-
-<Box
-  sx={{
-    mb: 4,
-    alignContent: "center",
-    alignItems: "center",
-    textAlign: "center",
-    opacity: 0.5,
-    fontSize: "0.75rem",
-    userSelect: "none",
-  }}
->
-  <Typography variant="caption" color="text.secondary">
-    BunkMate v{packageJson.version || "N/A"} — Made with ❤️
-  </Typography>
-</Box>
-
-
-
-    </Grid>
+                <Container maxWidth="lg" sx={{ mb: 3, padding: 0 }}>
+                  <Grid
+                    container
+                    spacing={1.2}
+                    justifyContent="center"
+                    alignItems="stretch"
+                  >
+                    {[
+                      {
+                        label: "Add Notes",
+                        icon: <StickyNote2OutlinedIcon />,
+                        onClick: () => navigate("/notes"),
+                      },
+                      {
+                        label: "Reminder",
+                        icon: <AlarmOutlinedIcon />,
+                        onClick: () => setRemindersDrawerOpen(true),
+                      },
+                      {
+                        label: "Trip",
+                        icon: <ExploreOutlinedIcon />,
+                        onClick: () => navigate("/trips"),
+                      },
+                      {
+                        label: "Budget",
+                        icon: <AccountBalanceWalletOutlinedIcon />,
+                        onClick: () => navigate("/budget-mngr"),
+                      },
+                    ].map((tile) => (
+                      <Grid
+                        item
+                        xs={3}
+                        sm={3}
+                        md={3}
+                        lg={3}
+                        key={tile.label}
+                        sx={{ display: "flex" }}
+                      >
+                        <Card
+                          sx={{
+                            flex: 1,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minHeight: 105,
+                            width: "21vw",
+                            aspectRatio: "1 / 1",
+                            cursor: "pointer",
+                            background: mode === "dark" ? "#f1f1f111" : "#0c0c0c07",
+                            borderRadius: 5,
+                            boxShadow: "none",
+                            transition: "background 0.2s",
+                          }}
+                          onClick={tile.onClick}
+                        >
+                          <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 6, backgroundColor: theme.palette.primary.bgr, color: theme.palette.primary.main }}>
+                            {tile.icon}
+                          </Box>
+                          <Typography
+                            variant="subtitle6"
+                            sx={{ color: "text.primary", fontSize: "10.5px" }}
+                          >
+                            {tile.label}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Container>
+              </Box>
             )}
+            {/* Main Content */}
+            <Box sx={{ display: "flex", flexGrow: 1 }}>
+              {!isSmallScreen && <Sidebar />}
+              <Container maxWidth="lg" sx={{ flexGrow: 1, pt: 2, position: "relative" }}>
+                {loading ? (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      height: "60vh",
+                    }}
+                  >
+                    <CircularProgress color={theme.palette.background.main} />
+                  </Box>
+                ) : (
+                  <Grid container spacing={3} justifyContent={"center"}>
+                    {/* Trips Display card */}
+                    <Grid item xs={12} md={6} lg={4}>
+                      {myTrips && myTrips.length > 0 ? (
+                        <Box sx={{ minWidth: "86vw", px: 0 }}>
+                          <Typography variant="h6" textAlign="left" mb={1} ml={1.4}>Your Trips</Typography>
+                          <Slider {...sliderSettings} slickGoTo={sliderIndex} gap={2}>
+                            {myTrips.map((tripInfo) => (
+                              <Box key={tripInfo.id} sx={{ px: 0 }}>
+                                <Card
+                                  sx={{
+                                    background: tripGroupsMap[tripInfo.id]?.iconURL
+                                      ? `url(${tripGroupsMap[tripInfo.id].iconURL})`
+                                      : theme.palette.background.card,
+                                    backgroundSize: "cover",
+                                    backgroundPosition: "center",
+                                    backgroundRepeat: "no-repeat",
+                                    color: "#fff",
+                                    borderRadius: 4,
+                                    boxShadow: "none",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    justifyContent: "flex-end",
+                                    mx: 1,
+                                  }}
+                                >
+                                  <CardContent
+                                    sx={{
+                                      backgroundColor: mode === "dark" ? "#00000000" : "#ffffffa1",
+                                      backdropFilter: "blur(12px)",
+                                      borderBottomLeftRadius: 8,
+                                      borderBottomRightRadius: 8,
+                                    }}
+                                  >
+                                    <Box display="flex" gap={2} mb={1} alignItems="flex-start" justifyContent="space-between">
+                                      <Box>
+                                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5, color: mode === "dark" ? "#cbcbcb" : "#3d3d3d" }}>
+                                          {tripInfo?.name || "Unnamed Trip"}
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ color: mode === "dark" ? "#cbcbcb" : "#3d3d3d", display: "flex", alignItems: "center" }}>
+                                          <LocationOn sx={{ fontSize: 16, mr: 1 }} />
+                                          {tripInfo?.from || "Unknown"} → {tripInfo?.location || "Unknown"}
+                                        </Typography>
+                                        {(tripInfo?.startDate || tripInfo?.date) && (
+                                          <Typography variant="body2" sx={{ color: mode === "dark" ? "#cbcbcb" : "#3d3d3d", display: "flex", alignItems: "center" }}>
+                                            <AccessTime sx={{ fontSize: 16, mr: 1 }} />
+                                            {tripInfo?.startDate || "?"} → {tripInfo?.date || "?"}
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                      {/* Member avatars as avatar group */}
+                                      {tripMembersMap[tripInfo.id]?.length > 0 && (
+                                        <AvatarGroup max={3} sx={{ mt: 1, width: 24, height: 24 }}>
+                                          {tripMembersMap[tripInfo.id].map((m) => (
+                                            <Tooltip title={m.name || `@${m.username}`} key={m.uid}>
+                                              <Avatar
+                                                sx={{
+                                                  width: 24,
+                                                  height: 24,
+                                                }}
+                                                src={m.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${m.uid}`}
+                                                alt={m.name || m.username}
+                                              />
+                                            </Tooltip>
+                                          ))}
+                                        </AvatarGroup>
+                                      )}
+                                    </Box>
+                                    {timelineStatsMap[tripInfo.id] && (
+                                      <Box>
+                                        <Typography variant="caption" sx={{ color: mode === "dark" ? "#cbcbcb" : "#3d3d3d" }}>
+                                          Timeline Progress: {timelineStatsMap[tripInfo.id].completed} / {timelineStatsMap[tripInfo.id].total} complete
+                                        </Typography>
+                                        <LinearProgress
+                                          value={timelineStatsMap[tripInfo.id].percent}
+                                          variant="determinate"
+                                          sx={{
+                                            mt: 0.5,
+                                            borderRadius: 20,
+                                            height: 7,
+                                            bgcolor: mode === "dark" ? "#ffffff36" : "#00000018",
+                                            "& .MuiLinearProgress-bar": { bgcolor: mode === "dark" ? "#ffffff" : "#3d3d3dff", borderRadius: 20 },
+                                          }}
+                                        />
+                                      </Box>
+                                    )}
+                                  </CardContent>
+                                </Card>
+                              </Box>
+                            ))}
+                          </Slider>
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: "center", mt: 4 }}>
+                          No trips found.
+                        </Typography>
+                      )}
+                    </Grid>
+                    {/* Budgets Display Card */}
+                    <Grid item xs={12} md={6} lg={4}>
+                      <Box sx={{ minWidth: "90vw" }} >
+                        <CardContent>
+                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+                            <Typography variant="h6" sx={{ color: "text.primary" }}>
+                              Your Budgets
+                            </Typography>
+                            {budgets.length > 0 && (
+                              <Box
+                                component="button"
+                                onClick={() => navigate("/budget-mngr")}
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  background: "none",
+                                  border: "none",
+                                  color: mode === "dark" ? "#f1f1f1" : "#333",
+                                  fontWeight: 600,
+                                  fontSize: 14,
+                                  cursor: "pointer",
+                                  px: 1,
+                                  py: 0.5,
+                                  borderRadius: 5,
+                                  transition: "background 0.2s",
+                                  "&:hover": {
+                                    background: mode === "dark" ? "#f1f1f111" : "#e0e0e0",
+                                  },
+                                }}
+                              >
+                                View More <ChevronRightIcon />
+                              </Box>
+                            )}
+                          </Box>
+                          {budgets.length > 0 ? (
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexDirection: "row",
+                                gap: 1,
+                                overflowX: "auto",
+                                maxWidth: "100%",
+                                px: 1,
+                                py: 0.5,
+                                scrollbarWidth: "none",
+                                "&::-webkit-scrollbar": {
+                                  display: "none",
+                                  height: 6,
+                                },
+                                "&::-webkit-scrollbar-thumb": {
+                                  display: "none",
+                                  borderRadius: 4,
+                                },
+                              }}
+                            >
+                              {sortedBudgets.slice(0, 5).map((b, idx) => {
+                                const category =
+                                  b.category || (Array.isArray(b.items) && b.items[0]?.category) || "Other";
+                                const cat = CATEGORY_ICONS[category] || CATEGORY_ICONS.Other;
 
+                                const budgetName =
+                                  b.name || b.title || (Array.isArray(b.items) && b.items[0]?.name) || "Untitled";
+                                const totalBudget = Number(b.amount || b.total || 0);
+                                const expenses = Array.isArray(b.expenses)
+                                  ? b.expenses
+                                  : Array.isArray(b.items)
+                                    ? b.items.flatMap(i => i.expenses || [])
+                                    : [];
+                                const totalExpense = expenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
+                                const balance = totalBudget - totalExpense;
+                                const contributors = Array.isArray(b.contributors)
+                                  ? b.contributors
+                                  : Array.isArray(b.users)
+                                    ? b.users
+                                    : [];
+                                const budgetIndex = sortedBudgets.findIndex(budget => budget === b);
 
-          </Container>
-         
-        </Box>
+                                return (
+                                  <Box
+                                    key={b.id || b.name || idx}
+                                    sx={{
+                                      background: cat.listbgcolor,
+                                      borderRadius: 8,
+                                      px: 1,
+                                      py: 1,
+                                      minWidth: 120,
+                                      maxWidth: 180,
+                                      fontSize: 13,
+                                      color: theme.palette.text.primary,
+                                      textAlign: "left",
+                                      boxShadow: "none",
+                                      flex: "0 0 auto",
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      justifyContent: "center",
+                                      alignItems: "flex-start",
+                                      cursor: "pointer",
+                                      transition: "box-shadow 0.2s",
+                                      "&:hover": {
+                                        boxShadow: "0 4px 16px #0006",
+                                      },
+                                    }}
+                                    onClick={() => navigate(`/budget-mngr?index=${budgetIndex}&expdrawer=true`)}
+                                  >
+                                    <Box sx={{ display: "flex", alignItems: "center", mb: 0 }}>
+                                      <Box
+                                        sx={{
+                                          background: cat.mcolor,
+                                          borderRadius: "50%",
+                                          width: 36,
+                                          height: 36,
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          mr: 1,
+                                        }}
+                                      >
+                                        {React.cloneElement(
+                                          cat.icon,
+                                          { sx: { fontSize: 22, color: cat.fcolor } }
+                                        )}
+                                      </Box>
+                                      <Box>
+                                        <Box display={"flex"} flexDirection={"row"} justifyContent={"space-between"} alignItems="center" gap={1}>
+                                          <Typography style={{ fontSize: 15 }}>
+                                            {budgetName}
+                                          </Typography>
+                                          <Typography variant="caption" style={{ backgroundColor: mode === "dark" ? "#f1f1f111" : "#e0e0e0", color: mode === "dark" ? "#aaa" : "#333", padding: "1px 6px", borderRadius: "20px", mt: 0, fontWeight: "bolder" }}>
+                                            {contributors.length > 0
+                                              ? `${contributors.length}`
+                                              : "0"}
+                                          </Typography>
+                                        </Box>
+                                        <div style={{ color: cat.fcolor, fontWeight: 600 }}>
+                                          ₹{balance.toFixed(2)}
+                                          {totalBudget > 0 && (
+                                            <span style={{ color: mode === "dark" ? "#ccc" : "#555", fontWeight: 400, fontSize: 12, marginLeft: 4 }}>
+                                              / ₹{totalBudget}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </Box>
+                                    </Box>
+                                  </Box>
+                                );
+                              })}
+                              {budgets.length > 5 && (
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    px: 2,
+                                    color: theme.palette.text.secondary,
+                                    fontSize: 13,
+                                    fontWeight: 500,
+                                    minWidth: 60,
+                                  }}
+                                >
+                                  +{budgets.length - 5} more...
+                                </Box>
+                              )}
+                            </Box>
+                          ) : (
+                            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: "center", mt: 2 }}>
+                              No budgets found.
+                            </Typography>
+                          )}
+                        </CardContent>
+                      </Box>
+                    </Grid>
+                    {/* Reminders Glimpse Card */}
+                    <Container maxWidth="lg" sx={{ mt: 2, mb: 2 }}>
+                      <Box
+                        sx={{
+                          mb: 2,
+                          background: mode === "dark" ? "#f1f1f111" : "#afafaf16",
+                          color: theme.palette.text.primary,
+                          boxShadow: "none",
+                          borderRadius: 5,
+                        }}
+                      >
+                        <CardContent>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              mb: 3,
+                            }}
+                          >
+                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                              <AlarmOutlinedIcon sx={{ mr: 1 }} />
+                              <Typography variant="h6">Reminders</Typography>
+                            </Box>
 
-        
-<Grid
-  justifyContent={"right"}
-  container
-  sx={{
-    position: "sticky",
-    bottom: 20,
-    right: 20,
-    mr: 1.5
-  }}
->
+                            <Button
+                              size="small"
+                              sx={{
+                                height: 30,
+                                minWidth: 30,
+                                borderRadius: "80px",
+                                backgroundColor: theme.palette.primary.bgr,
+                                color: theme.palette.primary.main,
+                                fontSize: 24,
+                                padding: "4px 6px",
+                                boxShadow: "none",
+                              }}
+                              onClick={() => {
+                                remindersRef.current?.openAddReminderDrawer();
+                              }}
+                            >
+                              +
+                            </Button>
+                          </Box>
 
-    {isSmallScreen && (
-      <Zoom in>
-        <Fab
-          color="primary"
-          aria-label="chat"
-          sx={{
-            zIndex: 999,
-            width: '70px',
-            height: '70px',
-            background: theme.palette.primary.bg,
-            color: theme.palette.primary.main,
-            boxShadow: "none",
-            borderRadius: 5,
-            "&:hover": {
-              background: theme.palette.primary.bg,
-            },
-          }}
-          onClick={() => navigate("/chats")} // Or your chat route
-        >
-          <ChatBubbleOutlineIcon />
-        </Fab>
-      </Zoom>
-    )}
-</Grid>         
-      </Box>
-      </BetaAccessGuard>
+                          {remindersLoading ? (
+                            <Typography color="text.secondary" fontSize={14}>
+                              Loading...
+                            </Typography>
+                          ) : reminders.length === 0 ? (
+                            <Typography color="text.secondary" fontSize={14}>
+                              No reminders yet.
+                            </Typography>
+                          ) : (
+                            <ul style={{ margin: 0, paddingLeft: 0 }}>
+                              {reminders
+                                .filter((rem) => !rem.completed)
+                                .slice(0, 3)
+                                .map((rem) => (
+                                  <li
+                                    key={rem.id}
+                                    style={{
+                                      fontSize: 16,
+                                      backgroundColor: mode === "dark" ? "#f1f1f111" : "#ffffffff",
+                                      borderRadius: 28,
+                                      padding: 9,
+                                      listStyle: "none",
+                                      marginBottom: 7,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 9,
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        cursor: "pointer",
+                                        marginRight: 8,
+                                        marginLeft: 8,
+                                        display: "flex",
+                                        alignItems: "center",
+                                      }}
+                                      title="Mark as completed"
+                                      onClick={() =>
+                                        remindersRef.current?.markReminderComplete(rem.id)
+                                      }
+                                    >
+                                      <NotificationsActiveIcon
+                                        style={{ color: mode === "dark" ? "#aaa" : "#333", fontSize: 22 }}
+                                      />
+                                    </span>
+                                    <span>{rem.text}</span>
+                                  </li>
+                                ))}
+                            </ul>
+                          )}
+
+                          <Button
+                            size="small"
+                            sx={{
+                              mt: 1,
+                              background: mode === "dark" ? "#f1f1f111" : "#0c0c0c1a",
+                              color: theme.palette.text.primary,
+                              fontSize: 14,
+                              padding: "4px 8px",
+                              boxShadow: "none",
+                              borderRadius: 3,
+                            }}
+                            onClick={() => setRemindersDrawerOpen(true)}
+                          >
+                            View All
+                          </Button>
+                        </CardContent>
+                      </Box>
+                    </Container>
+                    <Reminders
+                      ref={remindersRef}
+                      open={remindersDrawerOpen}
+                      onClose={() => setRemindersDrawerOpen(false)}
+                      asDrawer
+                    />
+                    <Box
+                      sx={{
+                        mb: 4,
+                        alignContent: "center",
+                        alignItems: "center",
+                        textAlign: "center",
+                        opacity: 0.5,
+                        fontSize: "0.75rem",
+                        userSelect: "none",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        BunkMate v{packageJson.version || "N/A"} — Made with ❤️
+                      </Typography>
+                    </Box>
+                  </Grid>
+                )}
+              </Container>
+            </Box>
+            <Grid
+              justifyContent={"right"}
+              container
+              sx={{
+                position: "sticky",
+                bottom: 20,
+                right: 20,
+                mr: 1.5
+              }}
+            >
+              {isSmallScreen && (
+                <Zoom in>
+                  <Fab
+                    color="primary"
+                    aria-label="chat"
+                    sx={{
+                      zIndex: 999,
+                      width: '70px',
+                      height: '70px',
+                      background: theme.palette.primary.bg,
+                      color: theme.palette.primary.main,
+                      boxShadow: "none",
+                      borderRadius: 5,
+                      "&:hover": {
+                        background: theme.palette.primary.bg,
+                      },
+                    }}
+                    onClick={() => navigate("/chats")}
+                  >
+                    <ChatBubbleOutlineIcon />
+                  </Fab>
+                </Zoom>
+              )}
+            </Grid>
+          </Box>
+        </BetaAccessGuard>
       </DeviceGuard>
     </ThemeProvider>
   );
