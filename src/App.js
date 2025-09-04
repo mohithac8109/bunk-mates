@@ -78,7 +78,7 @@ function App() {
             <Route path="/budget-mngr" element={<Budgetmngr />}/>
             <Route path="/reminders" element={<Reminders />} />
             <Route path="/notes" element={<Notes />} />
-            <Route path="/" element={<Trips />} />
+            <Route path="/trips" element={<Trips />} />
             <Route path="/trips/:id" element={<TripDetails />} />
             <Route path="/join" element={<JoinTrip />} />
             <Route path="/group-invite/:inviteToken" element={<GroupInvitePage />} />
@@ -86,7 +86,7 @@ function App() {
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/community" element={<CommunityPage />} />
-            <Route path="/home" element={
+            <Route path="/" element={
           <ProtectedRoute>
             <Home />
           </ProtectedRoute>
