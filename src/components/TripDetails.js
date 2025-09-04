@@ -643,7 +643,7 @@ const fetchCoverImage = async (location) => {
             top: 16,
             left: 16,
             backgroundColor: mode === "dark" ? "#00000047" : "#ffffff47",
-            backdropFilter: "blur(180px)",
+            backdropFilter: "blur(180px)",  
           }}
         >
           Back
