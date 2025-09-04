@@ -512,18 +512,6 @@ const Home = () => {
     auth.signOut().then(() => navigate("/login"));
   };
 
-  if (!authInitialized) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (notLoggedIn) {
-    navigate("/login", { replace: true });
-    return null;
-  }
 
   return (
     <ThemeProvider theme={theme}>
