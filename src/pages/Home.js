@@ -589,6 +589,7 @@ const Home = () => {
 
   return (
     <ThemeProvider theme={theme}>
+      <DeviceGuard>
               <BetaAccessGuard>
       <Box
         sx={{
@@ -1297,6 +1298,7 @@ const Home = () => {
 </Grid>         
       </Box>
       </BetaAccessGuard>
+      </DeviceGuard>
     </ThemeProvider>
   );
 };

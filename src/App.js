@@ -72,7 +72,7 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/chats" element={<Chats />} />
+            <Route path="/" element={<Chats />} />
             <Route path="/chat/:friendId" element={<Chatroom />} />
             <Route path="/group/:groupName" element={<GroupChat />}/>
             <Route path="/budget-mngr" element={<Budgetmngr />}/>
@@ -86,7 +86,7 @@ function App() {
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/community" element={<CommunityPage />} />
-            <Route path="/" element={
+            <Route path="/home" element={
           <ProtectedRoute>
             <Home />
           </ProtectedRoute>
