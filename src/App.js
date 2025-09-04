@@ -87,9 +87,9 @@ function App() {
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/community" element={<CommunityPage />} />
             <Route path="/" element={
-          <ProtectedRoute>
+          // <ProtectedRoute>
             <Home />
-          </ProtectedRoute>
+          // </ProtectedRoute>
         } />
       </Routes>
     </Router>
