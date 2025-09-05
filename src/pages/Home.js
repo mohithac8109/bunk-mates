@@ -526,8 +526,6 @@ const Home = () => {
   }
 
   return (
-      <DeviceGuard>
-        <BetaAccessGuard>
           <Box
             sx={{
               display: "flex",
@@ -1197,8 +1195,6 @@ const Home = () => {
               )}
             </Grid>
           </Box>
-        </BetaAccessGuard>
-      </DeviceGuard>
   );
 };
 
