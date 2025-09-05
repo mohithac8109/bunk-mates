@@ -401,13 +401,13 @@ const Home = () => {
   //   return () => unsubscribeBudgets();
   // }, [user]);
 
-  const sortedBudgets = useMemo(() => {
-    return [...budgets].sort((a, b) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bTime - aTime;
-    });
-  }, [budgets]);
+  // const sortedBudgets = useMemo(() => {
+  //   return [...budgets].sort((a, b) => {
+  //     const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+  //     const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+  //     return bTime - aTime;
+  //   });
+  // }, [budgets]);
 
   // Real-time trips listener + timelines + trip member fetch (one-time per trip)
   // useEffect(() => {
@@ -894,7 +894,7 @@ const Home = () => {
                                 },
                               }}
                             >
-                              {sortedBudgets.slice(0, 5).map((b, idx) => {
+                              {/* {sortedBudgets.slice(0, 5).map((b, idx) => {
                                 const category =
                                   b.category || (Array.isArray(b.items) && b.items[0]?.category) || "Other";
                                 const cat = CATEGORY_ICONS[category] || CATEGORY_ICONS.Other;
@@ -984,7 +984,7 @@ const Home = () => {
                                     </Box>
                                   </Box>
                                 );
-                              })}
+                              })} */}
                               {budgets.length > 5 && (
                                 <Box
                                   sx={{
