@@ -345,76 +345,61 @@ const Home = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const fetchReminders = async () => {
-      setRemindersLoading(true);
-      try {
-        const user = getUserFromStorage();
-        if (!user || !user.uid) {
-          setReminders([]);
-          setRemindersLoading(false);
-          return;
-        }
-        const q = query(
-          collection(db, "reminders"),
-          orderBy("createdAt", "desc")
-        );
-        const querySnapshot = await getDocs(q);
-        const data = [];
-        querySnapshot.forEach((doc) => {
-          const reminder = { id: doc.id, ...doc.data() };
-          if (reminder.uid && reminder.uid === user.uid) {
-            data.push(reminder);
-          }
-        });
-        setReminders(data);
-      } catch (err) {
-        setReminders([]);
-      }
-      setRemindersLoading(false);
-    };
-    fetchReminders();
-  }, []);
+  // useEffect(() => {
+  //   const fetchReminders = async () => {
+  //     setRemindersLoading(true);
+  //     try {
+  //       const user = getUserFromStorage();
+  //       if (!user || !user.uid) {
+  //         setReminders([]);
+  //         setRemindersLoading(false);
+  //         return;
+  //       }
+  //       const q = query(
+  //         collection(db, "reminders"),
+  //         orderBy("createdAt", "desc")
+  //       );
+  //       const querySnapshot = await getDocs(q);
+  //       const data = [];
+  //       querySnapshot.forEach((doc) => {
+  //         const reminder = { id: doc.id, ...doc.data() };
+  //         if (reminder.uid && reminder.uid === user.uid) {
+  //           data.push(reminder);
+  //         }
+  //       });
+  //       setReminders(data);
+  //     } catch (err) {
+  //       setReminders([]);
+  //     }
+  //     setRemindersLoading(false);
+  //   };
+  //   fetchReminders();
+  // }, []);
 
-  useEffect(() => {
-    if (!user?.uid) {
-      setBudgets([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+  // useEffect(() => {
+  //   if (!user?.uid) {
+  //     setBudgets([]);
+  //     setLoading(false);
+  //     return;
+  //   }
+  //   setLoading(true);
 
-    const budgetsDocRef = doc(db, "budgets", user.uid);
+  //   const budgetsDocRef = doc(db, "budgets", user.uid);
 
-    const unsubscribeBudgets = onSnapshot(budgetsDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setBudgets(docSnap.data().items || []);
-      } else {
-        setBudgets([]);
-      }
-      setLoading(false);
-    }, () => {
-      setBudgets([]);
-      setLoading(false);
-    });
+  //   const unsubscribeBudgets = onSnapshot(budgetsDocRef, (docSnap) => {
+  //     if (docSnap.exists()) {
+  //       setBudgets(docSnap.data().items || []);
+  //     } else {
+  //       setBudgets([]);
+  //     }
+  //     setLoading(false);
+  //   }, () => {
+  //     setBudgets([]);
+  //     setLoading(false);
+  //   });
 
-    return () => unsubscribeBudgets();
-  }, [user]);
-
-  const weatherBg =
-    weather && weatherGradients[weather.main]
-      ? weatherGradients[weather.main]
-      : weatherGradients.Default;
-
-  const buttonWeatherBg =
-    weather && weatherColors[weather.main]
-      ? weatherColors[weather.main]
-      : weatherColors.Default;
-
-  const WeatherBgdrop =
-    weather && weatherbgColors[weather.main]
-      ? weatherbgColors[weather.main]
-      : weatherbgColors.Default;
+  //   return () => unsubscribeBudgets();
+  // }, [user]);
 
   const sortedBudgets = useMemo(() => {
     return [...budgets].sort((a, b) => {
@@ -425,85 +410,85 @@ const Home = () => {
   }, [budgets]);
 
   // Real-time trips listener + timelines + trip member fetch (one-time per trip)
-  useEffect(() => {
-    if (!user?.uid) {
-      setMyTrips([]);
-      setTripMembersMap({});
-      setTimelineStatsMap({});
-      setTripGroupsMap({});
-      return;
-    }
+  // useEffect(() => {
+  //   if (!user?.uid) {
+  //     setMyTrips([]);
+  //     setTripMembersMap({});
+  //     setTimelineStatsMap({});
+  //     setTripGroupsMap({});
+  //     return;
+  //   }
 
-    const tripsQuery = query(
-      collection(db, "trips"),
-      where("members", "array-contains", user.uid)
-    );
+  //   const tripsQuery = query(
+  //     collection(db, "trips"),
+  //     where("members", "array-contains", user.uid)
+  //   );
 
-    const unsubscribeTrips = onSnapshot(tripsQuery, (querySnapshot) => {
-      const tripsList = [];
-      querySnapshot.forEach(doc => tripsList.push({ id: doc.id, ...doc.data() }));
-      setMyTrips(tripsList);
+  //   const unsubscribeTrips = onSnapshot(tripsQuery, (querySnapshot) => {
+  //     const tripsList = [];
+  //     querySnapshot.forEach(doc => tripsList.push({ id: doc.id, ...doc.data() }));
+  //     setMyTrips(tripsList);
 
-      tripsList.forEach(async (trip) => {
-        if (trip.members && Array.isArray(trip.members)) {
-          const membersData = await Promise.all(
-            trip.members.map(uid =>
-              getDoc(doc(db, "users", uid)).then(d => d.exists() ? { uid: d.id, ...d.data() } : null)
-            )
-          );
-          setTripMembersMap(prev => ({ ...prev, [trip.id]: membersData.filter(Boolean) }));
-        }
-      });
+  //     tripsList.forEach(async (trip) => {
+  //       if (trip.members && Array.isArray(trip.members)) {
+  //         const membersData = await Promise.all(
+  //           trip.members.map(uid =>
+  //             getDoc(doc(db, "users", uid)).then(d => d.exists() ? { uid: d.id, ...d.data() } : null)
+  //           )
+  //         );
+  //         setTripMembersMap(prev => ({ ...prev, [trip.id]: membersData.filter(Boolean) }));
+  //       }
+  //     });
 
-      let timelineUnsubs = [];
-      timelineUnsubs.forEach(unsub => unsub && unsub());
-      timelineUnsubs = tripsList.map(trip => {
-        const timelineCol = collection(db, "trips", trip.id, "timeline");
-        const unsub = onSnapshot(timelineCol, snap => {
-          const events = snap.docs.map(d => d.data());
-          const total = events.length || 1;
-          const completed = events.filter(e => e.completed === true).length;
-          setTimelineStatsMap(prev => ({
-            ...prev,
-            [trip.id]: { completed, total, percent: Math.round((completed / total) * 100) }
-          }));
-        });
-        return unsub;
-      });
+  //     let timelineUnsubs = [];
+  //     timelineUnsubs.forEach(unsub => unsub && unsub());
+  //     timelineUnsubs = tripsList.map(trip => {
+  //       const timelineCol = collection(db, "trips", trip.id, "timeline");
+  //       const unsub = onSnapshot(timelineCol, snap => {
+  //         const events = snap.docs.map(d => d.data());
+  //         const total = events.length || 1;
+  //         const completed = events.filter(e => e.completed === true).length;
+  //         setTimelineStatsMap(prev => ({
+  //           ...prev,
+  //           [trip.id]: { completed, total, percent: Math.round((completed / total) * 100) }
+  //         }));
+  //       });
+  //       return unsub;
+  //     });
 
-      return () => timelineUnsubs.forEach(unsub => unsub && unsub());
-    });
+  //     return () => timelineUnsubs.forEach(unsub => unsub && unsub());
+  //   });
 
-    return () => unsubscribeTrips();
-  }, [user]);
+  //   return () => unsubscribeTrips();
+  // }, [user]);
 
-  useEffect(() => {
-    if (myTrips && myTrips.length > 0) {
-      setSliderIndex(getDefaultTripIndex(myTrips));
-    }
-  }, [myTrips]);
+  // useEffect(() => {
+  //   if (myTrips && myTrips.length > 0) {
+  //     setSliderIndex(getDefaultTripIndex(myTrips));
+  //   }
+  // }, [myTrips]);
 
-  useEffect(() => {
-    if (!myTrips.length) {
-      setTripGroupsMap({});
-      return;
-    }
+  // useEffect(() => {
+  //   if (!myTrips.length) {
+  //     setTripGroupsMap({});
+  //     return;
+  //   }
 
-    const fetchGroupsForTrips = async () => {
-      const groupMap = {};
-      await Promise.all(
-        myTrips.map(async trip => {
-          const groupSnap = await getDoc(doc(db, "groupChats", trip.id));
-          if (groupSnap.exists()) {
-            groupMap[trip.id] = groupSnap.data();
-          }
-        })
-      );
-      setTripGroupsMap(groupMap);
-    };
+  //   const fetchGroupsForTrips = async () => {
+  //     const groupMap = {};
+  //     await Promise.all(
+  //       myTrips.map(async trip => {
+  //         const groupSnap = await getDoc(doc(db, "groupChats", trip.id));
+  //         if (groupSnap.exists()) {
+  //           groupMap[trip.id] = groupSnap.data();
+  //         }
+  //       })
+  //     );
+  //     setTripGroupsMap(groupMap);
+  //   };
 
-    fetchGroupsForTrips();
-  }, [myTrips]);
+  //   fetchGroupsForTrips();
+  // }, [myTrips]);
 
   const handleLogout = () => {
     localStorage.removeItem(SESSION_KEY);
