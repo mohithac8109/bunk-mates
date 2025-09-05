@@ -179,24 +179,24 @@ const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
 const WEATHER_API_KEY = "c5298240cb3e71775b479a32329803ab"; // <-- Replace with your API key
 
-function getUserFromStorage() {
-  try {
-    const storedUser = localStorage.getItem("bunkmateuser");
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      if (parsed?.uid) return parsed;
-    }
-    const cookieUser = document.cookie
-      .split("; ")
-      .find(row => row.startsWith("bunkmateuser="))
-      ?.split("=")[1];
-    if (cookieUser) {
-      const parsed = JSON.parse(decodeURIComponent(cookieUser));
-      if (parsed?.uid) return parsed;
-    }
-  } catch {}
-  return null;
-}
+// function getUserFromStorage() {
+//   try {
+//     const storedUser = localStorage.getItem("bunkmateuser");
+//     if (storedUser) {
+//       const parsed = JSON.parse(storedUser);
+//       if (parsed?.uid) return parsed;
+//     }
+//     const cookieUser = document.cookie
+//       .split("; ")
+//       .find(row => row.startsWith("bunkmateuser="))
+//       ?.split("=")[1];
+//     if (cookieUser) {
+//       const parsed = JSON.parse(decodeURIComponent(cookieUser));
+//       if (parsed?.uid) return parsed;
+//     }
+//   } catch {}
+//   return null;
+// }
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -206,22 +206,22 @@ function getGreeting() {
   return "Good Night";
 }
 
-function getDefaultTripIndex(trips) {
-  const now = new Date();
-  let ongoing = null, upcoming = null, upcomingDate = null;
-  trips.forEach((trip, idx) => {
-    const start = new Date(trip.startDate || trip.date);
-    const end = new Date(trip.endDate || trip.date);
-    if (start <= now && now <= end) ongoing = idx;
-    else if (start > now && (!upcomingDate || start < upcomingDate)) {
-      upcoming = idx;
-      upcomingDate = start;
-    }
-  });
-  if (ongoing !== null) return ongoing;
-  if (upcoming !== null) return upcoming;
-  return 0;
-}
+// function getDefaultTripIndex(trips) {
+//   const now = new Date();
+//   let ongoing = null, upcoming = null, upcomingDate = null;
+//   trips.forEach((trip, idx) => {
+//     const start = new Date(trip.startDate || trip.date);
+//     const end = new Date(trip.endDate || trip.date);
+//     if (start <= now && now <= end) ongoing = idx;
+//     else if (start > now && (!upcomingDate || start < upcomingDate)) {
+//       upcoming = idx;
+//       upcomingDate = start;
+//     }
+//   });
+//   if (ongoing !== null) return ongoing;
+//   if (upcoming !== null) return upcoming;
+//   return 0;
+// }
 
 const sliderSettings = {
   dots: true,
@@ -297,53 +297,53 @@ const Home = () => {
   }, []);
 
   // Weather with cache
-  useEffect(() => {
-    let cachedWeather = null;
-    try {
-      const local = localStorage.getItem(WEATHER_STORAGE_KEY);
-      if (local) cachedWeather = JSON.parse(local);
-      if (!cachedWeather) {
-        const cookieWeather = document.cookie
-          .split("; ")
-          .find(row => row.startsWith(WEATHER_STORAGE_KEY + "="))
-          ?.split("=")[1];
-        if (cookieWeather) cachedWeather = JSON.parse(decodeURIComponent(cookieWeather));
-      }
-    } catch {}
-    if (cachedWeather) {
-      setWeather(cachedWeather);
-      setWeatherLoading(false);
-    } else {
-      setWeatherLoading(true);
-      if (!navigator.geolocation) {
-        setWeatherLoading(false);
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        try {
-          const { latitude, longitude } = position.coords;
-          const res = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${WEATHER_API_KEY}&units=metric`
-          );
-          const data = await res.json();
-          const weatherObj = {
-            main: data.weather?.[0]?.main || "Default",
-            desc: data.weather?.[0]?.description || "",
-            temp: Math.round(data.main?.temp),
-            city: data.name,
-          };
-          setWeather(weatherObj);
-          localStorage.setItem(WEATHER_STORAGE_KEY, JSON.stringify(weatherObj));
-          document.cookie = `${WEATHER_STORAGE_KEY}=${encodeURIComponent(
-            JSON.stringify(weatherObj)
-          )}; path=/; max-age=1800`;
-        } catch {
-          setWeather(null);
-        }
-        setWeatherLoading(false);
-      }, () => setWeatherLoading(false), { timeout: 10000 });
-    }
-  }, []);
+  // useEffect(() => {
+  //   let cachedWeather = null;
+  //   try {
+  //     const local = localStorage.getItem(WEATHER_STORAGE_KEY);
+  //     if (local) cachedWeather = JSON.parse(local);
+  //     if (!cachedWeather) {
+  //       const cookieWeather = document.cookie
+  //         .split("; ")
+  //         .find(row => row.startsWith(WEATHER_STORAGE_KEY + "="))
+  //         ?.split("=")[1];
+  //       if (cookieWeather) cachedWeather = JSON.parse(decodeURIComponent(cookieWeather));
+  //     }
+  //   } catch {}
+  //   if (cachedWeather) {
+  //     setWeather(cachedWeather);
+  //     setWeatherLoading(false);
+  //   } else {
+  //     setWeatherLoading(true);
+  //     if (!navigator.geolocation) {
+  //       setWeatherLoading(false);
+  //       return;
+  //     }
+  //     navigator.geolocation.getCurrentPosition(async (position) => {
+  //       try {
+  //         const { latitude, longitude } = position.coords;
+  //         const res = await fetch(
+  //           `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${WEATHER_API_KEY}&units=metric`
+  //         );
+  //         const data = await res.json();
+  //         const weatherObj = {
+  //           main: data.weather?.[0]?.main || "Default",
+  //           desc: data.weather?.[0]?.description || "",
+  //           temp: Math.round(data.main?.temp),
+  //           city: data.name,
+  //         };
+  //         setWeather(weatherObj);
+  //         localStorage.setItem(WEATHER_STORAGE_KEY, JSON.stringify(weatherObj));
+  //         document.cookie = `${WEATHER_STORAGE_KEY}=${encodeURIComponent(
+  //           JSON.stringify(weatherObj)
+  //         )}; path=/; max-age=1800`;
+  //       } catch {
+  //         setWeather(null);
+  //       }
+  //       setWeatherLoading(false);
+  //     }, () => setWeatherLoading(false), { timeout: 10000 });
+  //   }
+  // }, []);
 
   // useEffect(() => {
   //   const fetchReminders = async () => {
