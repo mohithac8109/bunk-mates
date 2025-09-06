@@ -164,7 +164,7 @@ const HomeAlternative = () => {
   return (
     <ThemeProvider theme={theme}>
       <AppBar position="fixed" elevation={0}><Toolbar>
-        <Typography variant="h6">BunkMate 🏖️ {userType && <span style={{ fontSize: 14, background: "#eee" }}>{userType}</span>}</Typography>
+        <Typography variant="h6">BunkMate {userType && <span style={{ fontSize: 14, background: "#eee" }}>{userType}</span>}</Typography>
         <ProfilePic />
       </Toolbar></AppBar>
       <Box height={77} />
