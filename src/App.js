@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
+import Homepage from "./pages/Homepage";
 import Profile from "./pages/Profile";
 import Chats from "./pages/Chats";
 import Budgetmngr from "./pages/Budget"
@@ -86,7 +87,8 @@ function App() {
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/community" element={<CommunityPage />} />
-            <Route path="/" element={
+            <Route path="/" element={<Homepage />} />
+            <Route path="/homepage" element={
           // <ProtectedRoute>
             <Home />
           // </ProtectedRoute>
