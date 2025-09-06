@@ -26,7 +26,7 @@ const DASHBOARD_TILES = [
   { label: "Budgets", icon: <AccountBalanceWalletOutlinedIcon />, path: "/budget-mngr" },
 ];
 
-const HomeDummy = () => {
+const Homepage = () => {
   const navigate = useNavigate();
   const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
@@ -156,4 +156,4 @@ const HomeDummy = () => {
   );
 };
 
-export default HomeDummy;
+export default Homepage;
