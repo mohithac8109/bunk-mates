@@ -8,7 +8,7 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import { Icon } from '@react-native-vector-icons/material-icons';
 
 const DASHBOARD_TILES = [
   { label: "Notes", icon: "sticky-note-2", path: "Notes" },
