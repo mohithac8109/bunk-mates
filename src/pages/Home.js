@@ -77,108 +77,109 @@ const fadeIn = keyframes`
 const CATEGORY_ICONS = {
   Food: {
     icon: <RestaurantOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#ff9c000f",   // orange[50]
-    bgcolor: "#ff9c0030",   // orange[50]
-    mcolor: "#ff98005e",    // orange[500]
-    fcolor: "#e3aa8b"       // orange[900]
+    listbgcolor: "#ff9c000f",
+    bgcolor: "#ff9c0030",
+    mcolor: "#ff98005e",
+    fcolor: "#e3aa8b"
   },
   Tour: {
     icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#0093ff0f",   // blue[50]
-    bgcolor: "#0093ff30",   // blue[50]
-    mcolor: "#2196f35e",    // blue[500]
-    fcolor: "#92b6ef"       // blue[900]
+    listbgcolor: "#0093ff0f",
+    bgcolor: "#0093ff30",
+    mcolor: "#2196f35e",
+    fcolor: "#92b6ef"
   },
   Rent: {
     icon: <HomeOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#88ff000f",   // lightGreen[50]
-    bgcolor: "#88ff0030",   // lightGreen[50]
-    mcolor: "#8bc34a5e",    // lightGreen[500]
-    fcolor: "#8dc378"       // lightGreen[900]
+    listbgcolor: "#88ff000f",
+    bgcolor: "#88ff0030",
+    mcolor: "#8bc34a5e",
+    fcolor: "#8dc378"
   },
   Utilities: {
     icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#8ad0ff0f",   // blueGrey[50]
-    bgcolor: "#8ad0ff30",   // blueGrey[50]
-    mcolor: "#607d8b5e",    // blueGrey[500]
-    fcolor: "#8e9ba1"       // blueGrey[900]
+    listbgcolor: "#8ad0ff0f",
+    bgcolor: "#8ad0ff30",
+    mcolor: "#607d8b5e",
+    fcolor: "#8e9ba1"
   },
   Shopping: {
     icon: <LocalMallOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#ff00550f",   // pink[50]
-    bgcolor: "#ff005530",   // pink[50]
-    mcolor: "#e91e635e",    // pink[500]
-    fcolor: "#ffbce0"       // pink[900]
+    listbgcolor: "#ff00550f",
+    bgcolor: "#ff005530",
+    mcolor: "#e91e635e",
+    fcolor: "#ffbce0"
   },
   Fun: {
     icon: <EmojiEventsOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#f5e7480f",   // yellow[50]
-    bgcolor: "#f5e74830",   // yellow[50]
-    mcolor: "#c3b6415e",    // yellow[500]
-    fcolor: "#ddca15"       // yellow[900]
+    listbgcolor: "#f5e7480f",
+    bgcolor: "#f5e74830",
+    mcolor: "#c3b6415e",
+    fcolor: "#ddca15"
   },
   Hospital: {
     icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#ff00260f",   // red[50]
-    bgcolor: "#ff002630",   // red[50]
-    mcolor: "#f443365e",    // red[500]
-    fcolor: "#efa4a4"       // red[900]
+    listbgcolor: "#ff00260f",
+    bgcolor: "#ff002630",
+    mcolor: "#f443365e",
+    fcolor: "#efa4a4"
   },
   Education: {
     icon: <SchoolOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#0093ff0f",   // blue[50]
-    bgcolor: "#0093ff30",   // blue[50]
-    mcolor: "#2196f35e",    // blue[500]
-    fcolor: "#92b6ef"       // indigo[900]
+    listbgcolor: "#0093ff0f",
+    bgcolor: "#0093ff30",
+    mcolor: "#2196f35e",
+    fcolor: "#92b6ef"
   },
   Fuel: {
     icon: <LocalGasStationOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#fbe9e70f",   // deepOrange[50]
-    bgcolor: "#fbe9e730",   // deepOrange[50]
-    mcolor: "#ff5722",      // deepOrange[500]
-    fcolor: "#bf360c"       // deepOrange[900]
+    listbgcolor: "#fbe9e70f",
+    bgcolor: "#fbe9e730",
+    mcolor: "#ff5722",
+    fcolor: "#bf360c"
   },
   Entertainment: {
     icon: <MovieOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#f3e5f50f",   // purple[50]
-    bgcolor: "#f3e5f530",   // purple[50]
-    mcolor: "#9c27b0",      // purple[500]
-    fcolor: "#4a148c"       // purple[900]
+    listbgcolor: "#f3e5f50f",
+    bgcolor: "#f3e5f530",
+    mcolor: "#9c27b0",
+    fcolor: "#4a148c"
   },
   Bills: {
     icon: <LocalAtmOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#e0f2f10f",   // teal[50]
-    bgcolor: "#e0f2f130",   // teal[50]
-    mcolor: "#009688",      // teal[500]
-    fcolor: "#004d40"       // teal[900]
+    listbgcolor: "#e0f2f10f",
+    bgcolor: "#e0f2f130",
+    mcolor: "#009688",
+    fcolor: "#004d40"
   },
   Travel: {
     icon: <TravelExploreOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#e1f5fe0f",   // lightBlue[50]
-    bgcolor: "#e1f5fe",         // lightBlue[50]
-    mcolor: "#03a9f4",          // lightBlue[500]
-    fcolor: "#01579b"           // lightBlue[900]
+    listbgcolor: "#e1f5fe0f",
+    bgcolor: "#e1f5fe",
+    mcolor: "#03a9f4",
+    fcolor: "#01579b"
   },
   Medical: {
     icon: <LocalHospitalOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#fce4ec0f",   // pink[50]
-    bgcolor: "#fce4ec",         // pink[50]
-    mcolor: "#e91e63",          // pink[500]
-    fcolor: "#880e4f"           // pink[900]
+    listbgcolor: "#fce4ec0f",
+    bgcolor: "#fce4ec",
+    mcolor: "#e91e63",
+    fcolor: "#880e4f"
   },
   Other: {
     icon: <CategoryOutlinedIcon sx={{ fontSize: "large" }} />,
-    listbgcolor: "#f5f5f50f",   // grey[50]
-    bgcolor: "#f5f5f530",       // grey[100]
-    mcolor: "#bdbdbd5e",        // grey[400]
-    fcolor: "#a4a4a4"           // grey[900]
+    listbgcolor: "#f5f5f50f",
+    bgcolor: "#f5f5f530",
+    mcolor: "#bdbdbd5e",
+    fcolor: "#a4a4a4"
   }
 };
 
 const SESSION_KEY = "bunkmate_session";
 const WEATHER_STORAGE_KEY = "bunkmate_weather";
-const WEATHER_API_KEY = "c5298240cb3e71775b479a32329803ab"; // <-- Replace with your API key
+const WEATHER_API_KEY = "c5298240cb3e71775b479a32329803ab";
 
+// --- Helper Functions ---
 function getUserFromStorage() {
   try {
     const storedUser = localStorage.getItem("bunkmateuser");
@@ -526,7 +527,18 @@ const Home = () => {
   }
 
   return (
-          <Box>
+    <ThemeProvider theme={theme}>
+      <DeviceGuard>
+        <BetaAccessGuard>
+          <Box
+            sx={{
+              display: "flex",
+              minHeight: "100vh",
+              flexDirection: "column",
+              backgroundColor: mode === "dark" ? "#0c0c0c" : "#f1f1f1",
+              color: mode === "dark" ? "#fff" : "#000",
+            }}
+          >
             <AppBar position="fixed" elevation={0} sx={{ backgroundColor: "transparent", backdropFilter: "blur(10px)", boxShadow: "none" }}>
               <Toolbar sx={{ justifyContent: 'space-between', py: 1, px: 3, backgroundColor: 'transparent' }}>
                 <Typography variant="h6" sx={{ userSelect: 'none', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 'bold', color: mode === "dark" ? "#f1f1f1" : "#333" }}>
@@ -587,17 +599,6 @@ const Home = () => {
                     pb: 2,
                     position: "relative",
                     zIndex: 3,
-                    "&:after": {
-                      content: '""',
-                      display: "block",
-                      position: "absolute",
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      height: { xs: 60, md: 90 },
-                      pointerEvents: "none",
-                      zIndex: 2,
-                    },
                   }}
                 >
                   <Box
@@ -656,7 +657,6 @@ const Home = () => {
                     </Box>
                   </Box>
                 </Container>
-
                 <Container maxWidth="lg" sx={{ mb: 3, padding: 0 }}>
                   <Grid
                     container
@@ -887,15 +887,7 @@ const Home = () => {
                                 maxWidth: "100%",
                                 px: 1,
                                 py: 0.5,
-                                scrollbarWidth: "none",
-                                "&::-webkit-scrollbar": {
-                                  display: "none",
-                                  height: 6,
-                                },
-                                "&::-webkit-scrollbar-thumb": {
-                                  display: "none",
-                                  borderRadius: 4,
-                                },
+                                scrollbarWidth: "none"
                               }}
                             >
                               {sortedBudgets.slice(0, 5).map((b, idx) => {
@@ -1037,7 +1029,6 @@ const Home = () => {
                               <AlarmOutlinedIcon sx={{ mr: 1 }} />
                               <Typography variant="h6">Reminders</Typography>
                             </Box>
-
                             <Button
                               size="small"
                               sx={{
@@ -1057,7 +1048,6 @@ const Home = () => {
                               +
                             </Button>
                           </Box>
-
                           {remindersLoading ? (
                             <Typography color="text.secondary" fontSize={14}>
                               Loading...
@@ -1108,7 +1098,6 @@ const Home = () => {
                                 ))}
                             </ul>
                           )}
-
                           <Button
                             size="small"
                             sx={{
@@ -1187,6 +1176,9 @@ const Home = () => {
               )}
             </Grid>
           </Box>
+        </BetaAccessGuard>
+      </DeviceGuard>
+    </ThemeProvider>
   );
 };
 
