@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import {
-  SafeAreaView,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   StyleSheet,
   ScrollView,
 } from "react-native";
-import { Icon } from '@react-native-vector-icons/material-icons';
+import { SafeAreaView } from "react-native-safe-area-context";
+import { MaterialIcons } from "@react-native-vector-icons/material-icons";
 
 const DASHBOARD_TILES = [
   { label: "Notes", icon: "sticky-note-2", path: "Notes" },
@@ -34,13 +34,16 @@ const HomeDummy = ({ navigation }) => {
   ]);
 
   const renderTile = ({ item }) => (
-    <TouchableOpacity
-      style={styles.tile}
+    <Pressable
+      style={({ pressed }) => [
+        styles.tile,
+        { opacity: pressed ? 0.7 : 1 },
+      ]}
       onPress={() => navigation?.navigate(item.path)}
     >
-      <Icon name={item.icon} size={30} color="#333" />
+      <MaterialIcons name={item.icon} size={30} color="#333" />
       <Text style={styles.tileLabel}>{item.label}</Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   const renderSection = (title, data, renderItem) => (
@@ -58,7 +61,7 @@ const HomeDummy = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <Text style={styles.header}>BunkMate (Dummy Mode)</Text>
 
       {/* Tiles */}
