@@ -528,35 +528,221 @@ const Home = () => {
 
   return (
     <ThemeProvider theme={theme}>
-      <AppBar position="fixed" elevation={0}><Toolbar>
-        <Typography variant="h6">BunkMate 🏖️ {userType && <span style={{ fontSize: 14, background: "#eee" }}>{userType}</span>}</Typography>
-        <ProfilePic />
-      </Toolbar></AppBar>
-      <Box height={77} />
-      <Container maxWidth="lg" sx={{ pt: 2 }}>
-        {/* Tiles Grid Loop */}
-        <Grid container spacing={2}>
-          {DASHBOARD_TILES.map(tile => (
-            <Grid item xs={3} key={tile.label}>
-              <Card
-                onClick={() => handleTileClick(tile)}
-                sx={{ textAlign: "center", p: 2, cursor: "pointer" }}
+      <DeviceGuard>
+        <BetaAccessGuard>
+          <Box
+            sx={{
+              display: "flex",
+              minHeight: "100vh",
+              flexDirection: "column",
+              backgroundColor: mode === "dark" ? "#0c0c0c" : "#f1f1f1",
+              color: mode === "dark" ? "#fff" : "#000",
+            }}
+          >
+            <AppBar position="fixed" elevation={0} sx={{ backgroundColor: "transparent", backdropFilter: "blur(10px)", boxShadow: "none" }}>
+              <Toolbar sx={{ justifyContent: 'space-between', py: 1, px: 3, backgroundColor: 'transparent' }}>
+                <Typography variant="h6" sx={{ userSelect: 'none', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 'bold', color: mode === "dark" ? "#f1f1f1" : "#333" }}>
+                  BunkMate 🏖️
+                  {userType && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        backgroundColor: mode === "dark" ? "#f1f1f141" : "#4848484d",
+                        color: mode === "dark" ? "#fff" : "#000",
+                        px: 1.5,
+                        py: 0.2,
+                        borderRadius: 2.5,
+                        fontWeight: 'bold',
+                        fontSize: '0.7rem',
+                      }}
+                    >
+                      {userType}
+                    </Typography>
+                  )}
+                </Typography>
+                <ProfilePic />
+              </Toolbar>
+            </AppBar>
+            <Box sx={{ height: { xs: 0, sm: 77 } }} />
+            {loading ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: "60vh",
+                  zIndex: 1500
+                }}
               >
-                <Box mb={1}>{tile.icon}</Box>
-                <Typography variant="subtitle2">{tile.label}</Typography>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-        {/* Content Sections Loop */}
-        <Grid container spacing={2} sx={{ mt: 3 }}>
-          {DASH_SECTIONS.map(section => (
-            <Grid item xs={12} md={4} key={section.label}>
-              <Card>
-                <CardContent>
-                  <Box display="flex" justifyContent="space-between" mb={1}>
-                    <Typography variant="h6">{section.label}</Typography>
-                    <Button size="small" onClick={section.onViewMore}>View More <ChevronRightIcon /></Button>
+                <CircularProgress color="white" />
+              </Box>
+            ) : notLoggedIn ? (
+              <Box sx={{ p: 6, textAlign: "center" }}>
+                <Typography variant="h5" color="text.secondary">
+                  Please log in to use BunkMate.
+                </Typography>
+              </Box>
+            ) : (
+              <Box
+                fullWidth
+                sx={{
+                  zIndex: 1,
+                  mb: 4,
+                  background: `linear-gradient(to top, rgba(0,0,0,0) 0%, #00000000 1%, ${theme.palette.primary.mainbg} 100%)`,
+                  transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
+                }}
+              >
+                <Container
+                  maxWidth="lg"
+                  sx={{
+                    pt: 5,
+                    pb: 2,
+                    position: "relative",
+                    zIndex: 3,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: 2,
+                      borderRadius: 3,
+                      py: 12,
+                      px: 1,
+                      transition: "background 0.8s cubic-bezier(.4,2,.6,1)",
+                      animation: `${fadeIn} 0.7s`,
+                      zIndex: 3,
+                      position: "relative",
+                    }}
+                  >
+                    <Typography variant="h5" sx={{ color: "text.primary" }}>
+                      {getGreeting()},<br /><Typography variant="title" style={{ fontWeight: "bold", fontSize: "1.8rem" }}>{userData.name || "user"}!</Typography>
+                    </Typography>
+                    {/* Weather Widget */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        px: 2,
+                        py: 1,
+                        borderRadius: 5,
+                        background: mode === "dark" ? "#0c0c0c5a" : "#f1f1f19a",
+                        minWidth: 170,
+                        minHeight: 56,
+                        animation: `${fadeIn} 0.7s`,
+                      }}
+                    >
+                      {weatherLoading ? (
+                        <CircularProgress size={24} color={theme.palette.background.primary} />
+                      ) : weather ? (
+                        <>
+                          {weatherIcons[weather.main] || weatherIcons.Default}
+                          <Box>
+                            <Typography variant="body1" sx={{ color: mode === "dark" ? "#fff" : "#000", fontWeight: 600 }}>
+                              {weather.temp}°C {weather.city && `in ${weather.city}`}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                              {weather.desc.charAt(0).toUpperCase() + weather.desc.slice(1)}
+                            </Typography>
+                          </Box>
+                        </>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                          Weather unavailable
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Container>
+                <Container maxWidth="lg" sx={{ mb: 3, padding: 0 }}>
+                  <Grid
+                    container
+                    spacing={1.2}
+                    justifyContent="center"
+                    alignItems="stretch"
+                  >
+                    {[
+                      {
+                        label: "Add Notes",
+                        icon: <StickyNote2OutlinedIcon />,
+                        onClick: () => navigate("/notes"),
+                      },
+                      {
+                        label: "Reminder",
+                        icon: <AlarmOutlinedIcon />,
+                        onClick: () => setRemindersDrawerOpen(true),
+                      },
+                      {
+                        label: "Trip",
+                        icon: <ExploreOutlinedIcon />,
+                        onClick: () => navigate("/trips"),
+                      },
+                      {
+                        label: "Budget",
+                        icon: <AccountBalanceWalletOutlinedIcon />,
+                        onClick: () => navigate("/budget-mngr"),
+                      },
+                    ].map((tile) => (
+                      <Grid
+                        item
+                        xs={3}
+                        sm={3}
+                        md={3}
+                        lg={3}
+                        key={tile.label}
+                        sx={{ display: "flex" }}
+                      >
+                        <Card
+                          sx={{
+                            flex: 1,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minHeight: 105,
+                            width: "21vw",
+                            aspectRatio: "1 / 1",
+                            cursor: "pointer",
+                            background: mode === "dark" ? "#f1f1f111" : "#0c0c0c07",
+                            borderRadius: 5,
+                            boxShadow: "none",
+                            transition: "background 0.2s",
+                          }}
+                          onClick={tile.onClick}
+                        >
+                          <Box sx={{ mb: 1, fontSize: 34, px: 1.5, py: 0.5, borderRadius: 6, backgroundColor: theme.palette.primary.bgr, color: theme.palette.primary.main }}>
+                            {tile.icon}
+                          </Box>
+                          <Typography
+                            variant="subtitle6"
+                            sx={{ color: "text.primary", fontSize: "10.5px" }}
+                          >
+                            {tile.label}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Container>
+              </Box>
+            )}
+            {/* Main Content */}
+            <Box sx={{ display: "flex", flexGrow: 1 }}>
+              {!isSmallScreen && <Sidebar />}
+              <Container maxWidth="lg" sx={{ flexGrow: 1, pt: 2, position: "relative" }}>
+                {loading ? (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      height: "60vh",
+                    }}
+                  >
+                    <CircularProgress color={theme.palette.background.main} />
                   </Box>
                 ) : (
                   <Grid container spacing={3} justifyContent={"center"}>
