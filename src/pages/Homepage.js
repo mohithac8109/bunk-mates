@@ -17,7 +17,7 @@ const DASHBOARD_TILES = [
   { label: "Budgets", icon: "account-balance-wallet", path: "Budgets" },
 ];
 
-const HomeDummy = () => {
+const Homepage = () => {
   const navigate = useNavigate();
   const { mode, accent } = useThemeToggle();
   const theme = getTheme(mode, accent);
